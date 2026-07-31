@@ -1,26 +1,257 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens TourneyCI — soft UI, fond crème, accent vert sapin.
+ * Tout ce qui est défini ici sous @theme génère des classes Tailwind
+ * utilisables partout (ex: --color-cream-100 -> bg-cream-100 / text-cream-100).
+ */
+@theme {
+  /* Couleurs — fonds */
+  --color-cream-50: #faf7f0;
+  --color-cream-100: #f3ece0;
+  --color-cream-200: #e9dfcd;
+  --color-cream-300: #dccdb0;
+
+  /* Couleurs — texte */
+  --color-ink-900: #2b2620;
+  --color-ink-600: #6b6154;
+  --color-ink-400: #97897a;
+
+  /* Couleur primaire — vert sapin */
+  --color-forest-900: #0f3d3e;
+  --color-forest-700: #17504f;
+  --color-forest-500: #256b68;
+  --color-forest-100: #d9e6e2;
+
+  /* États sémantiques */
+  --color-error-600: #b3261e;
+  --color-error-50: #fbeceb;
+  --color-success-600: #2f7d5a;
+  --color-success-50: #e9f5ee;
+
+  /* Échelle de radius (4 / 8 / 12 / 16 / 24px) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
+  /* Élévation — 5 niveaux, intensité croissante */
+  --shadow-flat: none;
+  --shadow-hover: 0 1px 2px rgba(15, 61, 62, 0.07), 0 1px 1px rgba(15, 61, 62, 0.05);
+  --shadow-raised: 0 3px 8px rgba(15, 61, 62, 0.12), 0 1px 2px rgba(15, 61, 62, 0.07);
+  --shadow-modal: 0 16px 40px rgba(15, 61, 62, 0.22), 0 4px 12px rgba(15, 61, 62, 0.12);
+  --shadow-popover: 0 10px 24px rgba(15, 61, 62, 0.16), 0 2px 6px rgba(15, 61, 62, 0.09);
+
+  /* Layer inset/pressed (creusé) */
+  --shadow-inset: inset 0 1px 3px rgba(43, 38, 32, 0.14), inset 0 1px 2px rgba(43, 38, 32, 0.08);
+  --shadow-pressed: inset 0 2px 5px rgba(43, 38, 32, 0.2);
+
+  /*
+   * Thème "esport" — réservé à la page bracket live (/evenements/[id]/live).
+   * Ne pas utiliser ailleurs : le reste du site reste crème/vert sapin.
+   */
+  --color-navy-950: #0a0e27;
+  --color-navy-900: #12183f;
+  --color-navy-800: #1a2152;
+  --color-cyan-300: #5eead4;
+  --color-cyan-400: #2dd4bf;
+  --color-slate-300: #b6bfe0;
+}
+
+/*
+ * Épaisseurs de bordure — 3 tokens, déjà couverts par les utilitaires
+ * Tailwind par défaut : `border` = fine (1px), `border-2` = régulière (2px),
+ * `border-4` = épaisse (4px). Pas de redéfinition nécessaire.
+ */
+
+/*
+ * Design system "ds" — fondations du re-design gaming (Nocturne / Organic).
+ * Système séparé des tokens cream/forest/navy ci-dessus, réservé à
+ * /design-system et aux futurs écrans du chantier V2. Ne pas mélanger.
+ * Toujours consommer via var(--ds-*), jamais de couleur en dur.
+ */
+:root[data-theme="nocturne"] {
+  --ds-bg: #161826;
+  --ds-surface: #232532;
+  --ds-surface-2: #292b31;
+  --ds-text: #e9e9ed;
+  --ds-text-muted: rgba(233, 233, 237, 0.55);
+  --ds-accent: #9184d9;
+  --ds-accent-100: #f5f4ff;
+  --ds-accent-300: #b5abfc;
+  --ds-accent-600: #796cbf;
+  --ds-accent-900: #2b2741;
+  --ds-border: #3f424d;
+  --ds-border-strong: #595d6c;
+  --ds-muted: #75798c;
+  --ds-danger: #e5484d;
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 8px;
+  --ds-radius-lg: 14px;
+  --ds-radius-pill: 999px;
+  --ds-shadow-md: 0 0 0 1px var(--ds-border-strong), 0 6px 18px rgba(0, 0, 0, 0.55);
+  --ds-shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
+  --ds-font-heading: var(--font-inter), system-ui, sans-serif;
+  --ds-font-body: var(--font-inter), system-ui, sans-serif;
+  --ds-font-mono: var(--font-jbmono), monospace;
+  --ds-heading-weight: 500;
+  --ds-btn-primary-bg: transparent;
+  --ds-btn-primary-border: 1px solid var(--ds-accent);
+  --ds-btn-primary-text: var(--ds-accent-300);
+  --ds-radius-btn: var(--ds-radius-md);
+  --ds-radius-input: var(--ds-radius-md);
+}
+
+:root[data-theme="organic"] {
+  --ds-bg: #f5ead8;
+  --ds-surface: #ebddc5;
+  --ds-surface-2: #eee7db;
+  --ds-text: #201e1d;
+  --ds-text-muted: rgba(32, 30, 29, 0.6);
+  --ds-accent: #c67139;
+  --ds-accent-100: #fff2eb;
+  --ds-accent-300: #f6a06b;
+  --ds-accent-600: #b2622d;
+  --ds-accent-900: #402310;
+  --ds-accent-2: #7a8a5e;
+  --ds-accent-2-300: #aebf92;
+  --ds-border: #dcd3c4;
+  --ds-border-strong: #c0b6a5;
+  --ds-muted: #82796a;
+  --ds-danger: #c0392b;
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 16px;
+  --ds-radius-lg: 28px;
+  --ds-radius-pill: 999px;
+  --ds-shadow-md: 0 3px 10px rgba(46, 43, 37, 0.16);
+  --ds-shadow-lg: 0 12px 32px rgba(46, 43, 37, 0.22);
+  --ds-font-heading: var(--font-caprasimo), system-ui, sans-serif;
+  --ds-font-body: var(--font-figtree), system-ui, sans-serif;
+  --ds-font-mono: var(--font-figtree), monospace;
+  --ds-heading-weight: 400;
+  --ds-btn-primary-bg: var(--ds-accent);
+  --ds-btn-primary-border: none;
+  --ds-btn-primary-text: #fff8f0;
+  --ds-radius-btn: var(--ds-radius-pill);
+  --ds-radius-input: var(--ds-radius-pill);
+}
+
+:root[data-theme="voltage"] {
+  --ds-bg: #0a0a0b;
+  --ds-surface: #131316;
+  --ds-surface-2: #1a1a1d;
+  --ds-text: #f2f2f0;
+  --ds-text-muted: rgba(242, 242, 240, 0.5);
+  --ds-accent: #d7ff3e;
+  --ds-accent-100: #eaff7a;
+  --ds-accent-300: #d7ff3e;
+  --ds-accent-600: #b8dd21;
+  --ds-accent-900: #1c2408;
+  --ds-border: #26262a;
+  --ds-border-strong: #3a3a3f;
+  --ds-muted: #8a8a8e;
+  --ds-danger: #ff3d6e;
+  --ds-radius-sm: 0px;
+  --ds-radius-md: 4px;
+  --ds-radius-lg: 8px;
+  --ds-radius-pill: 999px;
+  --ds-shadow-md: 0 0 0 1px var(--ds-border-strong);
+  --ds-shadow-lg: 0 0 0 1px var(--ds-border-strong), 0 12px 32px rgba(0, 0, 0, 0.6);
+  --ds-font-heading: var(--font-archivo), system-ui, sans-serif;
+  --ds-font-body: var(--font-inter), system-ui, sans-serif;
+  --ds-font-mono: var(--font-jbmono), monospace;
+  --ds-heading-weight: 800;
+  --ds-btn-primary-bg: var(--ds-accent);
+  --ds-btn-primary-border: none;
+  --ds-btn-primary-text: var(--ds-bg);
+  --ds-radius-btn: var(--ds-radius-sm);
+  --ds-radius-input: var(--ds-radius-sm);
+}
+
+:root[data-theme="wax"] {
+  --ds-bg: #12233a;
+  --ds-surface: #1b3050;
+  --ds-surface-2: #22406b;
+  --ds-text: #f6efe2;
+  --ds-text-muted: rgba(246, 239, 226, 0.6);
+  --ds-accent: #f0a828;
+  --ds-accent-100: #ffbe4d;
+  --ds-accent-300: #f0a828;
+  --ds-accent-600: #d38f16;
+  --ds-accent-900: #4a3216;
+  --ds-accent-2: #d9543c;
+  --ds-accent-2-300: #e8836e;
+  --ds-border: #22406b;
+  --ds-border-strong: #345580;
+  --ds-muted: #7f93ad;
+  --ds-danger: #d9543c;
+  --ds-radius-sm: 12px;
+  --ds-radius-md: 16px;
+  --ds-radius-lg: 22px;
+  --ds-radius-pill: 999px;
+  --ds-shadow-md: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --ds-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --ds-font-heading: var(--font-bricolage), system-ui, sans-serif;
+  --ds-font-body: var(--font-inter), system-ui, sans-serif;
+  --ds-font-mono: var(--font-inter), monospace;
+  --ds-heading-weight: 800;
+  --ds-btn-primary-bg: var(--ds-accent);
+  --ds-btn-primary-border: none;
+  --ds-btn-primary-text: var(--ds-bg);
+  --ds-radius-btn: var(--ds-radius-pill);
+  --ds-radius-input: var(--ds-radius-md);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: var(--color-cream-100);
+  --foreground: var(--color-ink-900);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Surfaces réutilisables (4 niveaux de layer) */
+@layer components {
+  .layer-base {
+    background-color: var(--color-cream-100);
+  }
+
+  .layer-raised {
+    background-color: var(--color-cream-50);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .layer-inset {
+    background-color: var(--color-cream-200);
+    box-shadow: var(--shadow-inset);
+  }
+
+  .layer-pressed {
+    background-color: var(--color-cream-200);
+    box-shadow: var(--shadow-pressed);
+  }
+
+  /* Motifs décoratifs — thème événement / compétition */
+
+  /* Grille de points façon tableau de scores, en fond de page */
+  .motif-points {
+    background-image: radial-gradient(
+      rgba(15, 61, 62, 0.08) 1.5px,
+      transparent 1.5px
+    );
+    background-size: 24px 24px;
+  }
+
+  /* Bandeau rayé façon drapeau à damier, pour accentuer un en-tête */
+  .motif-damier {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--color-forest-900) 0 8px,
+      var(--color-cream-50) 8px 16px
+    );
+  }
 }

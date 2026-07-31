@@ -1,0 +1,192 @@
+/**
+ * Données mock pour la phase 6 du chantier V2 (profil + classement).
+ */
+
+export type Rang = "Rookie" | "Confirmé" | "Élite" | "Légende";
+
+export type Profil = {
+  pseudo: string;
+  ville: string;
+  rang: Rang;
+  rangNational: number;
+  matchsJoues: number;
+  victoires: number;
+  photoUrl?: string;
+};
+
+export const MON_PROFIL: Profil = {
+  pseudo: "Kader B.",
+  ville: "Abidjan",
+  rang: "Élite",
+  rangNational: 14,
+  matchsJoues: 86,
+  victoires: 61,
+};
+
+const CLE_PROFIL_MODIFIE = "tourneyci-profil-modifie";
+
+/** Fusionne MON_PROFIL avec les surcharges (pseudo/ville) enregistrées en localStorage. */
+export function lireProfil(): Profil {
+  if (typeof window === "undefined") return MON_PROFIL;
+  try {
+    const brut = localStorage.getItem(CLE_PROFIL_MODIFIE);
+    const surcharge = brut ? (JSON.parse(brut) as Partial<Profil>) : {};
+    return { ...MON_PROFIL, ...surcharge };
+  } catch {
+    return MON_PROFIL;
+  }
+}
+
+function lireSurcharge(): Partial<Profil> {
+  if (typeof window === "undefined") return {};
+  try {
+    const brut = localStorage.getItem(CLE_PROFIL_MODIFIE);
+    return brut ? (JSON.parse(brut) as Partial<Profil>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function sauvegarderProfil(donnees: { pseudo: string; ville: string }) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_PROFIL_MODIFIE, JSON.stringify({ ...lireSurcharge(), ...donnees }));
+}
+
+export function sauvegarderPhoto(photoUrl: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_PROFIL_MODIFIE, JSON.stringify({ ...lireSurcharge(), photoUrl }));
+}
+
+export type HistoriqueEntree = {
+  id: string;
+  adversaire: string;
+  resultat: "victoire" | "defaite";
+  score: string;
+  tournoi: string;
+  dateLabel: string;
+};
+
+export const HISTORIQUE: HistoriqueEntree[] = [
+  {
+    id: "h1",
+    adversaire: "Sory D.",
+    resultat: "victoire",
+    score: "2 - 1",
+    tournoi: "Abidjan Cup #12",
+    dateLabel: "Il y a 2 jours",
+  },
+  {
+    id: "h2",
+    adversaire: "Yao M.",
+    resultat: "victoire",
+    score: "3 - 1",
+    tournoi: "Abidjan Cup #12",
+    dateLabel: "Il y a 2 jours",
+  },
+  {
+    id: "h3",
+    adversaire: "Fofana",
+    resultat: "defaite",
+    score: "1 - 2",
+    tournoi: "Ligue Yopougon",
+    dateLabel: "La semaine dernière",
+  },
+];
+
+export type ClassementEntree = {
+  position: number;
+  initiales: string;
+  nom: string;
+  points: number;
+  ville: string;
+  moi?: boolean;
+};
+
+export const VILLES = ["Abidjan", "Bouaké", "Yamoussoukro", "Cocody", "Yopougon"];
+
+export const CLASSEMENTS: Record<string, ClassementEntree[]> = {
+  eafc: [
+    { position: 1, initiales: "SD", nom: "Sory D.", points: 2480, ville: "Abidjan" },
+    { position: 2, initiales: "AY", nom: "Aya K.", points: 2310, ville: "Cocody" },
+    { position: 3, initiales: "IT", nom: "Ismaël T.", points: 2205, ville: "Abidjan" },
+    { position: 4, initiales: "MK", nom: "Malik K.", points: 2140, ville: "Yopougon" },
+    { position: 5, initiales: "FT", nom: "Fatou T.", points: 2090, ville: "Bouaké" },
+    { position: 14, initiales: "KB", nom: "Kader B.", points: 1780, ville: "Abidjan", moi: true },
+  ],
+  freefire: [
+    { position: 1, initiales: "GO", nom: "Gohou", points: 3120, ville: "Cocody" },
+    { position: 2, initiales: "HL", nom: "Halima", points: 2950, ville: "Abidjan" },
+    { position: 3, initiales: "KB", nom: "Kader B.", points: 2790, ville: "Abidjan", moi: true },
+    { position: 4, initiales: "FT", nom: "Fatou T.", points: 2600, ville: "Bouaké" },
+    { position: 5, initiales: "NR", nom: "Nour", points: 2510, ville: "Yamoussoukro" },
+  ],
+  codm: [
+    { position: 1, initiales: "NR", nom: "Nour", points: 1980, ville: "Yamoussoukro" },
+    { position: 2, initiales: "ZK", nom: "Zeka", points: 1870, ville: "Bouaké" },
+    { position: 3, initiales: "PT", nom: "Petit", points: 1790, ville: "Yamoussoukro" },
+    { position: 4, initiales: "KB", nom: "Kader B.", points: 1650, ville: "Abidjan", moi: true },
+  ],
+  tekken: [
+    { position: 1, initiales: "PT", nom: "Petit", points: 2210, ville: "Yamoussoukro" },
+    { position: 2, initiales: "ZK", nom: "Zeka", points: 2050, ville: "Bouaké" },
+    { position: 3, initiales: "DL", nom: "Delta", points: 1980, ville: "Yopougon" },
+  ],
+};
+
+export const SAISON = "Saison 3 : Éclipse";
+/** Les classements se réinitialisent chaque saison (1-2 mois). Purement
+ * indicatif tant qu'il n'y a pas de vrai backend planifié (phase 8) : rien
+ * ne se réinitialise automatiquement ici. */
+export const SAISON_FIN_LABEL = "se termine dans 18 jours";
+
+const CLE_POINTS_ATTRIBUES = "tourneyci-points-attribues";
+
+function lirePointsAttribues(): Record<string, ClassementEntree[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const brut = localStorage.getItem(CLE_POINTS_ATTRIBUES);
+    return brut ? (JSON.parse(brut) as Record<string, ClassementEntree[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function initiales(nom: string): string {
+  return nom
+    .split(" ")
+    .map((m) => m[0])
+    .filter(Boolean)
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** Points attribués par un organisateur pendant/après un tournoi (ex. classement
+ * final d'un battle royale, résultat d'un bracket). Cumulés par joueur+jeu,
+ * fusionnés avec le classement de base à la lecture. */
+export function attribuerPoints(jeuId: string, nom: string, points: number, ville: string) {
+  if (typeof window === "undefined" || !nom.trim() || points === 0) return;
+  const tout = lirePointsAttribues();
+  const liste = tout[jeuId] ?? [];
+  const existant = liste.find((e) => e.nom.toLowerCase() === nom.trim().toLowerCase());
+  if (existant) {
+    existant.points += points;
+  } else {
+    liste.push({ position: 0, initiales: initiales(nom.trim()), nom: nom.trim(), points, ville });
+  }
+  localStorage.setItem(CLE_POINTS_ATTRIBUES, JSON.stringify({ ...tout, [jeuId]: liste }));
+}
+
+/** Classement de base + points attribués localement, refusionnés en un seul
+ * classement trié et re-numéroté pour un jeu donné. */
+export function classementDuJeu(jeuId: string): ClassementEntree[] {
+  const base = CLASSEMENTS[jeuId] ?? [];
+  const attribues = lirePointsAttribues()[jeuId] ?? [];
+  const fusion = base.map((e) => ({ ...e }));
+  for (const entree of attribues) {
+    const existant = fusion.find((e) => e.nom.toLowerCase() === entree.nom.toLowerCase());
+    if (existant) existant.points += entree.points;
+    else fusion.push(entree);
+  }
+  return fusion.sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
+}
