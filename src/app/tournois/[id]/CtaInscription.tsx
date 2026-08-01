@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Share2, Check, CheckCircle2 } from "lucide-react";
+import { Bookmark, Bell, Share2, Check, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { estInscrit, inscriptionDe } from "@/lib/mockInscriptions";
+import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
 function BoutonPartager() {
@@ -64,6 +65,7 @@ export function CtaInscription({
   const [nomEquipe, setNomEquipe] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [favori, setFavori] = useState(false);
+  const [notifs, setNotifs] = useState(false);
   const [inscrit, setInscrit] = useState(false);
   const [equipeInscrite, setEquipeInscrite] = useState<string | undefined>(undefined);
 
@@ -72,6 +74,7 @@ export function CtaInscription({
     // synchronisé côté client une fois monté (cf. LanceurApp.tsx).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFavori(estFavori(tournoiId));
+    setNotifs(notifsActivees(tournoiId));
     setInscrit(estInscrit(tournoiId));
     setEquipeInscrite(inscriptionDe(tournoiId)?.equipe);
   }, [tournoiId]);
@@ -106,6 +109,19 @@ export function CtaInscription({
         style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
       >
         <BoutonPartager />
+        <button
+          type="button"
+          onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
+          className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+          style={{
+            borderRadius: "var(--ds-radius-md)",
+            border: `1px solid ${notifs ? "var(--ds-accent)" : "var(--ds-border)"}`,
+            color: notifs ? "var(--ds-accent-300)" : "var(--ds-muted)",
+          }}
+          aria-label={notifs ? "Désactiver les notifications" : "Activer les notifications"}
+        >
+          <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
+        </button>
         <div
           className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[15px] font-medium"
           style={{
@@ -172,6 +188,19 @@ export function CtaInscription({
           aria-label={favori ? "Retirer des favoris" : "Ajouter aux favoris"}
         >
           <Bookmark size={18} strokeWidth={2} fill={favori ? "currentColor" : "none"} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
+          className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+          style={{
+            borderRadius: "var(--ds-radius-md)",
+            border: `1px solid ${notifs ? "var(--ds-accent)" : "var(--ds-border)"}`,
+            color: notifs ? "var(--ds-accent-300)" : "var(--ds-muted)",
+          }}
+          aria-label={notifs ? "Désactiver les notifications" : "Activer les notifications"}
+        >
+          <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
         </button>
         <Button variante="primary" bloc onClick={choixEquipe ? validerEquipe : onClicInscription}>
           {choixEquipe ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}

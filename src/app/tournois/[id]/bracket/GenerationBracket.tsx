@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ds/Button";
 import { genererBracket } from "@/lib/mockBracket";
+import { tournoiParId } from "@/lib/mockTournaments";
+import { notifierParticipants } from "@/lib/mockNotifications";
 
 type Mode = "auto" | "manuel";
 
@@ -31,6 +33,8 @@ export function GenerationBracket({
     const noms = texte.split("\n").map((l) => l.trim()).filter(Boolean);
     const ordre = mode === "auto" ? melanger(noms) : noms;
     genererBracket(tournoiId, ordre);
+    const titre = tournoiParId(tournoiId)?.titre ?? "Ton tournoi";
+    notifierParticipants(tournoiId, titre, "le bracket est disponible !");
     onGenere();
   }
 

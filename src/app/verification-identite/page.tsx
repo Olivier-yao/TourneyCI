@@ -8,7 +8,7 @@ import { Button } from "@/components/ds/Button";
 import { COMMISSION_PCT } from "@/lib/mockTournaments";
 import { estCertifie, soumettreCertification, demandeCertification } from "@/lib/mockOrganisateur";
 
-export default function CertificationPage() {
+export default function VerificationIdentitePage() {
   const router = useRouter();
   const [certifie, setCertifie] = useState(false);
   const [ageConfirme, setAgeConfirme] = useState(false);
@@ -44,10 +44,10 @@ export default function CertificationPage() {
         <AppBar retour titre="Vérification d'identité" onRetour={() => router.push("/profil")} />
         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center px-4">
           <CheckCircle2 size={40} style={{ color: "var(--ds-accent-300)" }} />
-          <p className="text-base font-medium">Organisateur certifié</p>
+          <p className="text-base font-medium">Identité vérifiée</p>
           <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
             {envoye
-              ? "Ta demande a été validée. Tu touches désormais la commission de 5 % sur tes tournois payants."
+              ? "Ta demande a été validée. Tu peux désormais retirer tes gains, et toucher ta commission si tu organises des tournois payants."
               : `Vérifié le ${demande?.soumisLe ?? ""} — document : ${demande?.documentNom ?? ""}.`}
           </p>
         </div>
@@ -62,9 +62,10 @@ export default function CertificationPage() {
       <div className="flex items-start gap-3 p-4" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-accent-900)" }}>
         <ShieldCheck size={20} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0 mt-0.5" />
         <p className="text-sm" style={{ color: "var(--ds-accent-300)" }}>
-          Tant que ton compte n&apos;est pas vérifié, tu peux organiser des tournois gratuits, mais tu ne touches
-          pas la commission de {Math.round(COMMISSION_PCT * 100)} % sur les tournois payants. Elle reste calculée et
-          affichée, mais n&apos;est créditée qu&apos;après validation.
+          Tant que ton compte n&apos;est pas vérifié, tu peux déposer de l&apos;argent, t&apos;inscrire à des
+          tournois et gagner en toute liberté — mais tu ne peux pas <strong>retirer</strong> tes gains. Si tu
+          organises des tournois payants, ta commission de {Math.round(COMMISSION_PCT * 100)} % reste calculée mais
+          n&apos;est créditée qu&apos;après validation.
         </p>
       </div>
 

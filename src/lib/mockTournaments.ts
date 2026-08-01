@@ -12,6 +12,7 @@ import { attribuerPoints, lireProfil } from "./mockProfil";
 import { crediter } from "./mockWallet";
 import { estCertifie } from "./mockOrganisateur";
 import { estInscrit, inscriptionDe } from "./mockInscriptions";
+import { notifierParticipants } from "./mockNotifications";
 
 export type TypeCompetition = "1v1" | "equipes" | "battle_royale";
 export type Modalite = "virtuel" | "presentiel";
@@ -26,6 +27,7 @@ export type RepartitionCashPrize = {
 
 export type Tournoi = {
   id: string;
+  code: string;
   jeuId: string;
   jeuLabel: string;
   titre: string;
@@ -84,6 +86,7 @@ export const JEUX: { id: string; label: string }[] = [
 export const TOURNOIS: Tournoi[] = [
   {
     id: "abidjan-cup-12",
+    code: "AC12X4",
     jeuId: "eafc",
     jeuLabel: "EA FC 26",
     titre: "Abidjan Cup #12",
@@ -105,6 +108,7 @@ export const TOURNOIS: Tournoi[] = [
   },
   {
     id: "ligue-yopougon",
+    code: "LYP7B2",
     jeuId: "eafc",
     jeuLabel: "EA FC 26",
     titre: "Ligue Yopougon",
@@ -125,6 +129,7 @@ export const TOURNOIS: Tournoi[] = [
   },
   {
     id: "freefire-night",
+    code: "FFN9K1",
     jeuId: "freefire",
     jeuLabel: "Free Fire",
     titre: "Free Fire Night · Squad",
@@ -145,6 +150,7 @@ export const TOURNOIS: Tournoi[] = [
   },
   {
     id: "codm-showdown",
+    code: "CDM5W3",
     jeuId: "codm",
     jeuLabel: "Call of Duty Mobile",
     titre: "CODM Showdown",
@@ -166,6 +172,7 @@ export const TOURNOIS: Tournoi[] = [
   },
   {
     id: "tekken-clash",
+    code: "TKN4Y8",
     jeuId: "tekken",
     jeuLabel: "Tekken 8",
     titre: "Tekken Clash Yamoussoukro",
@@ -192,7 +199,19 @@ function lireTournoisCrees(): Tournoi[] {
   if (typeof window === "undefined") return [];
   try {
     const brut = localStorage.getItem(CLE_TOURNOIS_CREES);
-    return brut ? (JSON.parse(brut) as Tournoi[]) : [];
+    if (!brut) return [];
+    const tournois = JSON.parse(brut) as Tournoi[];
+    // Rétrocompatibilité : les tournois créés avant l'ajout du champ "code"
+    // n'en ont pas encore un — on leur en génère un et on le persiste,
+    // sous peine d'un code qui change à chaque lecture.
+    let modifie = false;
+    const corriges = tournois.map((t) => {
+      if (t.code) return t;
+      modifie = true;
+      return { ...t, code: genererCode() };
+    });
+    if (modifie) localStorage.setItem(CLE_TOURNOIS_CREES, JSON.stringify(corriges));
+    return corriges;
   } catch {
     return [];
   }
@@ -278,10 +297,26 @@ export function tournoiParId(id: string): Tournoi | undefined {
   return tousLesTournois().find((t) => t.id === id);
 }
 
-export function creerTournoi(donnees: Omit<Tournoi, "id" | "placesInscrites">): Tournoi {
+export function tournoiParCode(code: string): Tournoi | undefined {
+  const normalise = code.trim().toUpperCase();
+  if (!normalise) return undefined;
+  return tousLesTournois().find((t) => t.code === normalise);
+}
+
+/** Code court (6 caractères, sans caractères ambigus) pour retrouver un
+ * tournoi facilement via la recherche, à la place du titre complet. */
+function genererCode(): string {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return code;
+}
+
+export function creerTournoi(donnees: Omit<Tournoi, "id" | "code" | "placesInscrites">): Tournoi {
   const tournoi: Tournoi = {
     ...donnees,
     id: `${donnees.titre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now().toString(36)}`,
+    code: genererCode(),
     placesInscrites: 0,
   };
   const existants = lireTournoisCrees();
@@ -345,5 +380,6 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
   }
 
   ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);
+  notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
   return { pointsAttribues, gainCredite };
 }

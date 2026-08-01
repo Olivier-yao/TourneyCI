@@ -130,15 +130,30 @@ export default function DetailTournoiPage() {
           )}
         </div>
 
-        <h1
-          className="text-2xl leading-tight"
-          style={{
-            fontFamily: "var(--ds-font-heading)",
-            fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"],
-          }}
-        >
-          {tournoi.titre}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1
+            className="text-2xl leading-tight"
+            style={{
+              fontFamily: "var(--ds-font-heading)",
+              fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"],
+            }}
+          >
+            {tournoi.titre}
+          </h1>
+          <span
+            className="px-2 py-0.5 text-[11px] shrink-0"
+            style={{
+              borderRadius: "var(--ds-radius-sm)",
+              background: "var(--ds-surface)",
+              border: "1px solid var(--ds-border)",
+              color: "var(--ds-muted)",
+              fontFamily: "var(--ds-font-mono)",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {tournoi.code}
+          </span>
+        </div>
 
         <p className="text-[13px]" style={{ color: "var(--ds-muted)" }}>
           Organisé par{" "}

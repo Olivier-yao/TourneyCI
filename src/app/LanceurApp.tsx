@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Splash } from "@/components/ds/Splash";
-import { aVuSplash, estOnboarde, marquerSplashVu } from "@/lib/mockAuth";
+import { aVuSplash, estConnecte, estOnboarde, marquerSplashVu } from "@/lib/mockAuth";
 
 type Etape = "verification" | "splash";
 
@@ -17,7 +17,7 @@ export function LanceurApp() {
     // pour le rendu serveur et se synchroniser une fois monté côté client,
     // sous peine de mismatch d'hydratation sur le contenu affiché.
     if (aVuSplash()) {
-      router.replace("/accueil");
+      router.replace(estConnecte() ? "/accueil" : "/verify");
     } else {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setEtape("splash");
@@ -26,7 +26,11 @@ export function LanceurApp() {
 
   function surSplashTermine() {
     marquerSplashVu();
-    router.push(estOnboarde() ? "/accueil" : "/onboarding");
+    if (estConnecte()) {
+      router.push("/accueil");
+    } else {
+      router.push(estOnboarde() ? "/verify" : "/onboarding");
+    }
   }
 
   if (etape === "splash") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Bell, ChevronRight, Trophy as TrophyIcon, Plus, X } from "lucide-react";
@@ -15,12 +15,8 @@ import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { identifiantConnexion, rolePrefere, definirRole, type Role } from "@/lib/mockAuth";
 import { formatXof } from "@/lib/formatXof";
 import { JEUX, tousLesTournois, mesTournoisOrganises } from "@/lib/mockTournaments";
-
-const NOTIFICATIONS_MOCK = [
-  { id: 1, texte: "Ton match commence dans 10 minutes", temps: "Il y a 2 min" },
-  { id: 2, texte: "Nouveau tournoi Free Fire disponible", temps: "Il y a 1 h" },
-  { id: 3, texte: "Ton inscription à Abidjan Cup #12 est confirmée", temps: "Hier" },
-];
+import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { mesNotifications, type NotificationApp } from "@/lib/mockNotifications";
 
 const conteneurVariants = {
   cache: {},
@@ -33,21 +29,30 @@ const elementVariants = {
 };
 
 export default function AccueilV2Page() {
+  const connecte = useExigerConnexion();
   const [role, setRole] = useState<Role>(rolePrefere);
   const [jeuActif, setJeuActif] = useState<string | null>(null);
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [requete, setRequete] = useState("");
   const [notifOuvertes, setNotifOuvertes] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationApp[]>([]);
   const [utilisateur] = useState(() => {
     const identifiant = identifiantConnexion();
     const nom = identifiant?.includes("@") ? identifiant.split("@")[0] : "Joueur";
     return { nom, initiales: nom.slice(0, 2).toUpperCase() };
   });
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNotifications(mesNotifications());
+  }, []);
+
   function changerRole(r: Role) {
     setRole(r);
     definirRole(r);
   }
+
+  if (!connecte) return null;
 
   const tournois = tousLesTournois();
   const vedette = tournois.find((t) => t.enDirect) ?? tournois[0];
@@ -55,7 +60,9 @@ export default function AccueilV2Page() {
     (t) =>
       t.id !== vedette.id &&
       (!jeuActif || t.jeuId === jeuActif) &&
-      (!requete || t.titre.toLowerCase().includes(requete.toLowerCase())),
+      (!requete ||
+        t.titre.toLowerCase().includes(requete.toLowerCase()) ||
+        (t.code ?? "").toLowerCase() === requete.trim().toLowerCase()),
   );
   const tournoisOrganises = mesTournoisOrganises();
 
@@ -67,7 +74,10 @@ export default function AccueilV2Page() {
       className="min-h-screen flex flex-col"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <div className="px-[22px] pt-[22px] flex flex-col gap-4">
+      <div
+        className="sticky top-0 z-10 px-[22px] pt-[22px] pb-3 flex flex-col gap-4"
+        style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}
+      >
         <motion.div variants={elementVariants} className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div
@@ -126,7 +136,12 @@ export default function AccueilV2Page() {
                   className="absolute right-0 top-11 w-72 z-20 p-2"
                   style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)", boxShadow: "var(--ds-shadow-lg)" }}
                 >
-                  {NOTIFICATIONS_MOCK.map((n) => (
+                  {notifications.length === 0 && (
+                    <div className="p-2.5 text-[13px]" style={{ color: "var(--ds-text-muted)" }}>
+                      Aucune notification pour l&apos;instant.
+                    </div>
+                  )}
+                  {notifications.map((n) => (
                     <div key={n.id} className="p-2.5" style={{ borderBottom: "1px solid var(--ds-border)" }}>
                       <div className="text-[13px]">{n.texte}</div>
                       <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
@@ -189,22 +204,25 @@ export default function AccueilV2Page() {
             </button>
           ))}
         </motion.div>
-
-        {role === "joueur" && (
-          <motion.div variants={elementVariants} className="flex gap-2 overflow-x-auto pb-1">
-            <Tag actif={jeuActif === null} onClick={() => setJeuActif(null)}>
-              Tous
-            </Tag>
-            {JEUX.map((jeu) => (
-              <Tag key={jeu.id} actif={jeuActif === jeu.id} onClick={() => setJeuActif(jeu.id)}>
-                {jeu.label}
-              </Tag>
-            ))}
-          </motion.div>
-        )}
       </div>
 
-      <div className="flex-1 px-[22px] pt-4 flex flex-col gap-3">
+      {role === "joueur" && (
+        <motion.div
+          variants={elementVariants}
+          className="px-[22px] pt-3 flex gap-2 overflow-x-auto pb-1"
+        >
+          <Tag actif={jeuActif === null} onClick={() => setJeuActif(null)}>
+            Tous
+          </Tag>
+          {JEUX.map((jeu) => (
+            <Tag key={jeu.id} actif={jeuActif === jeu.id} onClick={() => setJeuActif(jeu.id)}>
+              {jeu.label}
+            </Tag>
+          ))}
+        </motion.div>
+      )}
+
+      <div className="flex-1 px-[22px] pt-4 pb-24 flex flex-col gap-3">
         {role === "organisateur" ? (
           <motion.div variants={elementVariants} className="flex flex-col gap-3">
             <Link href="/organisateur/nouveau">

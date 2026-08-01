@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tag } from "./Tag";
+import { ChevronDown } from "lucide-react";
 import { JEUX } from "@/lib/mockTournaments";
 import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, VILLES, classementDuJeu, type ClassementEntree } from "@/lib/mockProfil";
 
@@ -76,20 +76,60 @@ export function Classement() {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {JEUX_CLASSEMENT.map((jeu) => (
-          <Tag key={jeu.id} actif={jeuActif === jeu.id} onClick={() => setJeuActif(jeu.id)}>
-            {jeu.label}
-          </Tag>
-        ))}
-      </div>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <select
+            value={jeuActif}
+            onChange={(e) => setJeuActif(e.target.value)}
+            className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
+            style={{
+              borderRadius: "var(--ds-radius-md)",
+              background: "var(--ds-surface)",
+              border: "1px solid var(--ds-border)",
+              color: "var(--ds-text)",
+              fontFamily: "var(--ds-font-body)",
+            }}
+          >
+            {JEUX_CLASSEMENT.map((jeu) => (
+              <option key={jeu.id} value={jeu.id}>
+                {jeu.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: "var(--ds-muted)" }}
+          />
+        </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {VILLES_CLASSEMENT.map((ville) => (
-          <Tag key={ville} actif={villeActif === ville} onClick={() => setVilleActif(ville)}>
-            {ville}
-          </Tag>
-        ))}
+        <div className="relative flex-1">
+          <select
+            value={villeActif}
+            onChange={(e) => setVilleActif(e.target.value)}
+            className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
+            style={{
+              borderRadius: "var(--ds-radius-md)",
+              background: "var(--ds-surface)",
+              border: "1px solid var(--ds-border)",
+              color: "var(--ds-text)",
+              fontFamily: "var(--ds-font-body)",
+            }}
+          >
+            {VILLES_CLASSEMENT.map((ville) => (
+              <option key={ville} value={ville}>
+                {ville}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: "var(--ds-muted)" }}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col">

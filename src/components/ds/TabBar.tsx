@@ -16,8 +16,8 @@ export function TabBar() {
 
   return (
     <div
-      className="flex justify-around pt-3.5 pb-5"
-      style={{ borderTop: "1px solid var(--ds-border)" }}
+      className="fixed bottom-0 left-0 right-0 z-10 flex justify-around pt-3.5 pb-5"
+      style={{ borderTop: "1px solid var(--ds-border)", background: "var(--ds-bg)" }}
     >
       {ONGLETS.map(({ id, label, href, Icone }) => {
         const estActif = pathname === href;

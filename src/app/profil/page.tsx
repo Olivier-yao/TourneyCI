@@ -11,8 +11,10 @@ import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
 import { tournoiParId, estTermine, mesTournoisOrganises } from "@/lib/mockTournaments";
 import { estCertifie } from "@/lib/mockOrganisateur";
+import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 export default function ProfilPage() {
+  const connecte = useExigerConnexion();
   const [profil] = useState(lireProfil);
   const [solde, setSolde] = useState(0);
   const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0 });
@@ -35,11 +37,13 @@ export default function ProfilPage() {
   }, []);
 
   const menu = [
-    { href: "/profil/solde", icone: Wallet, label: "Solde & TourneyCard", valeur: null },
+    { href: "/profil/solde", icone: Wallet, label: "Solde & TourneyCard", valeur: null as number | null },
     { href: "/profil/historique", icone: History, label: "Historique de tournois", valeur: compteurs.historique },
     { href: "/profil/inscriptions", icone: Ticket, label: "Mes inscriptions", valeur: compteurs.inscriptions },
     { href: "/favoris", icone: Bookmark, label: "Favoris", valeur: compteurs.favoris },
   ];
+
+  if (!connecte) return null;
 
   return (
     <div
@@ -154,7 +158,7 @@ export default function ProfilPage() {
         ))}
       </div>
 
-      <div className="px-5 pt-6 flex-1 flex flex-col gap-1">
+      <div className="px-5 pt-6 pb-24 flex-1 flex flex-col gap-1">
         <div className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
           Mon compte
         </div>
@@ -187,32 +191,31 @@ export default function ProfilPage() {
           <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
         </Link>
 
+        {!organisateur.certifie && (
+          <Link
+            href="/verification-identite"
+            className="flex items-center gap-2.5 p-3 mt-2"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)" }}
+          >
+            <ShieldCheck size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+            <span className="flex-1 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+              Vérifie ton identité pour pouvoir retirer tes gains
+            </span>
+            <ChevronRight size={15} style={{ color: "var(--ds-accent-300)" }} />
+          </Link>
+        )}
+
         {organisateur.estOrganisateur && (
-          <>
-            {!organisateur.certifie && (
-              <Link
-                href="/organisateur/certification"
-                className="flex items-center gap-2.5 p-3 mt-2"
-                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)" }}
-              >
-                <ShieldCheck size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-                <span className="flex-1 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
-                  Fais certifier ton compte organisateur pour toucher tes commissions
-                </span>
-                <ChevronRight size={15} style={{ color: "var(--ds-accent-300)" }} />
-              </Link>
-            )}
-            <Link
-              href="/organisateur/classement"
-              className="flex items-center justify-between p-3 mt-2"
-              style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-            >
-              <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
-                Classement des organisateurs
-              </span>
-              <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
-            </Link>
-          </>
+          <Link
+            href="/organisateur/classement"
+            className="flex items-center justify-between p-3 mt-2"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+          >
+            <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+              Classement des organisateurs
+            </span>
+            <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
+          </Link>
         )}
       </div>
 
