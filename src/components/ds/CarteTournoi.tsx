@@ -27,7 +27,12 @@ export function CarteTournoi({ tournoi: t }: { tournoi: Tournoi }) {
       <Link href={`/tournois/${t.id}`}>
         <Card className="hover:opacity-95 transition-opacity">
           <div className="relative">
-            <ImagePlaceholder label="visuel tournoi" hauteur={100} />
+            {t.banniereUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={t.banniereUrl} alt={t.titre} className="w-full object-cover" style={{ height: 100 }} />
+            ) : (
+              <ImagePlaceholder label="visuel tournoi" hauteur={100} />
+            )}
             {t.enDirect && (
               <div className="absolute top-3 left-3">
                 <LiveBadge />

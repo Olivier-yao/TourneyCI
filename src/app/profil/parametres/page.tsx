@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
@@ -9,6 +10,7 @@ import { ThemeProvider } from "@/components/ds/ThemeProvider";
 import { ThemeToggle } from "@/components/ds/ThemeToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto } from "@/lib/mockProfil";
+import { deconnecter } from "@/lib/mockAuth";
 
 function ParametresInterne() {
   const router = useRouter();
@@ -19,6 +21,12 @@ function ParametresInterne() {
     e.preventDefault();
     sauvegarderProfil({ pseudo: profil.pseudo, ville: profil.ville });
     setEnregistre(true);
+  }
+
+  function seDeconnecter() {
+    if (!window.confirm("Te déconnecter de TourneyCI ?")) return;
+    deconnecter();
+    router.push("/verify");
   }
 
   return (
@@ -85,6 +93,16 @@ function ParametresInterne() {
           </p>
           <ThemeToggle />
         </div>
+
+        <button
+          type="button"
+          onClick={seDeconnecter}
+          className="flex items-center justify-center gap-2 h-11 text-sm font-medium cursor-pointer"
+          style={{ borderRadius: "var(--ds-radius-btn)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}
+        >
+          <LogOut size={16} strokeWidth={2} />
+          Se déconnecter
+        </button>
       </div>
     </div>
   );

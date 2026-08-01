@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { ShieldCheck, Loader2, CheckCircle2, XCircle, CreditCard } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
@@ -11,15 +11,19 @@ import { identifiantConnexion } from "@/lib/mockAuth";
 import { formatXof } from "@/lib/formatXof";
 import { incrementerInscrits } from "@/lib/mockTournaments";
 import { enregistrerInscription } from "@/lib/mockInscriptions";
+import { lireSolde, debiter } from "@/lib/mockWallet";
 import type { Tournoi } from "@/lib/mockTournaments";
 
 type Etape = "moyen" | "attente" | "succes" | "echec";
 
-const MOYENS = [
+const MOYENS_MOBILE_MONEY = [
   { id: "orange", label: "Orange Money", indice: "07 ••" },
   { id: "mtn", label: "MTN MoMo", indice: "05 ••" },
+  { id: "moov", label: "Moov Money", indice: "01 ••" },
   { id: "wave", label: "Wave", indice: "01 ••" },
 ] as const;
+
+type MoyenPaiement = (typeof MOYENS_MOBILE_MONEY)[number]["id"] | "tourneycard";
 
 function numeroInitial(): string {
   const identifiant = identifiantConnexion();
@@ -36,12 +40,32 @@ export function FluxPaiement({
 }) {
   const router = useRouter();
   const [etape, setEtape] = useState<Etape>("moyen");
-  const [moyen, setMoyen] = useState<(typeof MOYENS)[number]["id"]>("orange");
+  const [moyen, setMoyen] = useState<MoyenPaiement>("orange");
   const [telephone, setTelephone] = useState(numeroInitial);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [soldeCarte, setSoldeCarte] = useState(0);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSoldeCarte(lireSolde());
+  }, []);
 
   function payer(e: React.FormEvent) {
     e.preventDefault();
+
+    if (moyen === "tourneycard") {
+      const ok = tournoi.fraisXof === 0 || debiter(tournoi.fraisXof, `Inscription · ${tournoi.titre}`, "inscription");
+      if (!ok) {
+        setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
+        return;
+      }
+      setErreur(null);
+      enregistrerInscription(tournoi.id, equipe);
+      incrementerInscrits(tournoi.id);
+      setEtape("succes");
+      return;
+    }
+
     if (telephone.replace(/\D/g, "").length < 8) {
       setErreur("Numéro invalide.");
       return;
@@ -153,7 +177,23 @@ export function FluxPaiement({
             Moyen de paiement
           </div>
           <div className="flex flex-col gap-2">
-            {MOYENS.map((m) => {
+            <button
+              type="button"
+              onClick={() => setMoyen("tourneycard")}
+              className="flex items-center gap-3 p-3.5 text-left cursor-pointer"
+              style={{
+                borderRadius: "var(--ds-radius-md)",
+                background: "var(--ds-surface)",
+                border: `1px solid ${moyen === "tourneycard" ? "var(--ds-accent)" : "var(--ds-border)"}`,
+              }}
+            >
+              <CreditCard size={18} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+              <span className="flex-1 text-sm font-medium">TourneyCard</span>
+              <span className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                {soldeCarte.toLocaleString("fr-FR")} F
+              </span>
+            </button>
+            {MOYENS_MOBILE_MONEY.map((m) => {
               const actif = moyen === m.id;
               return (
                 <button
@@ -194,13 +234,17 @@ export function FluxPaiement({
           </div>
         </div>
 
-        <Field
-          label="Numéro à débiter"
-          placeholder="07 58 42 19 06"
-          value={telephone}
-          onChange={(e) => setTelephone(e.target.value)}
-          erreur={erreur ?? undefined}
-        />
+        {moyen === "tourneycard" ? (
+          erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>
+        ) : (
+          <Field
+            label="Numéro à débiter"
+            placeholder="07 58 42 19 06"
+            value={telephone}
+            onChange={(e) => setTelephone(e.target.value)}
+            erreur={erreur ?? undefined}
+          />
+        )}
 
         <div
           className="flex items-start gap-2 text-xs"
@@ -208,8 +252,9 @@ export function FluxPaiement({
         >
           <ShieldCheck size={15} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent)" }} />
           <span>
-            Tu recevras un code USSD pour valider. Remboursement si le tournoi est
-            annulé.
+            {moyen === "tourneycard"
+              ? "Paiement instantané depuis ton solde. Remboursement si le tournoi est annulé."
+              : "Tu recevras un code USSD pour valider. Remboursement si le tournoi est annulé."}
           </span>
         </div>
 

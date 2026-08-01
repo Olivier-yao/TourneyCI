@@ -3,16 +3,88 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { ArrowLeft, Trophy, CheckCircle2, XCircle } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
-import { tournoiParId } from "@/lib/mockTournaments";
-import { matchsDuTournoi } from "@/lib/mockBracket";
-import { participantsBR } from "@/lib/mockBattleRoyale";
+import { tournoiParId, terminerTournoi, annulerTournoi } from "@/lib/mockTournaments";
+import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
+import { participantsBR, classementFinalBR } from "@/lib/mockBattleRoyale";
 import { attribuerPoints } from "@/lib/mockProfil";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { GestionMatches } from "./GestionMatches";
+
+function SectionCloture({
+  tournoiId,
+  type,
+  termine,
+  onTermine,
+}: {
+  tournoiId: string;
+  type: "1v1" | "equipes" | "battle_royale";
+  termine: boolean;
+  onTermine: () => void;
+}) {
+  const [resultat, setResultat] = useState<{ pointsAttribues: number; gainCredite: number } | null>(null);
+
+  const classement = type === "battle_royale" ? classementFinalBR(tournoiId) : classementFinalBracket(tournoiId);
+  const pret = classement.length > 0;
+
+  function terminer() {
+    if (!window.confirm("Clôturer le tournoi ? Les points seront attribués automatiquement selon le classement final et ne pourront plus être recalculés.")) {
+      return;
+    }
+    const r = terminerTournoi(tournoiId);
+    setResultat(r);
+    onTermine();
+  }
+
+  function annuler() {
+    if (!window.confirm("Annuler ce tournoi ? Ça compte contre ta réputation d'organisateur.")) return;
+    annulerTournoi(tournoiId);
+    onTermine();
+  }
+
+  if (termine || resultat) {
+    return (
+      <div
+        className="flex items-center gap-2 p-3"
+        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+      >
+        <CheckCircle2 size={17} strokeWidth={2} />
+        <span className="text-sm">
+          Tournoi clôturé — points attribués automatiquement{resultat && resultat.gainCredite > 0 ? `, ${resultat.gainCredite.toLocaleString("fr-FR")} F crédités` : ""}.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+        {pret
+          ? "Le classement final est prêt : la clôture attribue les points de façon automatique et équilibrée selon la place de chacun, et crédite le cash prize aux gagnants."
+          : type === "battle_royale"
+            ? "Élimine les participants jusqu'au dernier survivant pour pouvoir clôturer."
+            : "Termine la finale du bracket pour pouvoir clôturer le tournoi."}
+      </p>
+      <div className="flex gap-2">
+        <Button variante="primary" onClick={terminer} disabled={!pret}>
+          Terminer le tournoi
+        </Button>
+        <button
+          type="button"
+          onClick={annuler}
+          className="flex items-center gap-1.5 px-3 text-sm cursor-pointer"
+          style={{ color: "var(--ds-danger)" }}
+        >
+          <XCircle size={15} strokeWidth={2} />
+          Annuler le tournoi
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function SectionPoints({ jeuId, jeuLabel, villeParDefaut }: { jeuId: string; jeuLabel: string; villeParDefaut: string }) {
   const [nom, setNom] = useState("");
@@ -142,8 +214,21 @@ export default function GestionTournoiPage() {
         )}
       </div>
 
+      <div className="flex flex-col gap-3">
+        <div className="text-base font-medium flex items-center gap-2">
+          <CheckCircle2 size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          Clôture du tournoi
+        </div>
+        <SectionCloture
+          tournoiId={params.id}
+          type={tournoi.type}
+          termine={Boolean(tournoi.termine)}
+          onTermine={() => setRafraichir((n) => n + 1)}
+        />
+      </div>
+
       <div className="flex flex-col gap-3 pb-6">
-        <div className="text-base font-medium">Attribution de points au classement</div>
+        <div className="text-base font-medium">Ajustement manuel des points (optionnel)</div>
         <SectionPoints jeuId={tournoi.jeuId} jeuLabel={tournoi.jeuLabel} villeParDefaut={tournoi.ville} />
       </div>
     </div>

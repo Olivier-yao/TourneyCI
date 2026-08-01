@@ -1,14 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Settings } from "lucide-react";
+import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
-import { HISTORIQUE, lireProfil } from "@/lib/mockProfil";
+import { Button } from "@/components/ds/Button";
+import { lireProfil } from "@/lib/mockProfil";
+import { lireSolde } from "@/lib/mockWallet";
+import { mesInscriptions } from "@/lib/mockInscriptions";
+import { mesFavoris } from "@/lib/mockFavoris";
+import { tournoiParId, estTermine, mesTournoisOrganises } from "@/lib/mockTournaments";
+import { estCertifie } from "@/lib/mockOrganisateur";
 
 export default function ProfilPage() {
   const [profil] = useState(lireProfil);
+  const [solde, setSolde] = useState(0);
+  const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0 });
+  const [organisateur, setOrganisateur] = useState<{ estOrganisateur: boolean; certifie: boolean }>({
+    estOrganisateur: false,
+    certifie: false,
+  });
   const winrate = Math.round((profil.victoires / profil.matchsJoues) * 100);
+
+  useEffect(() => {
+    const inscriptions = mesInscriptions();
+    const historique = inscriptions.filter((i) => {
+      const t = tournoiParId(i.tournoiId);
+      return t && estTermine(t.id);
+    }).length;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSolde(lireSolde());
+    setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length });
+    setOrganisateur({ estOrganisateur: mesTournoisOrganises().length > 0, certifie: estCertifie() });
+  }, []);
+
+  const menu = [
+    { href: "/profil/solde", icone: Wallet, label: "Solde & TourneyCard", valeur: null },
+    { href: "/profil/historique", icone: History, label: "Historique de tournois", valeur: compteurs.historique },
+    { href: "/profil/inscriptions", icone: Ticket, label: "Mes inscriptions", valeur: compteurs.inscriptions },
+    { href: "/favoris", icone: Bookmark, label: "Favoris", valeur: compteurs.favoris },
+  ];
 
   return (
     <div
@@ -42,11 +73,22 @@ export default function ProfilPage() {
             <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
               @{profil.pseudo.toLowerCase().replace(/[^a-z]/g, "")} · {profil.ville}
             </div>
-            <div
-              className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px]"
-              style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
-            >
-              {profil.rang} · #{profil.rangNational} national
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px]"
+                style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+              >
+                {profil.rang} · #{profil.rangNational} national
+              </span>
+              {organisateur.estOrganisateur && organisateur.certifie && (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px]"
+                  style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+                >
+                  <ShieldCheck size={11} strokeWidth={2} />
+                  Organisateur certifié
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -60,7 +102,38 @@ export default function ProfilPage() {
         </Link>
       </div>
 
-      <div className="px-5 grid grid-cols-3 gap-2 -mt-2">
+      <div className="px-5">
+        <div
+          className="p-4"
+          style={{
+            borderRadius: "var(--ds-radius-lg)",
+            background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))",
+            border: "1px solid var(--ds-border-strong)",
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                Mon solde
+              </div>
+              <div className="mt-1 text-2xl font-medium" style={{ fontFamily: "var(--ds-font-mono)" }}>
+                {solde.toLocaleString("fr-FR")} F
+              </div>
+            </div>
+            <div className="w-11 h-7" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-600)", border: "1px solid var(--ds-accent)" }} />
+          </div>
+          <div className="mt-3.5 flex gap-2">
+            <Link href="/profil/solde/recharger" className="flex-1">
+              <Button variante="secondary" bloc>Recharger</Button>
+            </Link>
+            <Link href="/profil/solde/retirer" className="flex-1">
+              <Button variante="secondary" bloc>Retirer</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-5 grid grid-cols-3 gap-2 mt-4">
         {[
           { label: "matchs", valeur: profil.matchsJoues },
           { label: "victoires", valeur: profil.victoires },
@@ -81,35 +154,31 @@ export default function ProfilPage() {
         ))}
       </div>
 
-      <div className="px-5 pt-6 flex-1 flex flex-col gap-2.5">
-        <div className="text-base font-medium">Historique</div>
-        {HISTORIQUE.map((h) => (
-          <div
-            key={h.id}
-            className="flex items-center gap-3 py-2"
+      <div className="px-5 pt-6 flex-1 flex flex-col gap-1">
+        <div className="text-[11px] uppercase tracking-wide mb-1" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          Mon compte
+        </div>
+        {menu.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="flex items-center gap-3 py-3"
             style={{ borderBottom: "1px solid var(--ds-border)" }}
           >
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: h.resultat === "victoire" ? "var(--ds-accent-300)" : "var(--ds-danger)" }}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm truncate">
-                {h.resultat === "victoire" ? "Victoire" : "Défaite"} vs {h.adversaire}
-              </div>
-              <div className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                {h.tournoi} · {h.dateLabel}
-              </div>
-            </div>
-            <div className="text-sm" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-muted)" }}>
-              {h.score}
-            </div>
-          </div>
+            <item.icone size={18} style={{ color: "var(--ds-accent)" }} />
+            <span className="flex-1 text-sm">{item.label}</span>
+            {item.valeur !== null && (
+              <span className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                {item.valeur}
+              </span>
+            )}
+            <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
+          </Link>
         ))}
 
         <Link
           href="/classement"
-          className="flex items-center justify-between p-3 mt-2"
+          className="flex items-center justify-between p-3 mt-3"
           style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
         >
           <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
@@ -118,16 +187,33 @@ export default function ProfilPage() {
           <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
         </Link>
 
-        <Link
-          href="/favoris"
-          className="flex items-center justify-between p-3"
-          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-        >
-          <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
-            Mes tournois favoris
-          </span>
-          <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
-        </Link>
+        {organisateur.estOrganisateur && (
+          <>
+            {!organisateur.certifie && (
+              <Link
+                href="/organisateur/certification"
+                className="flex items-center gap-2.5 p-3 mt-2"
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)" }}
+              >
+                <ShieldCheck size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+                <span className="flex-1 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+                  Fais certifier ton compte organisateur pour toucher tes commissions
+                </span>
+                <ChevronRight size={15} style={{ color: "var(--ds-accent-300)" }} />
+              </Link>
+            )}
+            <Link
+              href="/organisateur/classement"
+              className="flex items-center justify-between p-3 mt-2"
+              style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+            >
+              <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+                Classement des organisateurs
+              </span>
+              <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
+            </Link>
+          </>
+        )}
       </div>
 
       <TabBar />

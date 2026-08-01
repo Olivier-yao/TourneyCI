@@ -6,6 +6,13 @@
  * entre appareils tant que la phase 8 n'est pas faite).
  */
 
+import { classementFinalBracket } from "./mockBracket";
+import { classementFinalBR } from "./mockBattleRoyale";
+import { attribuerPoints, lireProfil } from "./mockProfil";
+import { crediter } from "./mockWallet";
+import { estCertifie } from "./mockOrganisateur";
+import { estInscrit, inscriptionDe } from "./mockInscriptions";
+
 export type TypeCompetition = "1v1" | "equipes" | "battle_royale";
 export type Modalite = "virtuel" | "presentiel";
 export type ModeEquipe = "libre" | "predefinies";
@@ -39,6 +46,9 @@ export type Tournoi = {
   equipes?: EquipeInfo[];
   modeEquipe?: ModeEquipe;
   repartitionCashPrize?: RepartitionCashPrize[];
+  banniereUrl?: string;
+  termine?: boolean;
+  annule?: boolean;
 };
 
 /** Commission de l'organisateur sur les tournois payants, en plus du cash prize. */
@@ -209,18 +219,59 @@ export function incrementerInscrits(tournoiId: string) {
   localStorage.setItem(CLE_INSCRITS_SUPPLEMENTAIRES, JSON.stringify(supplements));
 }
 
-function avecInscritsSupplementaires(tournois: Tournoi[]): Tournoi[] {
+const CLE_TOURNOIS_TERMINES = "tourneyci-tournois-termines";
+const CLE_TOURNOIS_ANNULES = "tourneyci-tournois-annules";
+
+function lireListe(cle: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const brut = localStorage.getItem(cle);
+    return brut ? (JSON.parse(brut) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function ajouterA(cle: string, id: string) {
+  if (typeof window === "undefined") return;
+  const liste = lireListe(cle);
+  if (!liste.includes(id)) localStorage.setItem(cle, JSON.stringify([...liste, id]));
+}
+
+export function estTermine(id: string): boolean {
+  return lireListe(CLE_TOURNOIS_TERMINES).includes(id);
+}
+
+export function estAnnule(id: string): boolean {
+  return lireListe(CLE_TOURNOIS_ANNULES).includes(id);
+}
+
+/** Annule un tournoi (compte comme un "flop" pour le classement organisateur). */
+export function annulerTournoi(id: string) {
+  ajouterA(CLE_TOURNOIS_ANNULES, id);
+}
+
+function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
   const supplements = lireInscritsSupplementaires();
-  if (Object.keys(supplements).length === 0) return tournois;
-  return tournois.map((t) =>
-    supplements[t.id]
-      ? { ...t, placesInscrites: t.placesInscrites + supplements[t.id] }
-      : t,
-  );
+  const termines = lireListe(CLE_TOURNOIS_TERMINES);
+  const annules = lireListe(CLE_TOURNOIS_ANNULES);
+  const profil = lireProfil();
+  return tournois.map((t) => {
+    const inscrits = t.inscrits;
+    const inscription = estInscrit(t.id) ? inscriptionDe(t.id) : undefined;
+    const monNom = inscription ? (inscription.equipe ?? profil.pseudo) : null;
+    return {
+      ...t,
+      placesInscrites: t.placesInscrites + (supplements[t.id] ?? 0),
+      termine: t.termine || termines.includes(t.id),
+      annule: t.annule || annules.includes(t.id),
+      inscrits: monNom && !inscrits.includes(monNom) ? [...inscrits, monNom] : inscrits,
+    };
+  });
 }
 
 export function tousLesTournois(): Tournoi[] {
-  return avecInscritsSupplementaires([...lireTournoisCrees(), ...TOURNOIS]);
+  return avecEtatsSuperposes([...lireTournoisCrees(), ...TOURNOIS]);
 }
 
 export function tournoiParId(id: string): Tournoi | undefined {
@@ -244,5 +295,55 @@ export function creerTournoi(donnees: Omit<Tournoi, "id" | "placesInscrites">): 
 }
 
 export function mesTournoisOrganises(): Tournoi[] {
-  return lireTournoisCrees();
+  return avecEtatsSuperposes(lireTournoisCrees());
+}
+
+function pointsPourPlace(place: number, effectif: number): number {
+  if (place === 1) return 100;
+  if (place === 2) return 70;
+  if (place <= 4) return 50;
+  if (place <= 8) return 30;
+  if (place <= Math.ceil(effectif / 2)) return 15;
+  return 5;
+}
+
+/**
+ * Clôture un tournoi : distribue les points de classement de façon
+ * automatique et équilibrée selon la place finale (bracket ou battle royale),
+ * puis crédite le solde de l'utilisateur local s'il fait partie des gagnants
+ * du cash prize. La commission de l'organisateur (5 %) n'est créditée que
+ * s'il est certifié (cf. mockOrganisateur).
+ */
+export function terminerTournoi(tournoiId: string): { pointsAttribues: number; gainCredite: number } {
+  const tournoi = tournoiParId(tournoiId);
+  if (!tournoi) return { pointsAttribues: 0, gainCredite: 0 };
+
+  const classement =
+    tournoi.type === "battle_royale" ? classementFinalBR(tournoiId) : classementFinalBracket(tournoiId);
+
+  let pointsAttribues = 0;
+  classement.forEach((nom, i) => {
+    const points = pointsPourPlace(i + 1, classement.length);
+    attribuerPoints(tournoi.jeuId, nom, points, tournoi.ville);
+    pointsAttribues += points;
+  });
+
+  let gainCredite = 0;
+  const profil = lireProfil();
+  if (tournoi.repartitionCashPrize) {
+    for (let i = 0; i < tournoi.repartitionCashPrize.length; i++) {
+      if (classement[i] && classement[i] === profil.pseudo) {
+        crediter(tournoi.repartitionCashPrize[i].montantXof, `Gain · ${tournoi.titre}`, "gain");
+        gainCredite += tournoi.repartitionCashPrize[i].montantXof;
+      }
+    }
+  }
+
+  if (tournoi.fraisXof > 0 && estCertifie()) {
+    const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);
+    if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission");
+  }
+
+  ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);
+  return { pointsAttribues, gainCredite };
 }

@@ -1,6 +1,6 @@
 const CLE_INSCRIPTIONS = "tourneyci-inscriptions";
 
-type Inscription = { tournoiId: string; equipe?: string };
+export type Inscription = { tournoiId: string; equipe?: string };
 
 function lireInscriptions(): Inscription[] {
   if (typeof window === "undefined") return [];

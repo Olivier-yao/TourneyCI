@@ -70,7 +70,12 @@ export default function DetailTournoiPage() {
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
       <div className="relative">
-        <ImagePlaceholder label="bannière du tournoi" hauteur={210} />
+        {tournoi.banniereUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={tournoi.banniereUrl} alt={tournoi.titre} className="w-full object-cover" style={{ height: 210 }} />
+        ) : (
+          <ImagePlaceholder label="bannière du tournoi" hauteur={210} />
+        )}
         <Link
           href="/accueil"
           className="absolute top-5 left-5 flex items-center justify-center w-[34px] h-[34px]"

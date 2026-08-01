@@ -37,6 +37,13 @@ export function marquerConnecte(source: SourceConnexion, identifiant: string) {
   localStorage.setItem(CLE_IDENTIFIANT, identifiant);
 }
 
+export function deconnecter() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(CLE_CONNECTE);
+  localStorage.removeItem(CLE_SOURCE);
+  localStorage.removeItem(CLE_IDENTIFIANT);
+}
+
 export function sourceConnexion(): SourceConnexion | null {
   if (typeof window === "undefined") return null;
   const valeur = localStorage.getItem(CLE_SOURCE);

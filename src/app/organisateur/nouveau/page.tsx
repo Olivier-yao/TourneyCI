@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImagePlus } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Tag } from "@/components/ds/Tag";
@@ -60,9 +61,22 @@ function SegmentedControl<T extends string>({
   );
 }
 
+function formatDateLabel(date: string, heure: string): string {
+  if (!date) return "";
+  const [annee, mois, jour] = date.split("-").map(Number);
+  const d = new Date(annee, (mois || 1) - 1, jour || 1);
+  const nomJour = d.toLocaleDateString("fr-FR", { weekday: "long" });
+  const jourCapitalise = nomJour.charAt(0).toUpperCase() + nomJour.slice(1);
+  const [h, m] = (heure || "00:00").split(":");
+  const suffixe = m && m !== "00" ? `${h}h${m}` : `${h}h00`;
+  return `${jourCapitalise} ${suffixe} GMT`;
+}
+
 export default function NouveauTournoiPage() {
   const router = useRouter();
+  const inputBanniereRef = useRef<HTMLInputElement>(null);
 
+  const [banniereUrl, setBanniereUrl] = useState<string | undefined>(undefined);
   const [jeuId, setJeuId] = useState(JEUX[0].id);
   const [jeuPersonnalise, setJeuPersonnalise] = useState("");
   const [titre, setTitre] = useState("");
@@ -79,8 +93,11 @@ export default function NouveauTournoiPage() {
   const [repartitionPerso, setRepartitionPerso] = useState<RepartitionCashPrize[]>([
     { label: "1er", montantXof: 0 },
   ]);
-  const [dateLabel, setDateLabel] = useState("");
-  const [checkin, setCheckin] = useState("");
+  const [dateJour, setDateJour] = useState("");
+  const [dateHeure, setDateHeure] = useState("20:00");
+  const [checkinHeure, setCheckinHeure] = useState("19:30");
+  const dateLabel = formatDateLabel(dateJour, dateHeure);
+  const checkin = checkinHeure ? `${checkinHeure.replace(":", "h")}` : "";
   const [reglement, setReglement] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -156,6 +173,7 @@ export default function NouveauTournoiPage() {
       enDirect: false,
       reglement: reglement.trim(),
       inscrits: [],
+      banniereUrl,
       equipes,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       repartitionCashPrize:
@@ -173,6 +191,45 @@ export default function NouveauTournoiPage() {
       <AppBar retour titre="Créer un tournoi" onRetour={() => router.push("/accueil")} />
 
       <form onSubmit={creer} className="flex flex-col gap-5 mt-4 max-w-sm pb-10">
+        <div>
+          <div
+            className="text-xs uppercase tracking-wide mb-2"
+            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+          >
+            Bannière
+          </div>
+          <input
+            ref={inputBanniereRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const fichier = e.target.files?.[0];
+              if (!fichier) return;
+              const lecteur = new FileReader();
+              lecteur.onload = () => setBanniereUrl(lecteur.result as string);
+              lecteur.readAsDataURL(fichier);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => inputBanniereRef.current?.click()}
+            className="w-full h-[110px] flex flex-col items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
+            style={{ borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border-strong)", background: "var(--ds-surface)" }}
+          >
+            {banniereUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={banniereUrl} alt="Bannière du tournoi" className="w-full h-full object-cover" />
+            ) : (
+              <>
+                <ImagePlus size={20} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                <span className="text-xs" style={{ color: "var(--ds-muted)" }}>Ajouter une image</span>
+              </>
+            )}
+          </button>
+        </div>
+
         <div>
           <div
             className="text-xs uppercase tracking-wide mb-2"
@@ -288,8 +345,16 @@ export default function NouveauTournoiPage() {
           </p>
         )}
 
-        <Field label="Date" value={dateLabel} onChange={(e) => setDateLabel(e.target.value)} placeholder="Samedi 21h00 GMT" />
-        <Field label="Check-in" value={checkin} onChange={(e) => setCheckin(e.target.value)} placeholder="20h30" />
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field label="Date" type="date" value={dateJour} onChange={(e) => setDateJour(e.target.value)} />
+          <Field label="Heure" type="time" value={dateHeure} onChange={(e) => setDateHeure(e.target.value)} />
+        </div>
+        {dateLabel && (
+          <p className="text-xs -mt-3" style={{ color: "var(--ds-muted)" }}>
+            Affiché comme : <span style={{ color: "var(--ds-accent-300)" }}>{dateLabel}</span>
+          </p>
+        )}
+        <Field label="Heure de check-in" type="time" value={checkinHeure} onChange={(e) => setCheckinHeure(e.target.value)} />
 
         <div className="flex flex-col gap-3">
           <SegmentedControl

@@ -222,3 +222,38 @@ export function genererBracket(tournoiId: string, participants: string[]): Match
 
   return matchs;
 }
+
+function perdantDe(match: MatchTournoi): string | null {
+  if (match.statut !== "termine") return null;
+  const gagnant = (match.score1 ?? 0) > (match.score2 ?? 0) ? match.joueur1 : match.joueur2;
+  return gagnant === match.joueur1 ? match.joueur2 : match.joueur1;
+}
+
+/** Classement final déduit du bracket (1er = vainqueur), pour la distribution
+ * automatique des points en fin de tournoi. Vide tant que la finale n'est
+ * pas terminée. */
+export function classementFinalBracket(tournoiId: string): string[] {
+  const matches = matchsDuTournoi(tournoiId);
+  if (matches.length === 0) return [];
+
+  const totalRounds = Math.max(...matches.map((m) => m.round));
+  const finale = matches.find((m) => m.round === totalRounds && m.position === 0);
+  if (!finale || finale.statut !== "termine") return [];
+
+  const gagnant = (finale.score1 ?? 0) > (finale.score2 ?? 0) ? finale.joueur1 : finale.joueur2;
+  const perdantFinale = perdantDe(finale);
+
+  const classement: string[] = [];
+  if (gagnant) classement.push(gagnant);
+  if (perdantFinale) classement.push(perdantFinale);
+
+  for (let round = totalRounds - 1; round >= 1; round--) {
+    const perdants = matches
+      .filter((m) => m.round === round)
+      .map(perdantDe)
+      .filter((n): n is string => Boolean(n));
+    classement.push(...perdants);
+  }
+
+  return classement;
+}
