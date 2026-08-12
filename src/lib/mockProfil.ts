@@ -23,7 +23,7 @@ export const MON_PROFIL: Profil = {
   victoires: 61,
 };
 
-const CLE_PROFIL_MODIFIE = "tourneyci-profil-modifie";
+const CLE_PROFIL_MODIFIE = "tourney-profil-modifie";
 
 /** Fusionne MON_PROFIL avec les surcharges (pseudo/ville) enregistrées en localStorage. */
 export function lireProfil(): Profil {
@@ -139,7 +139,7 @@ export const SAISON = "Saison 3 : Éclipse";
  * ne se réinitialise automatiquement ici. */
 export const SAISON_FIN_LABEL = "se termine dans 18 jours";
 
-const CLE_POINTS_ATTRIBUES = "tourneyci-points-attribues";
+const CLE_POINTS_ATTRIBUES = "tourney-points-attribues";
 
 function lirePointsAttribues(): Record<string, ClassementEntree[]> {
   if (typeof window === "undefined") return {};

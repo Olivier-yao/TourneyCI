@@ -58,8 +58,8 @@ const PARTICIPANTS_INITIAUX: Record<string, ParticipantBR[]> = {
   "freefire-night": genererParticipants(15),
 };
 
-const CLE_PARTICIPANTS_BR = "tourneyci-participants-br";
-const CLE_ACTIONS_BR = "tourneyci-actions-br";
+const CLE_PARTICIPANTS_BR = "tourney-participants-br";
+const CLE_ACTIONS_BR = "tourney-actions-br";
 
 function lireOverlayParticipants(): Record<string, ParticipantBR[]> {
   if (typeof window === "undefined") return {};

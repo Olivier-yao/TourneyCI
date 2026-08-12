@@ -1,4 +1,4 @@
--- Schéma initial TourneyCI : événements, participants, matchs, admins.
+-- Schéma initial Tourney : événements, participants, matchs, admins.
 
 create extension if not exists pgcrypto;
 

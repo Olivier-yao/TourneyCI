@@ -24,7 +24,7 @@ function ParametresInterne() {
   }
 
   function seDeconnecter() {
-    if (!window.confirm("Te déconnecter de TourneyCI ?")) return;
+    if (!window.confirm("Te déconnecter de Tourney ?")) return;
     deconnecter();
     router.push("/verify");
   }

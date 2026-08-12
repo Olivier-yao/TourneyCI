@@ -54,7 +54,7 @@ const bricolageGrotesque = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "TourneyCI",
+  title: "Tourney",
   description: "Gestion de tournoi gaming IRL",
 };
 

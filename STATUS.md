@@ -1,10 +1,10 @@
-# TourneyCI — Pitch & état du projet
+# Tourney — Pitch & état du projet
 
 _Dernière mise à jour : 2026-08-01_
 
 ## Pitch
 
-**TourneyCI** est une application de gestion de tournois esport pensée pour la Côte d'Ivoire et l'Afrique de l'Ouest. Elle connecte deux publics dans une seule app : les **joueurs**, qui découvrent des tournois près de chez eux (EA FC, Free Fire, CODM, Tekken, et bien d'autres), s'inscrivent en quelques secondes et sont payés directement en Mobile Money quand ils gagnent — et les **organisateurs**, qui créent et pilotent leurs compétitions (1v1, équipes, battle royale) sans avoir besoin d'un site web ou d'un tableur pour gérer inscriptions, bracket et prize pool.
+**Tourney** est une application de gestion de tournois esport pensée pour la Côte d'Ivoire et l'Afrique de l'Ouest. Elle connecte deux publics dans une seule app : les **joueurs**, qui découvrent des tournois près de chez eux (EA FC, Free Fire, CODM, Tekken, et bien d'autres), s'inscrivent en quelques secondes et sont payés directement en Mobile Money quand ils gagnent — et les **organisateurs**, qui créent et pilotent leurs compétitions (1v1, équipes, battle royale) sans avoir besoin d'un site web ou d'un tableur pour gérer inscriptions, bracket et prize pool.
 
 Le cœur du produit : un **portefeuille intégré (TourneyCard)** qui fait le pont entre inscription et gain — un joueur peut recharger sa carte depuis Orange Money, MTN, Moov ou Wave, payer ses inscriptions instantanément, et récupérer ses gains automatiquement dès qu'un tournoi se termine, sans attendre un virement manuel de l'organisateur. Le classement nourrit une progression durable (points par jeu et par ville, saisons), et un système de certification d'identité protège la plateforme et ses utilisateurs avant tout retrait d'argent.
 
@@ -86,4 +86,4 @@ L'app est construite pour 4 ambiances visuelles au choix (Nocturne, Organic, Vol
 
 ## Instruction pour reprendre le travail
 
-> Reprends le projet **TourneyCI** (`C:\personnel\claude\TourneyCI`, repo GitHub `Olivier-yao/TourneyCI`, branche `master`). Lis `STATUS.md` à la racine du projet pour l'état complet (pitch, fait / pas fait / à faire). L'app est en **mock-first** : aucun vrai backend, tout est simulé via `localStorage` (voir les modules `src/lib/mock*.ts`). Avant de coder : lance `npx tsc --noEmit` et `npm run lint` pour repartir d'une base propre. Après toute modification : revérifie ces deux commandes, teste dans le navigateur (le Next.js dev tourne sur le port 3000, `.next/` doit être vidé avant un redémarrage si des 404 étranges apparaissent), commit et push sur GitHub uniquement si demandé explicitement. Demande à l'utilisateur quelle tâche de la section "Ce qui doit être fait" il souhaite attaquer en premier, sauf s'il a déjà précisé une demande spécifique.
+> Reprends le projet **Tourney** (dossier local `C:\personnel\claude\TourneyCI`, repo GitHub `Olivier-yao/TourneyCI` — noms de dossier/repo inchangés, seul le nom du produit est devenu "Tourney", branche `master`). Lis `STATUS.md` à la racine du projet pour l'état complet (pitch, fait / pas fait / à faire). L'app est en **mock-first** : aucun vrai backend, tout est simulé via `localStorage` (voir les modules `src/lib/mock*.ts`). Avant de coder : lance `npx tsc --noEmit` et `npm run lint` pour repartir d'une base propre. Après toute modification : revérifie ces deux commandes, teste dans le navigateur (le Next.js dev tourne sur le port 3000, `.next/` doit être vidé avant un redémarrage si des 404 étranges apparaissent), commit et push sur GitHub uniquement si demandé explicitement. Demande à l'utilisateur quelle tâche de la section "Ce qui doit être fait" il souhaite attaquer en premier, sauf s'il a déjà précisé une demande spécifique.

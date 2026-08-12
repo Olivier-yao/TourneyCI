@@ -1,4 +1,4 @@
-const CLE_FAVORIS = "tourneyci-favoris";
+const CLE_FAVORIS = "tourney-favoris";
 
 function lireFavoris(): string[] {
   if (typeof window === "undefined") return [];

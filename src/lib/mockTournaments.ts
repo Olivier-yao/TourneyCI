@@ -193,7 +193,7 @@ export const TOURNOIS: Tournoi[] = [
   },
 ];
 
-const CLE_TOURNOIS_CREES = "tourneyci-tournois-crees";
+const CLE_TOURNOIS_CREES = "tourney-tournois-crees";
 
 function lireTournoisCrees(): Tournoi[] {
   if (typeof window === "undefined") return [];
@@ -217,7 +217,7 @@ function lireTournoisCrees(): Tournoi[] {
   }
 }
 
-const CLE_INSCRITS_SUPPLEMENTAIRES = "tourneyci-inscrits-supplementaires";
+const CLE_INSCRITS_SUPPLEMENTAIRES = "tourney-inscrits-supplementaires";
 
 function lireInscritsSupplementaires(): Record<string, number> {
   if (typeof window === "undefined") return {};
@@ -238,8 +238,8 @@ export function incrementerInscrits(tournoiId: string) {
   localStorage.setItem(CLE_INSCRITS_SUPPLEMENTAIRES, JSON.stringify(supplements));
 }
 
-const CLE_TOURNOIS_TERMINES = "tourneyci-tournois-termines";
-const CLE_TOURNOIS_ANNULES = "tourneyci-tournois-annules";
+const CLE_TOURNOIS_TERMINES = "tourney-tournois-termines";
+const CLE_TOURNOIS_ANNULES = "tourney-tournois-annules";
 
 function lireListe(cle: string): string[] {
   if (typeof window === "undefined") return [];

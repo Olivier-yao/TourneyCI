@@ -17,8 +17,8 @@ export type Mouvement = {
   horodatage: number;
 };
 
-const CLE_SOLDE = "tourneyci-solde";
-const CLE_MOUVEMENTS = "tourneyci-mouvements";
+const CLE_SOLDE = "tourney-solde";
+const CLE_MOUVEMENTS = "tourney-mouvements";
 const SOLDE_INITIAL = 128500;
 
 const MOUVEMENTS_INITIAUX: Mouvement[] = [

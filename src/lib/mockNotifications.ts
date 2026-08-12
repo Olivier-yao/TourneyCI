@@ -8,8 +8,8 @@ export type NotificationApp = {
   tournoiId?: string;
 };
 
-const CLE_NOTIFICATIONS = "tourneyci-notifications";
-const CLE_SUIVIS = "tourneyci-notifs-suivies";
+const CLE_NOTIFICATIONS = "tourney-notifications";
+const CLE_SUIVIS = "tourney-notifs-suivies";
 
 const NOTIFICATIONS_INITIALES: NotificationApp[] = [
   { id: "n1", texte: "Ton match commence dans 10 minutes", temps: "Il y a 2 min", horodatage: 3 },

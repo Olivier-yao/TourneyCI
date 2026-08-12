@@ -63,7 +63,7 @@ export function AccueilAnime({ events }: { events: Event[] }) {
           >
             <IconTrophee size={24} />
           </motion.div>
-          <h1 className="text-4xl font-bold text-forest-900">TourneyCI</h1>
+          <h1 className="text-4xl font-bold text-forest-900">Tourney</h1>
           <p className="text-ink-600 text-lg mt-2 max-w-md mx-auto">
             Organise ton tournoi gaming IRL : inscriptions, bracket et scores
             en direct, depuis ton téléphone.

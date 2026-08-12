@@ -11,8 +11,8 @@ export type DemandeCertification = {
   soumisLe: string;
 };
 
-const CLE_CERTIFICATION = "tourneyci-organisateur-certifie";
-const CLE_DEMANDE = "tourneyci-organisateur-demande";
+const CLE_CERTIFICATION = "tourney-organisateur-certifie";
+const CLE_DEMANDE = "tourney-organisateur-demande";
 
 export function estCertifie(): boolean {
   if (typeof window === "undefined") return false;

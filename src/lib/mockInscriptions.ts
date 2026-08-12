@@ -1,4 +1,4 @@
-const CLE_INSCRIPTIONS = "tourneyci-inscriptions";
+const CLE_INSCRIPTIONS = "tourney-inscriptions";
 
 export type Inscription = { tournoiId: string; equipe?: string };
 

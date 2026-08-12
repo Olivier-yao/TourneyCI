@@ -49,7 +49,7 @@ function DemoInterne() {
                 fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"],
               }}
             >
-              TourneyCI — Design system
+              Tourney — Design system
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--ds-text-muted)" }}>
               Fondations du re-design gaming : Nocturne et Organic.

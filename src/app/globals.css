@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Design tokens TourneyCI — soft UI, fond crème, accent vert sapin.
+ * Design tokens Tourney — soft UI, fond crème, accent vert sapin.
  * Tout ce qui est défini ici sous @theme génère des classes Tailwind
  * utilisables partout (ex: --color-cream-100 -> bg-cream-100 / text-cream-100).
  */

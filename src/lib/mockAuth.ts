@@ -6,11 +6,11 @@
 
 export type SourceConnexion = "telephone" | "google";
 
-const CLE_SPLASH_VU = "tourneyci-splash-vu";
-const CLE_ONBOARDE = "tourneyci-onboarde";
-const CLE_CONNECTE = "tourneyci-connecte";
-const CLE_SOURCE = "tourneyci-source-connexion";
-const CLE_IDENTIFIANT = "tourneyci-identifiant";
+const CLE_SPLASH_VU = "tourney-splash-vu";
+const CLE_ONBOARDE = "tourney-onboarde";
+const CLE_CONNECTE = "tourney-connecte";
+const CLE_SOURCE = "tourney-source-connexion";
+const CLE_IDENTIFIANT = "tourney-identifiant";
 
 function lire(cle: string): boolean {
   if (typeof window === "undefined") return false;
@@ -57,7 +57,7 @@ export function identifiantConnexion(): string | null {
 
 export type Role = "joueur" | "organisateur";
 
-const CLE_ROLE = "tourneyci-role";
+const CLE_ROLE = "tourney-role";
 
 export function rolePrefere(): Role {
   if (typeof window === "undefined") return "joueur";

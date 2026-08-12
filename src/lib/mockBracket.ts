@@ -105,7 +105,7 @@ export const MATCHES: MatchTournoi[] = [
   },
 ];
 
-const CLE_BRACKETS_GENERES = "tourneyci-brackets-generes";
+const CLE_BRACKETS_GENERES = "tourney-brackets-generes";
 
 function lireBracketsGeneres(): Record<string, MatchTournoi[]> {
   if (typeof window === "undefined") return {};

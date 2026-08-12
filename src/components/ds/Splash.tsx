@@ -179,7 +179,7 @@ function Marque({ fantome = false }: { fantome?: boolean }) {
         )}
       </div>
       <div
-        className="flex items-baseline gap-1 text-4xl"
+        className="text-4xl"
         style={{
           fontFamily: "var(--ds-font-heading)",
           fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"],
@@ -187,8 +187,7 @@ function Marque({ fantome = false }: { fantome?: boolean }) {
           color: fantome ? "var(--ds-accent-300)" : "var(--ds-text)",
         }}
       >
-        <span>Tourney</span>
-        <span style={{ color: "var(--ds-accent)" }}>CI</span>
+        Tourney
       </div>
     </div>
   );
