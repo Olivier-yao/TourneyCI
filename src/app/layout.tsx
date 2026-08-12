@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppliquerTheme } from "@/components/ds/AppliquerTheme";
+import { BetaBanner } from "@/components/ds/BetaBanner";
 import {
   Geist,
   Geist_Mono,
@@ -71,6 +72,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <AppliquerTheme />
+        <BetaBanner />
         {children}
       </body>
     </html>

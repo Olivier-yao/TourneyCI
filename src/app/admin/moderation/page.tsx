@@ -23,6 +23,7 @@ import {
   type PaiementEnAttente,
 } from "@/lib/mockTournaments";
 import { tousLesAppelsOuverts, traiterAppel, type Appel } from "@/lib/mockAppel";
+import { AdminGate } from "@/components/ds/AdminGate";
 
 /**
  * Outil d'administration (mock) : pas de rôle admin séparé dans l'app, donc
@@ -31,6 +32,14 @@ import { tousLesAppelsOuverts, traiterAppel, type Appel } from "@/lib/mockAppel"
  * back-office en phase 8.
  */
 export default function ModerationAdminPage() {
+  return (
+    <AdminGate>
+      <ModerationAdminContenu />
+    </AdminGate>
+  );
+}
+
+function ModerationAdminContenu() {
   const [organisateur, setOrganisateur] = useState("");
   const [stats, setStats] = useState({ coeurs: 0, coeursBrises: 0 });
   const [statut, setStatut] = useState<StatutModeration>("actif");
