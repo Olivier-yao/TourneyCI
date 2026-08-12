@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { BannerCropper } from "@/components/ds/BannerCropper";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
-import { Tag } from "@/components/ds/Tag";
+import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
+import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
 import { lireProfil } from "@/lib/mockProfil";
 import { lireSolde, debiter } from "@/lib/mockWallet";
@@ -16,6 +17,7 @@ import {
   creerTournoi,
   decomposerCommission,
   tauxPlateformeSurCommission,
+  FRAIS_CREATION_TOURNOI_PAYANT_XOF,
   type TypeCompetition,
   type Modalite,
   type ModeEquipe,
@@ -137,6 +139,7 @@ export default function NouveauTournoiPage() {
   const [reglement, setReglement] = useState("");
   const [informations, setInformations] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  const [paiementFraisOuvert, setPaiementFraisOuvert] = useState(false);
 
   const jeu = JEUX.find((j) => j.id === jeuId);
   const jeuIdFinal = jeuId === "autre" ? jeuPersonnalise.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : jeuId;
@@ -190,6 +193,17 @@ export default function NouveauTournoiPage() {
     }
     setErreur(null);
 
+    if (payant && Number(fraisXof) > 0) {
+      // Frais de création bloquants (150F), distincts de la commission :
+      // le tournoi n'est créé qu'une fois ce paiement confirmé.
+      setPaiementFraisOuvert(true);
+      return;
+    }
+
+    finaliserCreation();
+  }
+
+  function finaliserCreation() {
     if (financeParOrganisateur && cashPrizeNum > 0) {
       debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement");
     }
@@ -237,6 +251,25 @@ export default function NouveauTournoiPage() {
     router.push(`/tournois/${tournoi.id}`);
   }
 
+  if (paiementFraisOuvert) {
+    return (
+      <div className="min-h-screen flex flex-col px-6 py-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+        <AppBar retour titre="Frais de création" onRetour={() => setPaiementFraisOuvert(false)} />
+        <div className="mt-4 max-w-sm">
+          <PaiementFraisFixes
+            montantXof={FRAIS_CREATION_TOURNOI_PAYANT_XOF}
+            libelle={`Frais de création · ${titre.trim() || "tournoi payant"}`}
+            onAnnuler={() => setPaiementFraisOuvert(false)}
+            onValide={() => {
+              setPaiementFraisOuvert(false);
+              finaliserCreation();
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="min-h-screen flex flex-col px-6 py-4"
@@ -262,16 +295,7 @@ export default function NouveauTournoiPage() {
           >
             Jeu
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {JEUX.map((j) => (
-              <Tag key={j.id} actif={jeuId === j.id} onClick={() => setJeuId(j.id)}>
-                {j.label}
-              </Tag>
-            ))}
-            <Tag actif={jeuId === "autre"} onClick={() => setJeuId("autre")}>
-              Autre
-            </Tag>
-          </div>
+          <SelecteurJeu jeuId={jeuId} onChange={setJeuId} />
           {jeuId === "autre" && (
             <div className="mt-2">
               <Field
@@ -460,6 +484,11 @@ export default function NouveauTournoiPage() {
                 <Field label="Frais d'inscription (F)" type="number" min={0} value={fraisXof} onChange={(e) => setFraisXof(e.target.value)} />
                 <Field label="Cash prize (F)" type="number" min={0} value={cashPrizeXof} onChange={(e) => setCashPrizeXof(e.target.value)} />
               </div>
+              {Number(fraisXof) > 0 && (
+                <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                  Des frais de création de {formatXof(FRAIS_CREATION_TOURNOI_PAYANT_XOF)} te seront demandés avant la publication (tournoi payant à l&apos;inscription).
+                </p>
+              )}
               <label className="flex items-center gap-2 text-sm cursor-pointer">
                 <input
                   type="checkbox"

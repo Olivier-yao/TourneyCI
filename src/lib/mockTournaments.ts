@@ -102,6 +102,10 @@ export function bracketVerrouillee(tournoi: Pick<Tournoi, "finInscriptionsTs" | 
   return Date.now() < cloture + DELAI_VERROU_BRACKET_MS;
 }
 
+/** Frais fixes payés par l'organisateur à la création d'un tournoi payant à
+ * l'inscription (bloquant, distinct de la commission ci-dessous). */
+export const FRAIS_CREATION_TOURNOI_PAYANT_XOF = 150;
+
 /** Commission de l'organisateur sur les tournois payants (optionnelle,
  * activée tournoi par tournoi), en plus du cash prize. */
 export const COMMISSION_PCT = 0.05;

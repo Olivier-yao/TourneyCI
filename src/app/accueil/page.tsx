@@ -75,6 +75,7 @@ export default function AccueilV2Page() {
 
   const resultats = tousFiltres(filtres);
   const enDirect = resultats.filter((t) => t.enDirect);
+  const vedette = enDirect[0];
   const prochains = resultats.filter((t) => !t.enDirect);
   const nbFiltresActifs = compterFiltresActifs(filtres);
 
@@ -210,48 +211,51 @@ export default function AccueilV2Page() {
           </motion.div>
         </div>
 
-        <div className="flex-1 px-[20px] pt-4 flex flex-col gap-3 pb-4">
-          {enDirect.length > 0 && (
+        <div className="flex-1 px-[20px] pt-4 flex flex-col gap-3 pb-24">
+          {vedette && (
             <>
-              <motion.div variants={elementVariants} className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                En direct maintenant · {enDirect.length}
-              </motion.div>
-              <motion.div variants={elementVariants} className="flex gap-2.5 overflow-x-auto pb-1 -mx-[20px] px-[20px]">
-                {enDirect.map((t) => (
-                  <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0" style={{ width: 258 }}>
-                    <Card>
-                      <div className="relative">
-                        {t.banniereUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={t.banniereUrl} alt={t.titre} className="w-full object-cover" style={{ height: 100 }} />
-                        ) : (
-                          <ImagePlaceholder label="visuel tournoi" hauteur={100} />
-                        )}
-                        <div className="absolute top-2.5 left-2.5">
-                          <LiveBadge />
-                        </div>
-                      </div>
-                      <div className="p-3.5 flex flex-col gap-1.5">
-                        <CardTitle>{t.titre}</CardTitle>
-                        <CardKicker>{t.jeuLabel} · {t.format}</CardKicker>
-                        <div className="flex items-end justify-between mt-1">
-                          <div>
-                            <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
-                            <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                              {formatXof(t.cashPrizeXof)}
-                            </div>
-                          </div>
-                          <span
-                            className="h-8 px-3 flex items-center text-xs font-semibold"
-                            style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", border: "var(--ds-btn-primary-border, 1px solid transparent)", color: "var(--ds-btn-primary-text)" }}
-                          >
-                            Suivre
-                          </span>
-                        </div>
-                      </div>
-                    </Card>
+              <motion.div variants={elementVariants} className="flex items-center justify-between text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                <span>En direct maintenant</span>
+                {enDirect.length > 1 && (
+                  <Link href="/en-direct" style={{ color: "var(--ds-accent-300)" }}>
+                    +{enDirect.length - 1} autre{enDirect.length > 2 ? "s" : ""}
                   </Link>
-                ))}
+                )}
+              </motion.div>
+              <motion.div variants={elementVariants}>
+                <Link href={`/tournois/${vedette.id}`}>
+                  <Card>
+                    <div className="relative">
+                      {vedette.banniereUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={vedette.banniereUrl} alt={vedette.titre} className="w-full object-cover" style={{ height: 120 }} />
+                      ) : (
+                        <ImagePlaceholder label="visuel tournoi" hauteur={120} />
+                      )}
+                      <div className="absolute top-2.5 left-2.5">
+                        <LiveBadge />
+                      </div>
+                    </div>
+                    <div className="p-3.5 flex flex-col gap-1.5">
+                      <CardTitle>{vedette.titre}</CardTitle>
+                      <CardKicker>{vedette.jeuLabel} · {vedette.format}</CardKicker>
+                      <div className="flex items-end justify-between mt-1">
+                        <div>
+                          <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
+                          <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                            {formatXof(vedette.cashPrizeXof)}
+                          </div>
+                        </div>
+                        <span
+                          className="h-8 px-3 flex items-center text-xs font-semibold"
+                          style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", border: "var(--ds-btn-primary-border, 1px solid transparent)", color: "var(--ds-btn-primary-text)" }}
+                        >
+                          Suivre
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
               </motion.div>
             </>
           )}

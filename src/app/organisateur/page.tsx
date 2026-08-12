@@ -16,7 +16,7 @@ export default function OrganisateurPage() {
   if (!connecte) return null;
 
   return (
-    <div className="min-h-screen flex flex-col px-5 py-4 gap-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+    <div className="min-h-screen flex flex-col px-5 pt-4 pb-24 gap-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
       <div
         className="text-2xl"
         style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}

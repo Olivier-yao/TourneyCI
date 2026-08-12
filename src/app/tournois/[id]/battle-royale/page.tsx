@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Minus, Plus, ListPlus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Minus, Plus, ListPlus, Search } from "lucide-react";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { tournoiParId } from "@/lib/mockTournaments";
 import {
@@ -122,6 +122,7 @@ export default function BattleRoyalePage() {
   const [organisateur, setOrganisateur] = useState(false);
   const [manches, setManches] = useState<ReturnType<typeof manchesBR>>([]);
   const [classement, setClassement] = useState<ReturnType<typeof classementCumuleBR>>([]);
+  const [recherche, setRecherche] = useState("");
 
   useEffect(() => {
     const id = setInterval(() => setRafraichir((n) => n + 1), RAFRAICHISSEMENT_MS);
@@ -196,13 +197,36 @@ export default function BattleRoyalePage() {
           </>
         )}
 
+        {classement.length > 0 && (
+          <div
+            className="flex items-center gap-2.5 h-11 px-3.5"
+            style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}
+          >
+            <Search size={15} style={{ color: "var(--ds-muted)" }} />
+            <input
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder="Chercher une équipe ou un joueur"
+              className="flex-1 bg-transparent outline-none text-sm"
+              style={{ color: "var(--ds-text)" }}
+            />
+          </div>
+        )}
+
         {classement.every((l) => l.points === 0) ? (
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
             Aucune manche jouée pour l&apos;instant.
           </p>
+        ) : classement.filter((l) => l.nom.toLowerCase().includes(recherche.toLowerCase())).length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            Aucun résultat pour &quot;{recherche}&quot;.
+          </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {classement.map((l, i) => (
+            {classement
+              .map((l, i) => ({ ...l, rang: i + 1 }))
+              .filter((l) => l.nom.toLowerCase().includes(recherche.toLowerCase()))
+              .map((l) => (
               <div
                 key={l.participantId}
                 className="flex items-center gap-3 p-3"
@@ -213,7 +237,7 @@ export default function BattleRoyalePage() {
                 }}
               >
                 <span className="w-6 text-xs text-center" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                  #{i + 1}
+                  #{l.rang}
                 </span>
                 <span className="text-sm flex-1 truncate">{l.nom}</span>
                 <span className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>

@@ -6,14 +6,19 @@ import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon } from 
 import Link from "next/link";
 import { Button } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
+import { Modal } from "@/components/ds/Modal";
 import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
-import { estInscrit, inscriptionDe, renommerEquipe } from "@/lib/mockInscriptions";
+import { estInscrit, inscriptionDe, renommerEquipe, enregistrerInscription } from "@/lib/mockInscriptions";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
+import { incrementerInscrits } from "@/lib/mockTournaments";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
 export function CtaInscription({
   tournoiId,
+  titre,
+  jeuLabel,
+  dateLabel,
   fraisXof,
   typeCompetition,
   equipes,
@@ -22,6 +27,9 @@ export function CtaInscription({
   fermeInscriptions = false,
 }: {
   tournoiId: string;
+  titre: string;
+  jeuLabel: string;
+  dateLabel: string;
   fraisXof: number;
   typeCompetition: TypeCompetition;
   equipes?: EquipeInfo[];
@@ -40,6 +48,8 @@ export function CtaInscription({
   const [equipeInscrite, setEquipeInscrite] = useState<string | undefined>(undefined);
   const [renommage, setRenommage] = useState(false);
   const [nouveauNomEquipe, setNouveauNomEquipe] = useState("");
+  const [confirmationOuverte, setConfirmationOuverte] = useState(false);
+  const [equipeEnAttente, setEquipeEnAttente] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     // Lu depuis le localStorage : état neutre au premier rendu serveur,
@@ -58,12 +68,31 @@ export function CtaInscription({
     router.push(url);
   }
 
+  function demarrerInscription(equipe?: string) {
+    if (fraisXof === 0) {
+      // Tournoi gratuit : pas de moyen de paiement, juste une confirmation
+      // récapitulative avant de valider l'inscription.
+      setEquipeEnAttente(equipe);
+      setConfirmationOuverte(true);
+      return;
+    }
+    allerAuPaiement(equipe);
+  }
+
+  function confirmerInscriptionGratuite() {
+    enregistrerInscription(tournoiId, equipeEnAttente);
+    incrementerInscrits(tournoiId);
+    setConfirmationOuverte(false);
+    setInscrit(true);
+    setEquipeInscrite(equipeEnAttente);
+  }
+
   function onClicInscription() {
     if (estEquipes) {
       setChoixEquipe(true);
       return;
     }
-    allerAuPaiement();
+    demarrerInscription();
   }
 
   function validerEquipe() {
@@ -71,7 +100,7 @@ export function CtaInscription({
       setErreur("Choisis ou saisis le nom de ton équipe.");
       return;
     }
-    allerAuPaiement(nomEquipe.trim());
+    demarrerInscription(nomEquipe.trim());
   }
 
   function validerRenommage() {
@@ -226,6 +255,33 @@ export function CtaInscription({
           {fermeInscriptions ? "Inscriptions fermées" : choixEquipe ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}
         </Button>
       </div>
+
+      <Modal ouvert={confirmationOuverte} titre="Confirmer l'inscription" onFermer={() => setConfirmationOuverte(false)}>
+        <div className="flex flex-col gap-2 not-italic" style={{ whiteSpace: "normal" }}>
+          <p><strong>{titre}</strong></p>
+          <p>{jeuLabel} · {dateLabel}</p>
+          {equipeEnAttente && <p>Équipe : {equipeEnAttente}</p>}
+          <p style={{ color: "var(--ds-accent-300)" }}>Inscription gratuite — aucun paiement requis.</p>
+        </div>
+        <div className="flex gap-2 pt-3">
+          <button
+            type="button"
+            onClick={() => setConfirmationOuverte(false)}
+            className="flex-1 h-10 text-sm font-medium cursor-pointer"
+            style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={confirmerInscriptionGratuite}
+            className="flex-[2] h-10 text-sm font-medium cursor-pointer"
+            style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+          >
+            Confirmer mon inscription
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

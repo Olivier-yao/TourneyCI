@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Send, Lock } from "lucide-react";
-import { tournoiParId, inscriptionsFermees } from "@/lib/mockTournaments";
+import { tournoiParId } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { lireProfil } from "@/lib/mockProfil";
@@ -23,19 +23,18 @@ export default function ChatTournoiPage() {
   const tournoi = tournoiParId(params.id);
   const [autorise, setAutorise] = useState(false);
   const [organisateur, setOrganisateur] = useState(false);
-  const [ouvert, setOuvert] = useState(false);
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrganisateur(estOrganisateur());
+    // Accessible dès l'inscription (pas besoin d'attendre la clôture des
+    // inscriptions ni le début de la compétition).
     setAutorise(estInscrit(params.id) || estOrganisateur());
-    if (tournoi) setOuvert(inscriptionsFermees(tournoi));
     setMessages(messagesChat(params.id));
     const id = setInterval(() => setMessages(messagesChat(params.id)), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   if (!connecte) return null;
@@ -74,13 +73,6 @@ export default function ChatTournoiPage() {
           <Lock size={22} style={{ color: "var(--ds-muted)" }} />
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
             Le chat est réservé aux inscrits et à l&apos;organisateur de ce tournoi.
-          </p>
-        </div>
-      ) : !ouvert ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6 text-center">
-          <Lock size={22} style={{ color: "var(--ds-muted)" }} />
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            Le chat s&apos;ouvre à la clôture des inscriptions.
           </p>
         </div>
       ) : (

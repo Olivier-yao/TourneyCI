@@ -2,14 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight } from "lucide-react";
-import { Card, CardTitle, CardKicker } from "@/components/ds/Card";
+import { ArrowLeft, ChevronRight, Users, Radio } from "lucide-react";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
-import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois } from "@/lib/mockTournaments";
+import { tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
+import { matchsDuTournoi } from "@/lib/mockBracket";
+import { manchesBR } from "@/lib/mockBattleRoyale";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type Tri = "cashprize" | "participants" | "recent";
@@ -19,6 +19,35 @@ const TRIS: { id: Tri; label: string }[] = [
   { id: "participants", label: "Participants" },
   { id: "recent", label: "Récent" },
 ];
+
+function nomRonde(round: number, totalRounds: number): string {
+  if (round === totalRounds) return "Finale";
+  if (round === totalRounds - 1) return "Demies";
+  if (round === totalRounds - 2) return "Quarts";
+  return `Tour ${round}`;
+}
+
+/** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
+ * dans ce mock) — stable entre le rendu serveur et client. */
+function spectateurs(tournoi: Tournoi): number {
+  let h = 0;
+  for (let i = 0; i < tournoi.id.length; i++) h = (h * 31 + tournoi.id.charCodeAt(i)) >>> 0;
+  return 80 + (h % 400) + tournoi.placesInscrites * 6;
+}
+
+function infosDirect(tournoi: Tournoi): { score: string; phase: string } {
+  if (tournoi.type === "battle_royale") {
+    const nb = manchesBR(tournoi.id).length;
+    return { score: nb > 0 ? `Manche ${nb}` : "—", phase: "Battle Royale" };
+  }
+  const matches = matchsDuTournoi(tournoi.id);
+  const enCours = matches.find((m) => m.statut === "en_cours");
+  if (enCours) {
+    const totalRounds = Math.max(...matches.map((m) => m.round), enCours.round);
+    return { score: `${enCours.score1 ?? 0} - ${enCours.score2 ?? 0}`, phase: nomRonde(enCours.round, totalRounds) };
+  }
+  return { score: "—", phase: tournoi.format };
+}
 
 export default function EnDirectPage() {
   const connecte = useExigerConnexion();
@@ -32,9 +61,6 @@ export default function EnDirectPage() {
   }, [tri]);
 
   if (!connecte) return null;
-
-  const vedettes = enDirect.slice(0, 5);
-  const reste = enDirect.slice(5);
 
   return (
     <div className="min-h-screen flex flex-col pb-24" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
@@ -69,56 +95,44 @@ export default function EnDirectPage() {
         {enDirect.length === 0 ? (
           <EmptyState titre="Aucun tournoi en direct" description="Reviens plus tard pour suivre les tournois en cours." />
         ) : (
-          <>
-            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-5 px-5">
-              {vedettes.map((t) => (
-                <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0" style={{ width: 258 }}>
-                  <Card>
-                    <div className="relative">
-                      {t.banniereUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={t.banniereUrl} alt={t.titre} className="w-full object-cover" style={{ height: 100 }} />
-                      ) : (
-                        <ImagePlaceholder label="visuel tournoi" hauteur={100} />
-                      )}
-                      <div className="absolute top-2.5 left-2.5">
-                        <LiveBadge />
-                      </div>
-                      <div
-                        className="absolute top-2.5 right-2.5 text-[10px] font-semibold px-2 py-1"
-                        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
-                      >
-                        {tri === "cashprize" ? formatXof(t.cashPrizeXof) : tri === "participants" ? `${t.placesInscrites} joueurs` : "Nouveau"}
+          <div className="flex flex-col gap-2">
+            {enDirect.map((t) => {
+              const { score, phase } = infosDirect(t);
+              return (
+                <Link key={t.id} href={`/tournois/${t.id}`}>
+                  <div
+                    className="flex items-center gap-3 p-3"
+                    style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                  >
+                    <LiveBadge />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{t.titre}</div>
+                      <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                        <span>{t.jeuLabel}</span>
+                        <span>·</span>
+                        <span>{phase}</span>
+                        <span>·</span>
+                        <span className="flex items-center gap-1">
+                          <Users size={11} strokeWidth={2} />
+                          {spectateurs(t)}
+                        </span>
                       </div>
                     </div>
-                    <div className="p-3.5 flex flex-col gap-1">
-                      <CardTitle>{t.titre}</CardTitle>
-                      <CardKicker>{t.jeuLabel} · {t.format}</CardKicker>
+                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                      <span className="flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                        <Radio size={11} strokeWidth={2} />
+                        {score}
+                      </span>
+                      <span className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                        {formatXof(t.cashPrizeXof)}
+                      </span>
                     </div>
-                  </Card>
+                    <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
+                  </div>
                 </Link>
-              ))}
-            </div>
-
-            {reste.length > 0 && (
-              <div className="flex flex-col gap-2">
-                {reste.map((t) => (
-                  <Link key={t.id} href={`/tournois/${t.id}`}>
-                    <div className="flex items-center gap-3 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
-                      <LiveBadge />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{t.titre}</div>
-                        <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                          {t.jeuLabel} · {formatXof(t.cashPrizeXof)}
-                        </div>
-                      </div>
-                      <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </>
+              );
+            })}
+          </div>
         )}
       </div>
 

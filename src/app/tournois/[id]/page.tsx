@@ -389,6 +389,9 @@ export default function DetailTournoiPage() {
 
       <CtaInscription
         tournoiId={tournoi.id}
+        titre={tournoi.titre}
+        jeuLabel={tournoi.jeuLabel}
+        dateLabel={tournoi.dateLabel}
         fraisXof={tournoi.fraisXof}
         typeCompetition={tournoi.type}
         equipes={tournoi.equipes}
