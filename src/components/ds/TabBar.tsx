@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Trophy, BarChart3, User } from "lucide-react";
+import { Home, Trophy, Megaphone, BarChart3, User } from "lucide-react";
 
 const ONGLETS = [
   { id: "accueil", label: "Accueil", href: "/accueil", Icone: Home },
   { id: "tournois", label: "Tournois", href: "/tournois", Icone: Trophy },
+  { id: "organisateur", label: "Organisateur", href: "/organisateur", Icone: Megaphone },
   { id: "classement", label: "Classement", href: "/classement", Icone: BarChart3 },
   { id: "profil", label: "Profil", href: "/profil", Icone: User },
 ] as const;
@@ -28,8 +29,8 @@ export function TabBar() {
             className="flex flex-col items-center gap-1"
             style={{ color: estActif ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
           >
-            <Icone size={20} strokeWidth={2} />
-            <span className="text-[10px]" style={{ fontFamily: "var(--ds-font-body)" }}>
+            <Icone size={17} strokeWidth={2} />
+            <span className="text-[9px]" style={{ fontFamily: "var(--ds-font-body)" }}>
               {label}
             </span>
           </Link>

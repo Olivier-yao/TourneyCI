@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2 } from "lucide-react";
+import { ArrowLeft, Wifi, Settings2, Share2, Check } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -25,6 +25,42 @@ function Vignette({ label, valeur }: { label: string; valeur: string }) {
       </div>
       <div className="text-[17px] font-semibold">{valeur}</div>
     </div>
+  );
+}
+
+function BoutonPartager() {
+  const [copie, setCopie] = useState(false);
+
+  async function partager() {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: document.title });
+        return;
+      } catch {
+        // annulé ou indisponible : on retombe sur la copie
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    setCopie(true);
+    setTimeout(() => setCopie(false), 1800);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={partager}
+      className="absolute top-5 right-5 flex items-center justify-center w-[34px] h-[34px]"
+      style={{
+        borderRadius: "var(--ds-radius-md)",
+        background: "color-mix(in srgb, var(--ds-bg) 70%, transparent)",
+        border: "1px solid var(--ds-border)",
+        color: copie ? "var(--ds-accent-300)" : "var(--ds-text)",
+      }}
+      aria-label="Partager le tournoi"
+    >
+      {copie ? <Check size={16} strokeWidth={2} /> : <Share2 size={16} strokeWidth={2} />}
+    </button>
   );
 }
 
@@ -88,6 +124,7 @@ export default function DetailTournoiPage() {
         >
           <ArrowLeft size={17} strokeWidth={2} />
         </Link>
+        <BoutonPartager />
       </div>
 
       <div className="px-5 -mt-6 relative flex-1 flex flex-col gap-3 pb-28">
@@ -162,13 +199,13 @@ export default function DetailTournoiPage() {
         </p>
 
         <div className="grid grid-cols-2 gap-2 mt-1">
-          <Vignette label="Cash prize" valeur={formatXof(tournoi.cashPrizeXof)} />
-          <Vignette label="Frais" valeur={formatXof(tournoi.fraisXof)} />
+          {tournoi.cashPrizeXof > 0 && <Vignette label="Cash prize" valeur={formatXof(tournoi.cashPrizeXof)} />}
+          {tournoi.fraisXof > 0 && <Vignette label="Frais" valeur={formatXof(tournoi.fraisXof)} />}
           <Vignette
             label="Places"
             valeur={`${tournoi.placesInscrites} / ${tournoi.placesTotal}`}
           />
-          <Vignette label="Check-in" valeur={tournoi.checkin} />
+          {tournoi.checkin && <Vignette label="Check-in" valeur={tournoi.checkin} />}
         </div>
 
         <div className="mt-1">
@@ -203,9 +240,11 @@ export default function DetailTournoiPage() {
           </div>
         )}
 
-        <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-          {tournoi.reglement}
-        </p>
+        {tournoi.reglement && (
+          <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+            {tournoi.reglement}
+          </p>
+        )}
 
         {aUnBracket && (
           <Link
@@ -214,6 +253,16 @@ export default function DetailTournoiPage() {
             style={{ color: "var(--ds-accent-300)" }}
           >
             {tournoi.type === "battle_royale" ? "Voir le classement en direct →" : "Voir le bracket →"}
+          </Link>
+        )}
+
+        {tournoi.placesInscrites > 0 && (
+          <Link
+            href={`/tournois/${tournoi.id}/inscrits`}
+            className="text-sm font-medium"
+            style={{ color: "var(--ds-accent-300)" }}
+          >
+            Voir la liste des inscrits →
           </Link>
         )}
 

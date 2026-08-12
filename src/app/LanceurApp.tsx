@@ -3,29 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Splash } from "@/components/ds/Splash";
-import { aVuSplash, estConnecte, estOnboarde, marquerSplashVu } from "@/lib/mockAuth";
-
-type Etape = "verification" | "splash";
+import { estConnecte, estOnboarde } from "@/lib/mockAuth";
 
 export function LanceurApp() {
   const router = useRouter();
-  const [etape, setEtape] = useState<Etape>("verification");
+  const [destination, setDestination] = useState("");
 
   useEffect(() => {
-    // Lecture volontaire dans un effet : le flag vit en localStorage
-    // (indisponible côté serveur), donc l'état initial doit rester neutre
-    // pour le rendu serveur et se synchroniser une fois monté côté client,
-    // sous peine de mismatch d'hydratation sur le contenu affiché.
-    if (aVuSplash()) {
-      router.replace(estConnecte() ? "/accueil" : "/verify");
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEtape("splash");
-    }
-  }, [router]);
+    // Écran de lancement natif : s'affiche à chaque ouverture (pas seulement
+    // la première fois), d'où la lecture volontaire dans un effet — le flag
+    // vit en localStorage, indisponible côté serveur.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDestination(estConnecte() ? "vers l'accueil" : "vers la connexion");
+  }, []);
 
   function surSplashTermine() {
-    marquerSplashVu();
     if (estConnecte()) {
       router.push("/accueil");
     } else {
@@ -33,9 +25,5 @@ export function LanceurApp() {
     }
   }
 
-  if (etape === "splash") {
-    return <Splash pleinEcran onTerminer={surSplashTermine} />;
-  }
-
-  return <div style={{ background: "var(--ds-bg)" }} className="min-h-screen" />;
+  return <Splash pleinEcran onTerminer={surSplashTermine} destinationLabel={destination} />;
 }

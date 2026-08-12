@@ -51,7 +51,17 @@ export type Tournoi = {
   banniereUrl?: string;
   termine?: boolean;
   annule?: boolean;
+  /** Horodatage (ms) de clôture des inscriptions. Sert à verrouiller la bracket 10 min après. */
+  clotureInscriptionsTs?: number;
 };
+
+const DELAI_VERROU_BRACKET_MS = 10 * 60 * 1000;
+
+/** La bracket reste masquée jusqu'à 10 min après la clôture des inscriptions. */
+export function bracketVerrouillee(tournoi: Pick<Tournoi, "clotureInscriptionsTs">): boolean {
+  if (!tournoi.clotureInscriptionsTs) return false;
+  return Date.now() < tournoi.clotureInscriptionsTs + DELAI_VERROU_BRACKET_MS;
+}
 
 /** Commission de l'organisateur sur les tournois payants, en plus du cash prize. */
 export const COMMISSION_PCT = 0.05;
@@ -60,28 +70,51 @@ export function commissionEstimee(fraisXof: number, placesTotal: number): number
   return Math.round(fraisXof * placesTotal * COMMISSION_PCT);
 }
 
+export type GenreJeu = "FPS" | "TPS" | "Combat" | "Sport" | "Battle Royale";
+
 /**
  * Liste indicative pour les chips de filtre. Un organisateur n'est pas
  * limité à cette liste : il peut saisir n'importe quel nom de jeu via
- * l'option "Autre" du formulaire de création.
+ * l'option "Autre" du formulaire de création (dans ce cas, aucun genre
+ * n'est présumé — le jeu n'apparaît simplement pas dans le filtre Type).
  */
-export const JEUX: { id: string; label: string }[] = [
-  { id: "eafc", label: "EA FC" },
-  { id: "freefire", label: "Free Fire" },
-  { id: "codm", label: "CODM" },
-  { id: "tekken", label: "Tekken" },
-  { id: "pubgm", label: "PUBG Mobile" },
-  { id: "mlbb", label: "Mobile Legends" },
-  { id: "bloodstrike", label: "Bloodstrike" },
-  { id: "farlight84", label: "Farlight 84" },
-  { id: "valorant", label: "Valorant" },
-  { id: "wildrift", label: "LoL: Wild Rift" },
-  { id: "fortnite", label: "Fortnite" },
-  { id: "brawlstars", label: "Brawl Stars" },
-  { id: "clashroyale", label: "Clash Royale" },
-  { id: "efootball", label: "eFootball" },
-  { id: "nba2k", label: "NBA 2K" },
+export const JEUX: { id: string; label: string; genre: GenreJeu }[] = [
+  { id: "eafc", label: "EA FC", genre: "Sport" },
+  { id: "freefire", label: "Free Fire", genre: "Battle Royale" },
+  { id: "codm", label: "CODM", genre: "FPS" },
+  { id: "tekken", label: "Tekken", genre: "Combat" },
+  { id: "pubgm", label: "PUBG Mobile", genre: "Battle Royale" },
+  { id: "mlbb", label: "Mobile Legends", genre: "TPS" },
+  { id: "bloodstrike", label: "Bloodstrike", genre: "Battle Royale" },
+  { id: "farlight84", label: "Farlight 84", genre: "Battle Royale" },
+  { id: "valorant", label: "Valorant", genre: "FPS" },
+  { id: "wildrift", label: "LoL: Wild Rift", genre: "TPS" },
+  { id: "fortnite", label: "Fortnite", genre: "Battle Royale" },
+  { id: "brawlstars", label: "Brawl Stars", genre: "TPS" },
+  { id: "clashroyale", label: "Clash Royale", genre: "Combat" },
+  { id: "efootball", label: "eFootball", genre: "Sport" },
+  { id: "nba2k", label: "NBA 2K", genre: "Sport" },
 ];
+
+export const TYPES_JEU: GenreJeu[] = ["FPS", "TPS", "Combat", "Sport", "Battle Royale"];
+
+export const MODES_JEU = ["1v1", "Team", "Battle Royale", "Recherche et destruction", "Capture de zone"] as const;
+export type ModeJeu = (typeof MODES_JEU)[number];
+
+export function genreDuJeu(jeuId: string): GenreJeu | undefined {
+  return JEUX.find((j) => j.id === jeuId)?.genre;
+}
+
+export function modeDuTournoi(t: Pick<Tournoi, "type" | "format">): ModeJeu | undefined {
+  if (t.type === "battle_royale") return "Battle Royale";
+  if (t.type === "equipes") return "Team";
+  if (t.type === "1v1") {
+    if (/recherche et destruction/i.test(t.format)) return "Recherche et destruction";
+    if (/capture de zone/i.test(t.format)) return "Capture de zone";
+    return "1v1";
+  }
+  return undefined;
+}
 
 export const TOURNOIS: Tournoi[] = [
   {

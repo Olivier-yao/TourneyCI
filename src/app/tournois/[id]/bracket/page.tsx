@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { ArrowLeft, Lock } from "lucide-react";
+import { tournoiParId, bracketVerrouillee } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { BracketV2 } from "./BracketV2";
@@ -30,6 +30,7 @@ export default function BracketPage() {
   }
 
   const matches = matchsDuTournoi(params.id);
+  const verrouillee = bracketVerrouillee(tournoi) && !estOrganisateur();
 
   return (
     <div
@@ -63,7 +64,17 @@ export default function BracketPage() {
         </Link>
       </div>
 
-      {matches.length === 0 ? (
+      {verrouillee ? (
+        <div
+          className="flex flex-col items-center gap-2 text-center p-6"
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+        >
+          <Lock size={22} style={{ color: "var(--ds-muted)" }} />
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            La bracket sera visible 10 minutes après la clôture des inscriptions.
+          </p>
+        </div>
+      ) : matches.length === 0 ? (
         estOrganisateur() ? (
           <GenerationBracket
             tournoiId={params.id}

@@ -1,89 +1,110 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Skull } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Minus, Plus, ListPlus } from "lucide-react";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { tournoiParId } from "@/lib/mockTournaments";
 import {
   participantsBR,
-  filActionsBR,
-  eliminerParticipantBR,
-  ajouterActionBR,
-  ACTIONS_PREDEFINIES,
+  manchesBR,
+  ajouterMancheBR,
+  classementCumuleBR,
 } from "@/lib/mockBattleRoyale";
 
-function tempsEcoule(horodatage: number): string {
-  const secondes = Math.max(0, Math.round((Date.now() - horodatage) / 1000));
-  if (secondes < 60) return "à l'instant";
-  const minutes = Math.round(secondes / 60);
-  return `il y a ${minutes} min`;
-}
+const RAFRAICHISSEMENT_MS = 15_000;
 
-function FormulaireAction({ noms, tournoiId, onAjoute }: { noms: string[]; tournoiId: string; onAjoute: () => void }) {
-  const [acteur, setActeur] = useState("");
-  const [cible, setCible] = useState("");
-  const [actionId, setActionId] = useState(ACTIONS_PREDEFINIES[0].id);
+function SaisieManche({
+  tournoiId,
+  numeroSuivant,
+  onValide,
+}: {
+  tournoiId: string;
+  numeroSuivant: number;
+  onValide: () => void;
+}) {
+  const participants = participantsBR(tournoiId);
+  const [placements, setPlacements] = useState<Record<string, string>>({});
+  const [eliminations, setEliminations] = useState<Record<string, number>>({});
 
-  function ajouter() {
-    if (!acteur || !cible || acteur === cible) return;
-    ajouterActionBR(tournoiId, acteur, cible, actionId);
-    onAjoute();
+  function stepper(id: string, delta: number) {
+    setEliminations((e) => ({ ...e, [id]: Math.max(0, (e[id] ?? 0) + delta) }));
   }
 
-  const selectStyle: React.CSSProperties = {
-    borderRadius: "var(--ds-radius-sm)",
-    background: "var(--ds-bg)",
-    border: "1px solid var(--ds-border)",
-    color: "var(--ds-text)",
-    height: 38,
-    padding: "0 10px",
-  };
+  function valider() {
+    const resultats = participants
+      .map((p) => ({
+        participantId: p.id,
+        placement: Number(placements[p.id]) || 0,
+        eliminations: eliminations[p.id] ?? 0,
+      }))
+      .filter((r) => r.placement > 0 || r.eliminations > 0);
+    if (resultats.length === 0) return;
+    ajouterMancheBR(tournoiId, resultats);
+    setPlacements({});
+    setEliminations({});
+    onValide();
+  }
 
   return (
     <div
       className="flex flex-col gap-2.5 p-3"
       style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
     >
-      <div className="grid grid-cols-2 gap-2">
-        <select value={acteur} onChange={(e) => setActeur(e.target.value)} style={selectStyle} className="text-sm">
-          <option value="">Qui ?</option>
-          {noms.map((n) => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        <select value={cible} onChange={(e) => setCible(e.target.value)} style={selectStyle} className="text-sm">
-          <option value="">Sur qui ?</option>
-          {noms.map((n) => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
+      <div className="text-sm font-bold" style={{ color: "var(--ds-accent-300)" }}>
+        Manche {numeroSuivant}
       </div>
-      <div className="flex flex-wrap gap-1.5">
-        {ACTIONS_PREDEFINIES.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() => setActionId(a.id)}
-            className="px-2.5 py-1.5 text-xs cursor-pointer"
-            style={{
-              borderRadius: "var(--ds-radius-pill)",
-              border: `1px solid ${actionId === a.id ? "var(--ds-accent)" : "var(--ds-border)"}`,
-              color: actionId === a.id ? "var(--ds-accent-300)" : "var(--ds-muted)",
-            }}
-          >
-            {a.libelle}
-          </button>
+      <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
+        {participants.map((p) => (
+          <div key={p.id} className="flex items-center gap-2">
+            <span className="text-sm flex-1 truncate">{p.nom}</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="Place"
+              value={placements[p.id] ?? ""}
+              onChange={(e) => setPlacements((v) => ({ ...v, [p.id]: e.target.value }))}
+              className="text-sm text-center"
+              style={{
+                width: 56,
+                height: 32,
+                borderRadius: "var(--ds-radius-sm)",
+                background: "var(--ds-bg)",
+                border: "1px solid var(--ds-border)",
+                color: "var(--ds-text)",
+              }}
+            />
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => stepper(p.id, -1)}
+                className="flex items-center justify-center w-7 h-7 cursor-pointer"
+                style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+              >
+                <Minus size={12} strokeWidth={2} />
+              </button>
+              <span className="w-5 text-center text-xs" style={{ fontFamily: "var(--ds-font-mono)" }}>
+                {eliminations[p.id] ?? 0}
+              </span>
+              <button
+                type="button"
+                onClick={() => stepper(p.id, 1)}
+                className="flex items-center justify-center w-7 h-7 cursor-pointer"
+                style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+              >
+                <Plus size={12} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
         ))}
       </div>
       <button
         type="button"
-        onClick={ajouter}
-        disabled={!acteur || !cible || acteur === cible}
-        className="h-9 text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        onClick={valider}
+        className="h-9 text-sm font-medium cursor-pointer"
         style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
       >
-        Ajouter au fil
+        Valider la manche
       </button>
     </div>
   );
@@ -93,52 +114,46 @@ export default function BattleRoyalePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const tournoi = tournoiParId(params.id);
-  const [, setRafraichir] = useState(0);
-  const organisateur = estOrganisateur();
+  const [rafraichir, setRafraichir] = useState(0);
+  const [saisieOuverte, setSaisieOuverte] = useState(false);
+  const [organisateur, setOrganisateur] = useState(false);
+  const [manches, setManches] = useState<ReturnType<typeof manchesBR>>([]);
+  const [classement, setClassement] = useState<ReturnType<typeof classementCumuleBR>>([]);
+
+  useEffect(() => {
+    const id = setInterval(() => setRafraichir((n) => n + 1), RAFRAICHISSEMENT_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    // État lu depuis le localStorage : neutre au premier rendu serveur,
+    // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrganisateur(estOrganisateur());
+    setManches(manchesBR(params.id));
+    setClassement(classementCumuleBR(params.id));
+  }, [params.id, saisieOuverte, rafraichir]);
 
   if (!tournoi) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
-      >
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         Tournoi introuvable.
       </div>
     );
   }
 
-  const participants = participantsBR(params.id);
-  const actions = filActionsBR(params.id);
-  const enJeu = participants.filter((p) => p.statut === "en_jeu");
-  const elimines = [...participants]
-    .filter((p) => p.statut === "elimine")
-    .sort((a, b) => (b.ordreElimination ?? 0) - (a.ordreElimination ?? 0));
-  const noms = participants.map((p) => p.nom);
-
-  function eliminer(id: string) {
-    if (!window.confirm("Marquer ce joueur comme éliminé ?")) return;
-    eliminerParticipantBR(params.id, id);
-    setRafraichir((n) => n + 1);
-  }
-
   return (
-    <div
-      className="min-h-screen flex flex-col px-5 py-5"
-      style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
-    >
+    <div className="min-h-screen flex flex-col px-5 py-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
       <div className="flex items-center justify-between mb-5">
         <div>
           <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-            {tournoi.titre}
+            {tournoi.titre} · {manches.length} manche{manches.length > 1 ? "s" : ""}
           </div>
           <div
             className="text-xl"
-            style={{
-              fontFamily: "var(--ds-font-heading)",
-              fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"],
-            }}
+            style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}
           >
-            Battle Royale
+            Classement en direct
           </div>
         </div>
         <button
@@ -151,99 +166,77 @@ export default function BattleRoyalePage() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col gap-6">
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-bold" style={{ color: "var(--ds-accent-300)" }}>
-              En jeu
-            </div>
-            <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              {enJeu.length} restants
-            </div>
-          </div>
-          {enJeu.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center justify-between gap-3 p-3"
-              style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-            >
-              <span className="text-sm font-medium">{p.nom}</span>
-              {organisateur && (
-                <button
-                  type="button"
-                  onClick={() => eliminer(p.id)}
-                  className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 cursor-pointer"
-                  style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}
-                >
-                  <Skull size={13} strokeWidth={2} />
-                  Éliminer
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+      <div className="flex-1 flex flex-col gap-4">
+        {organisateur && (
+          <>
+            {saisieOuverte ? (
+              <SaisieManche
+                tournoiId={params.id}
+                numeroSuivant={manches.length + 1}
+                onValide={() => {
+                  setSaisieOuverte(false);
+                  setRafraichir((n) => n + 1);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSaisieOuverte(true)}
+                className="flex items-center justify-center gap-2 h-11 text-sm font-medium cursor-pointer"
+                style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+              >
+                <ListPlus size={16} strokeWidth={2} />
+                Saisir la manche {manches.length + 1}
+              </button>
+            )}
+          </>
+        )}
 
-        {elimines.length > 0 && (
-          <div className="flex flex-col gap-2.5">
-            <div className="text-sm font-bold" style={{ color: "var(--ds-danger)" }}>
-              Éliminés
-            </div>
-            {elimines.map((p, i) => (
+        {classement.every((l) => l.points === 0) ? (
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            Aucune manche jouée pour l&apos;instant.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {classement.map((l, i) => (
               <div
-                key={p.id}
+                key={l.participantId}
                 className="flex items-center gap-3 p-3"
                 style={{
                   borderRadius: "var(--ds-radius-md)",
-                  background: "color-mix(in srgb, var(--ds-danger) 10%, var(--ds-surface))",
-                  border: "1px solid color-mix(in srgb, var(--ds-danger) 40%, transparent)",
+                  background: l.qualifie ? "color-mix(in srgb, var(--ds-accent) 8%, var(--ds-surface))" : "var(--ds-surface)",
+                  border: `1px solid ${l.qualifie ? "var(--ds-accent-600)" : "var(--ds-border)"}`,
                 }}
               >
-                <span
-                  className="w-6 text-xs"
-                  style={{ color: "var(--ds-danger)", fontFamily: "var(--ds-font-mono)" }}
-                >
-                  #{i + 1 + enJeu.length}
+                <span className="w-6 text-xs text-center" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                  #{i + 1}
                 </span>
-                <span className="text-sm flex-1" style={{ color: "var(--ds-danger)" }}>
-                  {p.nom}
+                <span className="text-sm flex-1 truncate">{l.nom}</span>
+                <span className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                  {l.manchesJouees} manche{l.manchesJouees > 1 ? "s" : ""}
                 </span>
+                <span className="text-sm font-semibold w-10 text-right" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                  {l.points} pt
+                </span>
+                {l.qualifie && (
+                  <span
+                    className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1"
+                    style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+                  >
+                    <CheckCircle2 size={11} strokeWidth={2} />
+                    Qualifié
+                  </span>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {noms.length > 0 && (
-          <div className="flex flex-col gap-2.5">
-            <div className="text-sm font-bold" style={{ color: "var(--ds-text)" }}>
-              Fil de la partie
+        {manches.length > 0 && (
+          <div className="flex flex-col gap-2 mt-2">
+            <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Barème par manche : 1er 10 pts · 2e 6 · 3e 5 · 4e 4 · 5e 3 · 6e 2 · 7e-8e 1 · + 1 pt / élimination
             </div>
-            {organisateur && (
-              <FormulaireAction noms={noms} tournoiId={params.id} onAjoute={() => setRafraichir((n) => n + 1)} />
-            )}
-            {actions.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-                Aucune action signalée pour l&apos;instant.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {actions.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-2 py-2 text-sm"
-                    style={{ borderBottom: "1px solid var(--ds-border)" }}
-                  >
-                    <span className="flex-1">
-                      <span style={{ color: "var(--ds-accent-300)", fontWeight: 600 }}>{a.acteur}</span>{" "}
-                      {a.libelle}{" "}
-                      <span style={{ color: "var(--ds-accent-300)", fontWeight: 600 }}>{a.cible}</span>
-                    </span>
-                    <span className="text-xs shrink-0" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                      {tempsEcoule(a.horodatage)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
       </div>

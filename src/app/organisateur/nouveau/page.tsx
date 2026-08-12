@@ -97,6 +97,12 @@ export default function NouveauTournoiPage() {
   const [dateHeure, setDateHeure] = useState("20:00");
   const [checkinHeure, setCheckinHeure] = useState("19:30");
   const dateLabel = formatDateLabel(dateJour, dateHeure);
+  const clotureInscriptionsTs = (() => {
+    if (!dateJour) return undefined;
+    const [annee, mois, jour] = dateJour.split("-").map(Number);
+    const [h, m] = (dateHeure || "00:00").split(":").map(Number);
+    return new Date(annee, (mois || 1) - 1, jour || 1, h || 0, m || 0).getTime();
+  })();
   const checkin = checkinHeure ? `${checkinHeure.replace(":", "h")}` : "";
   const [reglement, setReglement] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -174,6 +180,7 @@ export default function NouveauTournoiPage() {
       reglement: reglement.trim(),
       inscrits: [],
       banniereUrl,
+      clotureInscriptionsTs,
       equipes,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       repartitionCashPrize:

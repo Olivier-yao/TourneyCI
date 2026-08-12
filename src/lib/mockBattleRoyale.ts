@@ -1,8 +1,9 @@
 /**
- * Données mock pour un tournoi Battle Royale (une seule manche, pas d'arbre).
- * Élimination et fil d'actions persistés en localStorage (overlay par-dessus
- * la génération aléatoire initiale), pour survivre aux rechargements et
- * nourrir la distribution automatique des points en fin de tournoi.
+ * Données mock pour un tournoi Battle Royale multi-manches avec points
+ * cumulés (barème façon PUBG). Persisté en localStorage (overlay par-dessus
+ * la génération aléatoire initiale du roster), pour survivre aux
+ * rechargements et nourrir la distribution automatique des gains en fin de
+ * tournoi.
  */
 
 export type StatutBR = "en_jeu" | "elimine";
@@ -14,20 +15,36 @@ export type ParticipantBR = {
   ordreElimination?: number;
 };
 
-export type ActionBR = {
-  id: string;
-  acteur: string;
-  cible: string;
-  libelle: string;
+export type ResultatManche = {
+  participantId: string;
+  placement: number;
+  eliminations: number;
+};
+
+export type MancheBR = {
+  numero: number;
+  resultats: ResultatManche[];
   horodatage: number;
 };
 
-export const ACTIONS_PREDEFINIES: { id: string; libelle: string; eliminecible: boolean }[] = [
-  { id: "elimine", libelle: "a éliminé", eliminecible: true },
-  { id: "a_terre", libelle: "a mis à terre", eliminecible: false },
-  { id: "reanime", libelle: "a réanimé", eliminecible: false },
-  { id: "duel", libelle: "a remporté un duel contre", eliminecible: false },
-];
+export type LigneClassementBR = {
+  participantId: string;
+  nom: string;
+  points: number;
+  manchesJouees: number;
+  qualifie: boolean;
+};
+
+/** Barème façon PUBG : points par place (index 0 = 1er). Au-delà : 0. */
+const BAREME_PLACEMENT = [10, 6, 5, 4, 3, 2, 1, 1];
+
+export function pointsPlacementBR(placement: number): number {
+  return placement >= 1 && placement <= BAREME_PLACEMENT.length ? BAREME_PLACEMENT[placement - 1] : 0;
+}
+
+export function pointsManche(r: { placement: number; eliminations: number }): number {
+  return pointsPlacementBR(r.placement) + r.eliminations;
+}
 
 const NOMS = [
   "Kader B.", "Yao M.", "Aya K.", "Sory D.", "Ismaël T.", "Fofana", "Traoré", "Bamba",
@@ -39,10 +56,23 @@ const NOMS = [
   "Vanessa", "William K.",
 ];
 
+/** PRNG déterministe (mulberry32) : évite un ordre différent entre le rendu
+ * serveur et le rendu client (Math.random() casserait l'hydratation). */
+function alea(graine: number): () => number {
+  let t = graine;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function genererParticipants(nbElimines: number): ParticipantBR[] {
+  const suivant = alea(42);
   const melanges = [...NOMS];
   for (let i = melanges.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(suivant() * (i + 1));
     [melanges[i], melanges[j]] = [melanges[j], melanges[i]];
   }
 
@@ -59,7 +89,7 @@ const PARTICIPANTS_INITIAUX: Record<string, ParticipantBR[]> = {
 };
 
 const CLE_PARTICIPANTS_BR = "tourney-participants-br";
-const CLE_ACTIONS_BR = "tourney-actions-br";
+const CLE_MANCHES_BR = "tourney-manches-br";
 
 function lireOverlayParticipants(): Record<string, ParticipantBR[]> {
   if (typeof window === "undefined") return {};
@@ -77,62 +107,63 @@ export function participantsBR(tournoiId: string): ParticipantBR[] {
   return PARTICIPANTS_INITIAUX[tournoiId] ?? [];
 }
 
-function sauvegarderParticipants(tournoiId: string, participants: ParticipantBR[]) {
-  if (typeof window === "undefined") return;
-  const overlay = lireOverlayParticipants();
-  localStorage.setItem(CLE_PARTICIPANTS_BR, JSON.stringify({ ...overlay, [tournoiId]: participants }));
-}
-
-export function eliminerParticipantBR(tournoiId: string, participantId: string) {
-  const participants = participantsBR(tournoiId);
-  const ordreMax = Math.max(0, ...participants.map((p) => p.ordreElimination ?? 0));
-  const maj = participants.map((p) =>
-    p.id === participantId ? { ...p, statut: "elimine" as const, ordreElimination: ordreMax + 1 } : p,
-  );
-  sauvegarderParticipants(tournoiId, maj);
-}
-
-function eliminerParNom(tournoiId: string, nom: string) {
-  const cible = participantsBR(tournoiId).find((p) => p.nom === nom && p.statut === "en_jeu");
-  if (cible) eliminerParticipantBR(tournoiId, cible.id);
-}
-
-function lireOverlayActions(): Record<string, ActionBR[]> {
+function lireOverlayManches(): Record<string, MancheBR[]> {
   if (typeof window === "undefined") return {};
   try {
-    const brut = localStorage.getItem(CLE_ACTIONS_BR);
-    return brut ? (JSON.parse(brut) as Record<string, ActionBR[]>) : {};
+    const brut = localStorage.getItem(CLE_MANCHES_BR);
+    return brut ? (JSON.parse(brut) as Record<string, MancheBR[]>) : {};
   } catch {
     return {};
   }
 }
 
-export function filActionsBR(tournoiId: string): ActionBR[] {
-  return lireOverlayActions()[tournoiId] ?? [];
+export function manchesBR(tournoiId: string): MancheBR[] {
+  return lireOverlayManches()[tournoiId] ?? [];
 }
 
-export function ajouterActionBR(tournoiId: string, acteur: string, cible: string, actionId: string) {
+export function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]) {
   if (typeof window === "undefined") return;
-  const action = ACTIONS_PREDEFINIES.find((a) => a.id === actionId);
-  if (!action) return;
-
-  const overlay = lireOverlayActions();
-  const fil = overlay[tournoiId] ?? [];
-  const nouvelle: ActionBR = {
-    id: `act-${Date.now().toString(36)}`,
-    acteur,
-    cible,
-    libelle: action.libelle,
-    horodatage: Date.now(),
-  };
-  localStorage.setItem(CLE_ACTIONS_BR, JSON.stringify({ ...overlay, [tournoiId]: [nouvelle, ...fil] }));
-
-  if (action.eliminecible) eliminerParNom(tournoiId, cible);
+  const overlay = lireOverlayManches();
+  const manches = overlay[tournoiId] ?? [];
+  const nouvelle: MancheBR = { numero: manches.length + 1, resultats, horodatage: Date.now() };
+  localStorage.setItem(CLE_MANCHES_BR, JSON.stringify({ ...overlay, [tournoiId]: [...manches, nouvelle] }));
 }
 
-/** Classement final (1er = dernier survivant), pour la distribution
- * automatique des points en fin de tournoi. */
+/** Classement cumulé sur toutes les manches jouées, trié par points décroissants.
+ * Les moitié supérieure (avec au moins un point) sont marqués "Qualifié". */
+export function classementCumuleBR(tournoiId: string): LigneClassementBR[] {
+  const participants = participantsBR(tournoiId);
+  const manches = manchesBR(tournoiId);
+  const totaux = new Map<string, number>();
+  const joues = new Map<string, number>();
+
+  for (const manche of manches) {
+    for (const r of manche.resultats) {
+      totaux.set(r.participantId, (totaux.get(r.participantId) ?? 0) + pointsManche(r));
+      joues.set(r.participantId, (joues.get(r.participantId) ?? 0) + 1);
+    }
+  }
+
+  const lignes = participants
+    .map((p) => ({
+      participantId: p.id,
+      nom: p.nom,
+      points: totaux.get(p.id) ?? 0,
+      manchesJouees: joues.get(p.id) ?? 0,
+    }))
+    .sort((a, b) => b.points - a.points);
+
+  const seuilQualif = Math.ceil(participants.length / 2);
+  return lignes.map((l, i) => ({ ...l, qualifie: l.points > 0 && i < seuilQualif }));
+}
+
+/** Classement final (pour la distribution automatique des points/gains en fin
+ * de tournoi) : cumul des manches si disponible, sinon ancien ordre par élimination. */
 export function classementFinalBR(tournoiId: string): string[] {
+  const manches = manchesBR(tournoiId);
+  if (manches.length > 0) {
+    return classementCumuleBR(tournoiId).map((l) => l.nom);
+  }
   const participants = participantsBR(tournoiId);
   const enJeu = participants.filter((p) => p.statut === "en_jeu").map((p) => p.nom);
   const elimines = [...participants]

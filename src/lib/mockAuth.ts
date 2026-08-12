@@ -6,7 +6,6 @@
 
 export type SourceConnexion = "telephone" | "google";
 
-const CLE_SPLASH_VU = "tourney-splash-vu";
 const CLE_ONBOARDE = "tourney-onboarde";
 const CLE_CONNECTE = "tourney-connecte";
 const CLE_SOURCE = "tourney-source-connexion";
@@ -21,9 +20,6 @@ function ecrire(cle: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(cle, "1");
 }
-
-export const aVuSplash = () => lire(CLE_SPLASH_VU);
-export const marquerSplashVu = () => ecrire(CLE_SPLASH_VU);
 
 export const estOnboarde = () => lire(CLE_ONBOARDE);
 export const marquerOnboarde = () => ecrire(CLE_ONBOARDE);
@@ -55,6 +51,50 @@ export function identifiantConnexion(): string | null {
   return localStorage.getItem(CLE_IDENTIFIANT);
 }
 
+const CLE_MOTS_DE_PASSE = "tourney-mots-de-passe";
+
+function normaliserTelephone(telephone: string): string {
+  return telephone.replace(/\D/g, "");
+}
+
+/** Hash non cryptographique (djb2) — évite de stocker le mot de passe en
+ * clair dans ce mock, mais ne remplace en rien une vraie auth. À basculer
+ * sur Supabase Auth (bcrypt côté serveur) en phase 8. */
+function hacher(valeur: string): string {
+  let h = 0;
+  for (let i = 0; i < valeur.length; i++) {
+    h = (h << 5) - h + valeur.charCodeAt(i);
+    h |= 0;
+  }
+  return h.toString(36);
+}
+
+function lireMotsDePasse(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const brut = localStorage.getItem(CLE_MOTS_DE_PASSE);
+    return brut ? (JSON.parse(brut) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function definirMotDePasse(telephone: string, motDePasse: string) {
+  if (typeof window === "undefined") return;
+  const tous = lireMotsDePasse();
+  tous[normaliserTelephone(telephone)] = hacher(motDePasse);
+  localStorage.setItem(CLE_MOTS_DE_PASSE, JSON.stringify(tous));
+}
+
+export function aUnMotDePasse(telephone: string): boolean {
+  return normaliserTelephone(telephone) in lireMotsDePasse();
+}
+
+export function verifierMotDePasse(telephone: string, motDePasse: string): boolean {
+  const tous = lireMotsDePasse();
+  return tous[normaliserTelephone(telephone)] === hacher(motDePasse);
+}
+
 export type Role = "joueur" | "organisateur";
 
 const CLE_ROLE = "tourney-role";
@@ -70,3 +110,20 @@ export function definirRole(role: Role) {
 }
 
 export const estOrganisateur = () => rolePrefere() === "organisateur";
+
+const CLE_TRANSITION_ENTREE = "tourney-transition-entree";
+
+/** Arme la transition "cube" à jouer une fois sur l'accueil, juste après une
+ * connexion ou une création de compte réussie. */
+export function armerTransitionEntree() {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(CLE_TRANSITION_ENTREE, "1");
+}
+
+/** Consomme (lit puis efface) le flag — ne se déclenche qu'une seule fois. */
+export function consommerTransitionEntree(): boolean {
+  if (typeof window === "undefined") return false;
+  const armee = sessionStorage.getItem(CLE_TRANSITION_ENTREE) === "1";
+  if (armee) sessionStorage.removeItem(CLE_TRANSITION_ENTREE);
+  return armee;
+}

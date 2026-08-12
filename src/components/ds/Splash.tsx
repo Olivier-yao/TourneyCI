@@ -3,20 +3,22 @@
 import { motion, useReducedMotion, AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 
-const DUREE_TOTALE_S = 2.2;
+const DUREE_TOTALE_S = 1.8;
 
 export function Splash({
   onTerminer,
   pleinEcran = false,
+  destinationLabel = "",
 }: {
   onTerminer?: () => void;
   pleinEcran?: boolean;
+  destinationLabel?: string;
 }) {
   const reduitMotion = useReducedMotion();
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const delaiMs = reduitMotion ? 900 : DUREE_TOTALE_S * 1000;
+    const delaiMs = reduitMotion ? 700 : DUREE_TOTALE_S * 1000;
     const id = setTimeout(() => {
       setVisible(false);
       onTerminer?.();
@@ -30,8 +32,8 @@ export function Splash({
       {visible && (
         <motion.div
           key="splash"
-          exit={{ opacity: 0, scale: 1.03 }}
-          transition={{ duration: 0.3 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
           className={
             pleinEcran
               ? "fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
@@ -53,72 +55,27 @@ export function Splash({
                 }
           }
         >
-          {/* grille de fond subtile */}
-          <div
-            className="absolute inset-0 opacity-[0.06]"
-            style={{
-              backgroundImage:
-                "linear-gradient(var(--ds-accent) 1px, transparent 1px), linear-gradient(90deg, var(--ds-accent) 1px, transparent 1px)",
-              backgroundSize: "44px 44px",
-            }}
-          />
-
-          <div className="relative flex flex-col items-center gap-7">
+          <div className="relative flex flex-col items-center gap-6">
             {reduitMotion ? (
               <Marque />
             ) : (
-              <>
-                <motion.div
-                  initial={{ scale: 2.9, opacity: 0, filter: "blur(16px)" }}
-                  animate={{ scale: 1.05, opacity: 1, filter: "blur(0px)" }}
-                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <motion.div
-                    animate={{ x: [0, -6, 6, 0], scale: [1.05, 0.99, 1.01, 1] }}
-                    transition={{ duration: 0.13, delay: 0.35, times: [0, 0.3, 0.7, 1] }}
-                  >
-                    <Marque />
-                  </motion.div>
-                </motion.div>
-
-                {/* copie fantôme, effet glitch */}
-                <motion.div
-                  className="absolute inset-0 flex flex-col items-center pointer-events-none"
-                  style={{ color: "var(--ds-accent-300)" }}
-                  initial={{ opacity: 0 }}
-                  animate={{
-                    opacity: [0, 0.9, 0.6, 0.35, 0],
-                    x: [0, -7, 6, -3, 0],
-                  }}
-                  transition={{ duration: 0.2, delay: 0.42, times: [0, 0.15, 0.4, 0.7, 1] }}
-                >
-                  <Marque fantome />
-                </motion.div>
-
-                {/* balayage lumineux */}
-                <motion.div
-                  className="absolute left-0 right-0 pointer-events-none"
-                  style={{
-                    height: 140,
-                    background:
-                      "linear-gradient(180deg, transparent, var(--ds-accent-300), transparent)",
-                    opacity: 0.5,
-                  }}
-                  initial={{ top: "-40%", opacity: 0 }}
-                  animate={{ top: "100%", opacity: [0, 1, 0] }}
-                  transition={{ duration: 0.5, delay: 0.55, ease: "easeIn" }}
-                />
-              </>
+              <motion.div
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <Marque animee />
+              </motion.div>
             )}
 
             <motion.div
-              initial={reduitMotion ? false : { opacity: 0, y: 10 }}
+              initial={reduitMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: reduitMotion ? 0 : 0.6 }}
-              className="text-center text-[13px] uppercase"
+              transition={{ duration: 0.35, delay: reduitMotion ? 0 : 0.35 }}
+              className="text-center text-[12px] uppercase"
               style={{
                 color: "var(--ds-muted)",
-                letterSpacing: "0.18em",
+                letterSpacing: "0.2em",
                 fontFamily: "var(--ds-font-mono)",
               }}
             >
@@ -126,28 +83,25 @@ export function Splash({
             </motion.div>
           </div>
 
-          <div className="absolute left-10 right-10 bottom-16">
+          <div className="absolute left-[38px] right-[38px] bottom-[58px]">
             <div
-              className="h-0.5 overflow-hidden"
+              className="h-1 overflow-hidden"
               style={{ background: "var(--ds-border)", borderRadius: "var(--ds-radius-pill)" }}
             >
               <motion.div
-                className="h-0.5"
-                style={{
-                  background: "linear-gradient(90deg, var(--ds-accent-600), var(--ds-accent-300))",
-                  borderRadius: "var(--ds-radius-pill)",
-                }}
+                className="h-1"
+                style={{ background: "var(--ds-accent)", borderRadius: "var(--ds-radius-pill)" }}
                 initial={{ width: reduitMotion ? "100%" : "0%" }}
                 animate={{ width: "100%" }}
-                transition={{ duration: 1.5, delay: reduitMotion ? 0 : 0.7, ease: "easeInOut" }}
+                transition={{ duration: reduitMotion ? 0 : DUREE_TOTALE_S, ease: "easeInOut" }}
               />
             </div>
             <div
-              className="mt-3 flex justify-between text-[11px]"
+              className="mt-[11px] flex justify-between text-[11px]"
               style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
             >
-              <span>Abidjan · CI</span>
-              <span>v1.0</span>
+              <span>1,8 s</span>
+              {destinationLabel && <span>{destinationLabel}</span>}
             </div>
           </div>
         </motion.div>
@@ -156,38 +110,39 @@ export function Splash({
   );
 }
 
-function Marque({ fantome = false }: { fantome?: boolean }) {
+function Marque({ animee = false }: { animee?: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-5">
-      <div className="relative w-[52px] h-[52px] grid place-items-center">
-        {!fantome && (
-          <div
-            className="absolute w-11 h-11"
-            style={{
-              border: "2px solid var(--ds-accent)",
-              borderRadius: 6,
-              transform: "rotate(45deg)",
-              boxShadow: "0 0 24px var(--ds-accent-300)",
-            }}
-          />
-        )}
-        {!fantome && (
-          <div
-            className="absolute w-3.5 h-3.5"
-            style={{ background: "var(--ds-accent-300)", borderRadius: 3 }}
-          />
-        )}
-      </div>
+    <div className="flex flex-col items-center gap-6">
+      <motion.div
+        className="relative w-[74px] h-[74px] grid place-items-center"
+        style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-accent-900)" }}
+        animate={
+          animee
+            ? { boxShadow: ["0 0 0px var(--ds-accent-300)", "0 0 28px var(--ds-accent-300)", "0 0 14px var(--ds-accent-300)"] }
+            : undefined
+        }
+        transition={animee ? { duration: 0.7, delay: 0.15, ease: "easeOut" } : undefined}
+      >
+        <div
+          className="w-[34px] h-[34px]"
+          style={{
+            transform: "rotate(45deg)",
+            borderRadius: 6,
+            background: "var(--ds-accent-300)",
+          }}
+        />
+      </motion.div>
       <div
-        className="text-4xl"
+        className="flex items-baseline text-[42px]"
         style={{
           fontFamily: "var(--ds-font-heading)",
           fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"],
-          letterSpacing: "-0.03em",
-          color: fantome ? "var(--ds-accent-300)" : "var(--ds-text)",
+          letterSpacing: "-0.02em",
+          color: "var(--ds-text)",
         }}
       >
-        Tourney
+        <span>Tourn</span>
+        <span style={{ color: "var(--ds-accent)" }}>ey</span>
       </div>
     </div>
   );
