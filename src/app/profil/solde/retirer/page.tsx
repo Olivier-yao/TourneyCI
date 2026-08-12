@@ -71,9 +71,9 @@ export default function RetirerPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <CheckCircle2 size={36} style={{ color: "var(--ds-accent-300)" }} />
-        <p className="text-base font-medium">Retrait envoyé</p>
+        <p className="text-base font-medium">Retrait en vérification</p>
         <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-          {montant.toLocaleString("fr-FR")} F arrivent sur ton compte sous quelques minutes.
+          {montant.toLocaleString("fr-FR")} F sont en cours de vérification (5 minutes) avant traitement définitif, puis arrivent sur ton compte.
         </p>
       </div>
     );

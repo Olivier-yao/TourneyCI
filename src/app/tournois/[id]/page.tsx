@@ -3,16 +3,29 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2, Share2, Check } from "lucide-react";
+import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
+import { Modal } from "@/components/ds/Modal";
 import { formatXof } from "@/lib/formatXof";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, inscriptionsFermees, reevaluerPaiementsEnAttente, cashPrizeEnSequestre } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { participantsBR } from "@/lib/mockBattleRoyale";
 import { estOrganisateur } from "@/lib/mockAuth";
+import { estInscrit } from "@/lib/mockInscriptions";
+import { lireProfil } from "@/lib/mockProfil";
+import { monAvisPourTournoi } from "@/lib/mockAvis";
+import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";
+import { AvisCoeur } from "@/components/ds/AvisCoeur";
+import { AppelResultats } from "@/components/ds/AppelResultats";
 import { CtaInscription } from "./CtaInscription";
+
+const SEUIL_TEXTE_LONG = 140;
+
+function estTexteLong(texte: string): boolean {
+  return texte.length > SEUIL_TEXTE_LONG || texte.includes("\n");
+}
 
 function Vignette({ label, valeur }: { label: string; valeur: string }) {
   return (
@@ -68,11 +81,28 @@ export default function DetailTournoiPage() {
   const params = useParams<{ id: string }>();
   const tournoi = tournoiParId(params.id);
   const [organisateur, setOrganisateur] = useState(false);
+  const [modaleOuverte, setModaleOuverte] = useState<"informations" | "reglement" | null>(null);
+  const [fermeInscriptions, setFermeInscriptions] = useState(false);
+  const [accesChat, setAccesChat] = useState(false);
+  const [demanderAvis, setDemanderAvis] = useState(false);
+  const [enSequestre, setEnSequestre] = useState(false);
+  const [peutContester, setPeutContester] = useState(false);
+  const [monAppel, setMonAppel] = useState<Appel | undefined>(undefined);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrganisateur(estOrganisateur());
-  }, []);
+    setAccesChat(estInscrit(params.id) || estOrganisateur());
+    if (tournoi) setFermeInscriptions(inscriptionsFermees(tournoi));
+    setDemanderAvis(Boolean(tournoi?.termine) && estInscrit(params.id) && !monAvisPourTournoi(params.id));
+    if (tournoi?.termine) {
+      reevaluerPaiementsEnAttente();
+      setEnSequestre(cashPrizeEnSequestre(params.id));
+      setPeutContester(estInscrit(params.id));
+      setMonAppel(monAppelPourTournoi(params.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
 
   if (!tournoi) {
     return (
@@ -198,6 +228,33 @@ export default function DetailTournoiPage() {
           {tournoi.dateLabel}
         </p>
 
+        {demanderAvis && (
+          <AvisCoeur
+            tournoiId={tournoi.id}
+            tournoiTitre={tournoi.titre}
+            organisateur={tournoi.organisateur}
+            onEnvoye={() => {
+              setDemanderAvis(false);
+              reevaluerPaiementsEnAttente();
+              setEnSequestre(cashPrizeEnSequestre(tournoi.id));
+            }}
+          />
+        )}
+
+        {peutContester && (
+          <AppelResultats
+            tournoiId={tournoi.id}
+            tournoiTitre={tournoi.titre}
+            auteur={lireProfil().pseudo}
+            appelExistant={monAppel}
+            onEnvoye={() => {
+              setMonAppel(monAppelPourTournoi(tournoi.id));
+              reevaluerPaiementsEnAttente();
+              setEnSequestre(cashPrizeEnSequestre(tournoi.id));
+            }}
+          />
+        )}
+
         <div className="grid grid-cols-2 gap-2 mt-1">
           {tournoi.cashPrizeXof > 0 && <Vignette label="Cash prize" valeur={formatXof(tournoi.cashPrizeXof)} />}
           {tournoi.fraisXof > 0 && <Vignette label="Frais" valeur={formatXof(tournoi.fraisXof)} />}
@@ -207,6 +264,18 @@ export default function DetailTournoiPage() {
           />
           {tournoi.checkin && <Vignette label="Check-in" valeur={tournoi.checkin} />}
         </div>
+
+        {tournoi.financementCashPrize === "organisateur" && (
+          <p className="text-xs" style={{ color: "var(--ds-accent-300)" }}>
+            Cash prize financé par l&apos;organisateur · inscription gratuite
+          </p>
+        )}
+
+        {enSequestre && (
+          <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
+            Cash prize en séquestre : versement suspendu le temps d&apos;une vérification (avis signalés et/ou contestation en cours).
+          </p>
+        )}
 
         <div className="mt-1">
           <ProgressBar pourcentage={pourcentagePlaces} />
@@ -240,10 +309,39 @@ export default function DetailTournoiPage() {
           </div>
         )}
 
-        {tournoi.reglement && (
-          <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-            {tournoi.reglement}
-          </p>
+        {(tournoi.informations || tournoi.reglement) && (
+          <div className="flex flex-col gap-2 mt-1">
+            {tournoi.informations &&
+              (estTexteLong(tournoi.informations) ? (
+                <button
+                  type="button"
+                  onClick={() => setModaleOuverte("informations")}
+                  className="text-left text-sm font-medium cursor-pointer"
+                  style={{ color: "var(--ds-accent-300)" }}
+                >
+                  Voir les informations →
+                </button>
+              ) : (
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)", whiteSpace: "pre-wrap" }}>
+                  {tournoi.informations}
+                </p>
+              ))}
+            {tournoi.reglement &&
+              (estTexteLong(tournoi.reglement) ? (
+                <button
+                  type="button"
+                  onClick={() => setModaleOuverte("reglement")}
+                  className="text-left text-sm font-medium cursor-pointer"
+                  style={{ color: "var(--ds-accent-300)" }}
+                >
+                  Voir le règlement →
+                </button>
+              ) : (
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)", whiteSpace: "pre-wrap" }}>
+                  {tournoi.reglement}
+                </p>
+              ))}
+          </div>
         )}
 
         {aUnBracket && (
@@ -266,6 +364,17 @@ export default function DetailTournoiPage() {
           </Link>
         )}
 
+        {accesChat && (
+          <Link
+            href={`/tournois/${tournoi.id}/chat`}
+            className="flex items-center gap-2 text-sm font-medium"
+            style={{ color: "var(--ds-accent-300)" }}
+          >
+            <MessageCircle size={15} strokeWidth={2} />
+            Chat du tournoi
+          </Link>
+        )}
+
         {organisateur && (
           <Link
             href={`/organisateur/${tournoi.id}/gestion`}
@@ -284,7 +393,16 @@ export default function DetailTournoiPage() {
         typeCompetition={tournoi.type}
         equipes={tournoi.equipes}
         modeEquipe={tournoi.modeEquipe}
+        tournoiCommence={tournoi.enDirect || Boolean(tournoi.termine) || Boolean(tournoi.annule)}
+        fermeInscriptions={fermeInscriptions}
       />
+
+      <Modal ouvert={modaleOuverte === "informations"} titre="Informations" onFermer={() => setModaleOuverte(null)}>
+        {tournoi.informations}
+      </Modal>
+      <Modal ouvert={modaleOuverte === "reglement"} titre="Règlement" onFermer={() => setModaleOuverte(null)}>
+        {tournoi.reglement}
+      </Modal>
     </div>
   );
 }

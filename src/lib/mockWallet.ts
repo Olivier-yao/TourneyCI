@@ -6,7 +6,7 @@
 
 import { estCertifie } from "./mockOrganisateur";
 
-export type TypeMouvement = "gain" | "inscription" | "recharge" | "retrait" | "commission";
+export type TypeMouvement = "gain" | "inscription" | "recharge" | "retrait" | "commission" | "financement" | "remboursement";
 
 export type Mouvement = {
   id: string;
@@ -100,6 +100,14 @@ export function retirer(montantXof: number, moyen: string): { ok: boolean; erreu
     dateLabel: AUJOURD_HUI(),
   });
   return { ok: true };
+}
+
+/** Délai de vérification avant qu'un retrait ne soit considéré traité
+ * définitivement (anti-fraude, mock). */
+export const DELAI_VERIFICATION_RETRAIT_MS = 5 * 60 * 1000;
+
+export function retraitEnVerification(m: Pick<Mouvement, "type" | "horodatage">): boolean {
+  return m.type === "retrait" && Date.now() - m.horodatage < DELAI_VERIFICATION_RETRAIT_MS;
 }
 
 export function gainsTotal(): number {

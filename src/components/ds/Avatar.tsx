@@ -4,12 +4,13 @@ type AvatarProps = {
   initiales: string;
   taille?: number;
   empile?: boolean;
+  photoUrl?: string;
 };
 
-export function Avatar({ initiales, taille = 36, empile = false }: AvatarProps) {
+export function Avatar({ initiales, taille = 36, empile = false, photoUrl }: AvatarProps) {
   return (
     <div
-      className="flex items-center justify-center shrink-0 font-semibold"
+      className="flex items-center justify-center shrink-0 font-semibold overflow-hidden"
       style={{
         width: taille,
         height: taille,
@@ -23,7 +24,12 @@ export function Avatar({ initiales, taille = 36, empile = false }: AvatarProps) 
         marginLeft: empile ? -taille * 0.22 : undefined,
       }}
     >
-      {initiales}
+      {photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photoUrl} alt={initiales} className="w-full h-full object-cover" />
+      ) : (
+        initiales
+      )}
     </div>
   );
 }

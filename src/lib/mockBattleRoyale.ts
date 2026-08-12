@@ -7,13 +7,31 @@
  */
 
 export type StatutBR = "en_jeu" | "elimine";
+export type SousTypeBR = "solo" | "duo" | "squad";
 
 export type ParticipantBR = {
   id: string;
   nom: string;
   statut: StatutBR;
   ordreElimination?: number;
+  /** Nom de la duo/squad d'appartenance (absent en solo). */
+  equipe?: string;
 };
+
+export type UniteBR = { id: string; nom: string };
+
+/** Unités classées : un joueur en solo, une équipe en duo/squad. */
+export function unitesBR(tournoiId: string, sousType: SousTypeBR = "solo"): UniteBR[] {
+  const participants = participantsBR(tournoiId);
+  if (sousType === "solo") {
+    return participants.map((p) => ({ id: p.id, nom: p.nom }));
+  }
+  const equipes = new Set<string>();
+  for (const p of participants) {
+    if (p.equipe) equipes.add(p.equipe);
+  }
+  return Array.from(equipes).map((nom) => ({ id: `equipe-${nom}`, nom }));
+}
 
 export type ResultatManche = {
   participantId: string;
@@ -68,15 +86,18 @@ function alea(graine: number): () => number {
   };
 }
 
-function genererParticipants(nbElimines: number): ParticipantBR[] {
-  const suivant = alea(42);
+function melangerNoms(graine: number): string[] {
+  const suivant = alea(graine);
   const melanges = [...NOMS];
   for (let i = melanges.length - 1; i > 0; i--) {
     const j = Math.floor(suivant() * (i + 1));
     [melanges[i], melanges[j]] = [melanges[j], melanges[i]];
   }
+  return melanges;
+}
 
-  return melanges.map((nom, i) => ({
+function genererParticipants(nbElimines: number, graine = 42): ParticipantBR[] {
+  return melangerNoms(graine).map((nom, i) => ({
     id: `br-${i}`,
     nom,
     statut: i < nbElimines ? "elimine" : "en_jeu",
@@ -84,8 +105,23 @@ function genererParticipants(nbElimines: number): ParticipantBR[] {
   }));
 }
 
+/** Roster groupé en squads de taille fixe (demo mode duo/squad). */
+function genererParticipantsSquad(effectif: number, tailleEquipe: number, nbElimines: number, graine: number): ParticipantBR[] {
+  return melangerNoms(graine)
+    .slice(0, effectif)
+    .map((nom, i) => ({
+      id: `br-${i}`,
+      nom,
+      statut: i < nbElimines ? ("elimine" as const) : ("en_jeu" as const),
+      ordreElimination: i < nbElimines ? i + 1 : undefined,
+      equipe: `Squad ${Math.floor(i / tailleEquipe) + 1}`,
+    }));
+}
+
 const PARTICIPANTS_INITIAUX: Record<string, ParticipantBR[]> = {
   "freefire-night": genererParticipants(15),
+  "br-solo-yopougon": genererParticipants(14, 7),
+  "br-squad-treichville": genererParticipantsSquad(48, 4, 16, 13),
 };
 
 const CLE_PARTICIPANTS_BR = "tourney-participants-br";
@@ -130,9 +166,10 @@ export function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]) 
 }
 
 /** Classement cumulé sur toutes les manches jouées, trié par points décroissants.
- * Les moitié supérieure (avec au moins un point) sont marqués "Qualifié". */
-export function classementCumuleBR(tournoiId: string): LigneClassementBR[] {
-  const participants = participantsBR(tournoiId);
+ * Une unité = un joueur (solo) ou une équipe (duo/squad). Les moitié supérieure
+ * (avec au moins un point) sont marqués "Qualifié". */
+export function classementCumuleBR(tournoiId: string, sousType: SousTypeBR = "solo"): LigneClassementBR[] {
+  const unites = unitesBR(tournoiId, sousType);
   const manches = manchesBR(tournoiId);
   const totaux = new Map<string, number>();
   const joues = new Map<string, number>();
@@ -144,25 +181,25 @@ export function classementCumuleBR(tournoiId: string): LigneClassementBR[] {
     }
   }
 
-  const lignes = participants
-    .map((p) => ({
-      participantId: p.id,
-      nom: p.nom,
-      points: totaux.get(p.id) ?? 0,
-      manchesJouees: joues.get(p.id) ?? 0,
+  const lignes = unites
+    .map((u) => ({
+      participantId: u.id,
+      nom: u.nom,
+      points: totaux.get(u.id) ?? 0,
+      manchesJouees: joues.get(u.id) ?? 0,
     }))
     .sort((a, b) => b.points - a.points);
 
-  const seuilQualif = Math.ceil(participants.length / 2);
+  const seuilQualif = Math.ceil(unites.length / 2);
   return lignes.map((l, i) => ({ ...l, qualifie: l.points > 0 && i < seuilQualif }));
 }
 
 /** Classement final (pour la distribution automatique des points/gains en fin
  * de tournoi) : cumul des manches si disponible, sinon ancien ordre par élimination. */
-export function classementFinalBR(tournoiId: string): string[] {
+export function classementFinalBR(tournoiId: string, sousType: SousTypeBR = "solo"): string[] {
   const manches = manchesBR(tournoiId);
   if (manches.length > 0) {
-    return classementCumuleBR(tournoiId).map((l) => l.nom);
+    return classementCumuleBR(tournoiId, sousType).map((l) => l.nom);
   }
   const participants = participantsBR(tournoiId);
   const enJeu = participants.filter((p) => p.statut === "en_jeu").map((p) => p.nom);

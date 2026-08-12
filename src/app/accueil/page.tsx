@@ -292,7 +292,7 @@ export default function AccueilV2Page() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{t.titre}</div>
                         <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                          {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal} · {formatXof(t.fraisXof)}
+                          {t.dateLabel} · {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal} · {formatXof(t.fraisXof)}
                         </div>
                       </div>
                       <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />

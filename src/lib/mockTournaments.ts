@@ -13,6 +13,8 @@ import { crediter } from "./mockWallet";
 import { estCertifie } from "./mockOrganisateur";
 import { estInscrit, inscriptionDe } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
+import { avisDuTournoi } from "./mockAvis";
+import { appelOuvertPourTournoi } from "./mockAppel";
 
 export type TypeCompetition = "1v1" | "equipes" | "battle_royale";
 export type Modalite = "virtuel" | "presentiel";
@@ -44,30 +46,96 @@ export type Tournoi = {
   checkin: string;
   enDirect: boolean;
   reglement: string;
+  /** Détails additionnels distincts du règlement (facultatif). */
+  informations?: string;
   inscrits: string[];
   equipes?: EquipeInfo[];
   modeEquipe?: ModeEquipe;
+  /** Sous-type Battle Royale (obligatoire quand type === "battle_royale"). */
+  brSousType?: "solo" | "duo" | "squad";
+  /** Origine du financement du cash prize : frais d'inscription des
+   * participants (défaut) ou solde de l'organisateur (inscription gratuite). */
+  financementCashPrize?: "inscriptions" | "organisateur";
+  /** Commission organisateur activée pour ce tournoi payant (5 % des frais
+   * collectés, moins la part plateforme prélevée au versement). */
+  commissionActivee?: boolean;
   repartitionCashPrize?: RepartitionCashPrize[];
   banniereUrl?: string;
   termine?: boolean;
   annule?: boolean;
-  /** Horodatage (ms) de clôture des inscriptions. Sert à verrouiller la bracket 10 min après. */
-  clotureInscriptionsTs?: number;
+  /** Horodatage (ms) de début du tournoi. */
+  debutTournoiTs?: number;
+  /** Horodatages (ms) optionnels renseignés par l'organisateur pour la fenêtre
+   * d'inscription. Si absents, comportement par défaut (voir clotureEffectiveInscriptions). */
+  debutInscriptionsTs?: number;
+  finInscriptionsTs?: number;
 };
 
 const DELAI_VERROU_BRACKET_MS = 10 * 60 * 1000;
+/** Marge par défaut avant le début du tournoi quand "Fin des inscriptions"
+ * n'est pas renseignée (comprise dans la fourchette 15-10 min demandée). */
+const MARGE_CLOTURE_PAR_DEFAUT_MS = 12 * 60 * 1000;
 
-/** La bracket reste masquée jusqu'à 10 min après la clôture des inscriptions. */
-export function bracketVerrouillee(tournoi: Pick<Tournoi, "clotureInscriptionsTs">): boolean {
-  if (!tournoi.clotureInscriptionsTs) return false;
-  return Date.now() < tournoi.clotureInscriptionsTs + DELAI_VERROU_BRACKET_MS;
+/** Moment effectif de clôture des inscriptions : la valeur explicite de
+ * l'organisateur si renseignée, sinon 10-15 min avant le début du tournoi. */
+export function clotureEffectiveInscriptions(
+  tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs">,
+): number | undefined {
+  if (tournoi.finInscriptionsTs) return tournoi.finInscriptionsTs;
+  if (tournoi.debutTournoiTs) return tournoi.debutTournoiTs - MARGE_CLOTURE_PAR_DEFAUT_MS;
+  return undefined;
 }
 
-/** Commission de l'organisateur sur les tournois payants, en plus du cash prize. */
+export function inscriptionsFermees(tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs">): boolean {
+  const cloture = clotureEffectiveInscriptions(tournoi);
+  return cloture !== undefined && Date.now() >= cloture;
+}
+
+export function inscriptionsPasEncoreOuvertes(tournoi: Pick<Tournoi, "debutInscriptionsTs">): boolean {
+  return tournoi.debutInscriptionsTs !== undefined && Date.now() < tournoi.debutInscriptionsTs;
+}
+
+/** La bracket reste masquée jusqu'à 10 min après la clôture effective des inscriptions. */
+export function bracketVerrouillee(tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs">): boolean {
+  const cloture = clotureEffectiveInscriptions(tournoi);
+  if (cloture === undefined) return false;
+  return Date.now() < cloture + DELAI_VERROU_BRACKET_MS;
+}
+
+/** Commission de l'organisateur sur les tournois payants (optionnelle,
+ * activée tournoi par tournoi), en plus du cash prize. */
 export const COMMISSION_PCT = 0.05;
 
 export function commissionEstimee(fraisXof: number, placesTotal: number): number {
   return Math.round(fraisXof * placesTotal * COMMISSION_PCT);
+}
+
+const CLE_TAUX_PLATEFORME = "tourney-taux-plateforme-commission";
+const TAUX_PLATEFORME_DEFAUT = 0.2;
+
+/** Part que la plateforme prélève sur la commission de l'organisateur
+ * (configurable côté administration, pas un forfait fixe). */
+export function tauxPlateformeSurCommission(): number {
+  if (typeof window === "undefined") return TAUX_PLATEFORME_DEFAUT;
+  const val = Number(localStorage.getItem(CLE_TAUX_PLATEFORME));
+  return Number.isFinite(val) && val >= 0 && val <= 1 && localStorage.getItem(CLE_TAUX_PLATEFORME) !== null
+    ? val
+    : TAUX_PLATEFORME_DEFAUT;
+}
+
+export function definirTauxPlateformeSurCommission(taux: number) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_TAUX_PLATEFORME, String(Math.min(1, Math.max(0, taux))));
+}
+
+/** Décompose la commission organisateur : brute (5 % des frais collectés),
+ * part prélevée par la plateforme, net réellement perçu par l'organisateur.
+ * Le prélèvement n'a lieu qu'au moment du versement (fin de tournoi), jamais
+ * à la création — l'organisateur ne peut donc jamais être en perte. */
+export function decomposerCommission(fraisXof: number, placesTotal: number): { brute: number; partPlateforme: number; net: number } {
+  const brute = commissionEstimee(fraisXof, placesTotal);
+  const partPlateforme = Math.round(brute * tauxPlateformeSurCommission());
+  return { brute, partPlateforme, net: brute - partPlateforme };
 }
 
 export type GenreJeu = "FPS" | "TPS" | "Combat" | "Sport" | "Battle Royale";
@@ -180,6 +248,50 @@ export const TOURNOIS: Tournoi[] = [
     enDirect: false,
     reglement: "Manche unique, élimination au fur et à mesure. Gratuit, places limitées.",
     inscrits: ["FT", "GO", "HL"],
+  },
+  {
+    id: "br-solo-yopougon",
+    code: "BRS7Q2",
+    jeuId: "pubgm",
+    jeuLabel: "PUBG Mobile",
+    titre: "PUBG Solo Marathon",
+    organisateur: "Yopougon Gaming",
+    format: "Battle Royale · Solo · 50 joueurs",
+    type: "battle_royale",
+    modalite: "virtuel",
+    ville: "Yopougon",
+    dateLabel: "En cours",
+    cashPrizeXof: 60000,
+    fraisXof: 500,
+    placesInscrites: 50,
+    placesTotal: 50,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Manches successives, barème de points cumulés. Les 25 meilleurs se qualifient.",
+    inscrits: ["KB", "YM", "AK"],
+    brSousType: "solo",
+  },
+  {
+    id: "br-squad-treichville",
+    code: "BRQ4M8",
+    jeuId: "freefire",
+    jeuLabel: "Free Fire",
+    titre: "Free Fire Squad Wars",
+    organisateur: "Treichville Esport",
+    format: "Battle Royale · Squad · 48 joueurs (12 squads)",
+    type: "battle_royale",
+    modalite: "presentiel",
+    ville: "Treichville",
+    dateLabel: "En cours",
+    cashPrizeXof: 150000,
+    fraisXof: 1000,
+    placesInscrites: 48,
+    placesTotal: 48,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Manches successives par squad de 4. Barème de points cumulés, top 6 squads qualifiés.",
+    inscrits: ["Squad 1", "Squad 2", "Squad 3"],
+    brSousType: "squad",
   },
   {
     id: "codm-showdown",
@@ -299,8 +411,15 @@ export function estAnnule(id: string): boolean {
 }
 
 /** Annule un tournoi (compte comme un "flop" pour le classement organisateur). */
+/** Annule un tournoi et rembourse automatiquement les frais déjà payés par
+ * l'inscrit de cet appareil (mock mono-utilisateur : pas de vrai registre
+ * multi-comptes, seul le participant local peut être remboursé ici). */
 export function annulerTournoi(id: string) {
   ajouterA(CLE_TOURNOIS_ANNULES, id);
+  const tournoi = tournoiParId(id);
+  if (tournoi && tournoi.fraisXof > 0 && estInscrit(id)) {
+    crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement");
+  }
 }
 
 function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
@@ -375,6 +494,19 @@ function pointsPourPlace(place: number, effectif: number): number {
   return 5;
 }
 
+/** Même barème pour la première moitié, mais les éliminés de la seconde
+ * moitié reçoivent des points négatifs (plus sévère pour les tout premiers
+ * éliminés) plutôt qu'un minimum symbolique. */
+function pointsPourPlaceBR(place: number, effectif: number): number {
+  if (place === 1) return 100;
+  if (place === 2) return 70;
+  if (place <= 4) return 50;
+  if (place <= 8) return 30;
+  const moitie = Math.ceil(effectif / 2);
+  if (place <= moitie) return 15;
+  return Math.max(-20, -(place - moitie) * 2);
+}
+
 /**
  * Clôture un tournoi : distribue les points de classement de façon
  * automatique et équilibrée selon la place finale (bracket ou battle royale),
@@ -382,16 +514,85 @@ function pointsPourPlace(place: number, effectif: number): number {
  * du cash prize. La commission de l'organisateur (5 %) n'est créditée que
  * s'il est certifié (cf. mockOrganisateur).
  */
+/**
+ * Séquestre du cash prize : à la clôture, le gain du vainqueur (s'il s'agit
+ * de l'utilisateur de cet appareil) est mis en attente plutôt que crédité
+ * directement. Il est ensuite libéré automatiquement dès que les avis
+ * "cœur brisé" du tournoi (cf. mockAvis) restent sous le seuil, ou reste
+ * bloqué jusqu'à une libération manuelle par l'administration.
+ */
+export const SEUIL_COEURS_BRISES_SEQUESTRE = 2;
+
+export type PaiementEnAttente = { tournoiId: string; titre: string; montantXof: number; horodatage: number };
+
+const CLE_PAIEMENTS_ATTENTE = "tourney-paiements-attente";
+
+function lirePaiementsAttente(): PaiementEnAttente[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const brut = localStorage.getItem(CLE_PAIEMENTS_ATTENTE);
+    return brut ? (JSON.parse(brut) as PaiementEnAttente[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function paiementsEnAttente(): PaiementEnAttente[] {
+  return lirePaiementsAttente();
+}
+
+export function cashPrizeEnSequestre(tournoiId: string): boolean {
+  return lirePaiementsAttente().some((p) => p.tournoiId === tournoiId);
+}
+
+function ajouterPaiementAttente(tournoiId: string, titre: string, montantXof: number) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    CLE_PAIEMENTS_ATTENTE,
+    JSON.stringify([...lirePaiementsAttente(), { tournoiId, titre, montantXof, horodatage: Date.now() }]),
+  );
+}
+
+function retirerPaiementAttente(tournoiId: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_PAIEMENTS_ATTENTE, JSON.stringify(lirePaiementsAttente().filter((p) => p.tournoiId !== tournoiId)));
+}
+
+/** Libération manuelle (action admin) après vérification anti-triche. */
+export function libererSequestreCashPrize(tournoiId: string) {
+  const paiement = lirePaiementsAttente().find((p) => p.tournoiId === tournoiId);
+  if (!paiement) return;
+  crediter(paiement.montantXof, `Gain (débloqué) · ${paiement.titre}`, "gain");
+  retirerPaiementAttente(tournoiId);
+}
+
+/** Réévalue les paiements en attente : libère automatiquement ceux dont le
+ * tournoi reste sous le seuil de cœurs brisés. À appeler après chaque avis
+ * laissé, ou à l'arrivée sur l'écran d'un tournoi terminé. */
+export function reevaluerPaiementsEnAttente() {
+  for (const paiement of lirePaiementsAttente()) {
+    const brises = avisDuTournoi(paiement.tournoiId).filter((a) => a.type === "coeur_brise").length;
+    const conteste = appelOuvertPourTournoi(paiement.tournoiId);
+    if (brises < SEUIL_COEURS_BRISES_SEQUESTRE && !conteste) {
+      crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain");
+      retirerPaiementAttente(paiement.tournoiId);
+    }
+  }
+}
+
 export function terminerTournoi(tournoiId: string): { pointsAttribues: number; gainCredite: number } {
   const tournoi = tournoiParId(tournoiId);
   if (!tournoi) return { pointsAttribues: 0, gainCredite: 0 };
 
   const classement =
-    tournoi.type === "battle_royale" ? classementFinalBR(tournoiId) : classementFinalBracket(tournoiId);
+    tournoi.type === "battle_royale"
+      ? classementFinalBR(tournoiId, tournoi.brSousType ?? "solo")
+      : classementFinalBracket(tournoiId);
 
+  const bareme = tournoi.type === "battle_royale" ? pointsPourPlaceBR : pointsPourPlace;
   let pointsAttribues = 0;
   classement.forEach((nom, i) => {
-    const points = pointsPourPlace(i + 1, classement.length);
+    const points = bareme(i + 1, classement.length);
     attribuerPoints(tournoi.jeuId, nom, points, tournoi.ville);
     pointsAttribues += points;
   });
@@ -401,15 +602,18 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
   if (tournoi.repartitionCashPrize) {
     for (let i = 0; i < tournoi.repartitionCashPrize.length; i++) {
       if (classement[i] && classement[i] === profil.pseudo) {
-        crediter(tournoi.repartitionCashPrize[i].montantXof, `Gain · ${tournoi.titre}`, "gain");
+        // Le gain part en attente (séquestre potentiel, cf. point 24) plutôt
+        // que d'être crédité directement : reevaluerPaiementsEnAttente() le
+        // libère aussitôt s'il n'y a pas assez de cœurs brisés signalés.
+        ajouterPaiementAttente(tournoiId, tournoi.titre, tournoi.repartitionCashPrize[i].montantXof);
         gainCredite += tournoi.repartitionCashPrize[i].montantXof;
       }
     }
   }
 
-  if (tournoi.fraisXof > 0 && estCertifie()) {
-    const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);
-    if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission");
+  if (tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()) {
+    const { net } = decomposerCommission(tournoi.fraisXof, tournoi.placesInscrites);
+    if (net > 0) crediter(net, `Commission · ${tournoi.titre}`, "commission");
   }
 
   ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);

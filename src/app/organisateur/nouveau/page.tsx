@@ -1,18 +1,21 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus } from "lucide-react";
+import { BannerCropper } from "@/components/ds/BannerCropper";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Tag } from "@/components/ds/Tag";
 import { Button } from "@/components/ds/Button";
 import { lireProfil } from "@/lib/mockProfil";
+import { lireSolde, debiter } from "@/lib/mockWallet";
+import { peutCreerTournoiPayant } from "@/lib/mockOrganisateur";
 import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
   creerTournoi,
-  commissionEstimee,
+  decomposerCommission,
+  tauxPlateformeSurCommission,
   type TypeCompetition,
   type Modalite,
   type ModeEquipe,
@@ -25,6 +28,12 @@ const TYPES: { id: TypeCompetition; label: string }[] = [
   { id: "1v1", label: "1v1" },
   { id: "equipes", label: "Équipes" },
   { id: "battle_royale", label: "Battle Royale" },
+];
+
+const SOUS_TYPES_BR: { id: "solo" | "duo" | "squad"; label: string }[] = [
+  { id: "solo", label: "Solo" },
+  { id: "duo", label: "Duo" },
+  { id: "squad", label: "Squad" },
 ];
 
 function SegmentedControl<T extends string>({
@@ -74,19 +83,31 @@ function formatDateLabel(date: string, heure: string): string {
 
 export default function NouveauTournoiPage() {
   const router = useRouter();
-  const inputBanniereRef = useRef<HTMLInputElement>(null);
 
   const [banniereUrl, setBanniereUrl] = useState<string | undefined>(undefined);
   const [jeuId, setJeuId] = useState(JEUX[0].id);
   const [jeuPersonnalise, setJeuPersonnalise] = useState("");
   const [titre, setTitre] = useState("");
   const [type, setType] = useState<TypeCompetition>("1v1");
+  const [brSousType, setBrSousType] = useState<"solo" | "duo" | "squad">("solo");
   const [modalite, setModalite] = useState<Modalite>("presentiel");
   const [ville, setVille] = useState("");
   const [modeEquipe, setModeEquipe] = useState<ModeEquipe>("libre");
   const [nomsEquipes, setNomsEquipes] = useState("");
   const [placesTotal, setPlacesTotal] = useState("16");
   const [payant, setPayant] = useState(false);
+  const [commissionActivee, setCommissionActivee] = useState(false);
+  const [tauxPlateforme, setTauxPlateforme] = useState(0.2);
+  const [financeParOrganisateur, setFinanceParOrganisateur] = useState(false);
+  const [solde, setSolde] = useState(0);
+  const [payantAutorise, setPayantAutorise] = useState(true);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSolde(lireSolde());
+    setPayantAutorise(peutCreerTournoiPayant(lireProfil().pseudo));
+    setTauxPlateforme(tauxPlateformeSurCommission());
+  }, []);
   const [fraisXof, setFraisXof] = useState("1000");
   const [cashPrizeXof, setCashPrizeXof] = useState("0");
   const [repartitionMode, setRepartitionMode] = useState<RepartitionMode>("vainqueur");
@@ -96,24 +117,32 @@ export default function NouveauTournoiPage() {
   const [dateJour, setDateJour] = useState("");
   const [dateHeure, setDateHeure] = useState("20:00");
   const [checkinHeure, setCheckinHeure] = useState("19:30");
+  const [debutInscJour, setDebutInscJour] = useState("");
+  const [debutInscHeure, setDebutInscHeure] = useState("");
+  const [finInscJour, setFinInscJour] = useState("");
+  const [finInscHeure, setFinInscHeure] = useState("");
   const dateLabel = formatDateLabel(dateJour, dateHeure);
-  const clotureInscriptionsTs = (() => {
-    if (!dateJour) return undefined;
-    const [annee, mois, jour] = dateJour.split("-").map(Number);
-    const [h, m] = (dateHeure || "00:00").split(":").map(Number);
-    return new Date(annee, (mois || 1) - 1, jour || 1, h || 0, m || 0).getTime();
-  })();
+
+  function versTimestamp(jour: string, heure: string): number | undefined {
+    if (!jour) return undefined;
+    const [annee, mois, j] = jour.split("-").map(Number);
+    const [h, m] = (heure || "00:00").split(":").map(Number);
+    return new Date(annee, (mois || 1) - 1, j || 1, h || 0, m || 0).getTime();
+  }
+
+  const debutTournoiTs = versTimestamp(dateJour, dateHeure);
+  const debutInscriptionsTs = versTimestamp(debutInscJour, debutInscHeure);
+  const finInscriptionsTs = versTimestamp(finInscJour, finInscHeure);
   const checkin = checkinHeure ? `${checkinHeure.replace(":", "h")}` : "";
   const [reglement, setReglement] = useState("");
+  const [informations, setInformations] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
 
   const jeu = JEUX.find((j) => j.id === jeuId);
   const jeuIdFinal = jeuId === "autre" ? jeuPersonnalise.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : jeuId;
   const jeuLabelFinal = jeuId === "autre" ? jeuPersonnalise.trim() : (jeu?.label ?? "");
   const places = type === "battle_royale" ? 50 : Number(placesTotal) || 0;
-  const commission = payant
-    ? commissionEstimee(Number(fraisXof) || 0, places)
-    : 0;
+  const commission = payant && commissionActivee ? decomposerCommission(Number(fraisXof) || 0, places) : { brute: 0, partPlateforme: 0, net: 0 };
   const cashPrizeNum = Number(cashPrizeXof) || 0;
 
   const repartitionCalculee: RepartitionCashPrize[] =
@@ -151,7 +180,19 @@ export default function NouveauTournoiPage() {
       setErreur("La date est obligatoire.");
       return;
     }
+    if (financeParOrganisateur && cashPrizeNum > 0 && cashPrizeNum > solde) {
+      setErreur("Solde insuffisant pour financer ce cash prize.");
+      return;
+    }
+    if (payant && !payantAutorise) {
+      setErreur("Compte suspendu pour les tournois payants (vérification anti-triche en cours).");
+      return;
+    }
     setErreur(null);
+
+    if (financeParOrganisateur && cashPrizeNum > 0) {
+      debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement");
+    }
 
     const equipes =
       type === "equipes" && modeEquipe === "predefinies"
@@ -174,17 +215,23 @@ export default function NouveauTournoiPage() {
       dateLabel: dateLabel.trim(),
       cashPrizeXof: cashPrizeNum,
       fraisXof: payant ? Number(fraisXof) || 0 : 0,
+      financementCashPrize: financeParOrganisateur ? "organisateur" : "inscriptions",
+      commissionActivee: payant && commissionActivee,
       placesTotal: places,
       checkin: checkin.trim(),
       enDirect: false,
       reglement: reglement.trim(),
+      informations: informations.trim() || undefined,
       inscrits: [],
       banniereUrl,
-      clotureInscriptionsTs,
+      debutTournoiTs,
+      debutInscriptionsTs,
+      finInscriptionsTs,
       equipes,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
+      brSousType: type === "battle_royale" ? brSousType : undefined,
       repartitionCashPrize:
-        payant && cashPrizeNum > 0 ? repartitionCalculee : undefined,
+        (payant || financeParOrganisateur) && cashPrizeNum > 0 ? repartitionCalculee : undefined,
     });
 
     router.push(`/tournois/${tournoi.id}`);
@@ -205,36 +252,7 @@ export default function NouveauTournoiPage() {
           >
             Bannière
           </div>
-          <input
-            ref={inputBanniereRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const fichier = e.target.files?.[0];
-              if (!fichier) return;
-              const lecteur = new FileReader();
-              lecteur.onload = () => setBanniereUrl(lecteur.result as string);
-              lecteur.readAsDataURL(fichier);
-              e.target.value = "";
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => inputBanniereRef.current?.click()}
-            className="w-full h-[110px] flex flex-col items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
-            style={{ borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border-strong)", background: "var(--ds-surface)" }}
-          >
-            {banniereUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={banniereUrl} alt="Bannière du tournoi" className="w-full h-full object-cover" />
-            ) : (
-              <>
-                <ImagePlus size={20} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
-                <span className="text-xs" style={{ color: "var(--ds-muted)" }}>Ajouter une image</span>
-              </>
-            )}
-          </button>
+          <BannerCropper banniereActuelle={banniereUrl} onValider={setBanniereUrl} />
         </div>
 
         <div>
@@ -347,9 +365,15 @@ export default function NouveauTournoiPage() {
           />
         )}
         {type === "battle_royale" && (
-          <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-            50 joueurs par défaut pour un Battle Royale.
-          </p>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+              Sous-type
+            </label>
+            <SegmentedControl options={SOUS_TYPES_BR} valeur={brSousType} onChange={setBrSousType} />
+            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+              50 joueurs par défaut pour un Battle Royale.
+            </p>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-2.5">
@@ -363,6 +387,30 @@ export default function NouveauTournoiPage() {
         )}
         <Field label="Heure de check-in" type="time" value={checkinHeure} onChange={(e) => setCheckinHeure(e.target.value)} />
 
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+            Début des inscriptions (facultatif)
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field type="date" value={debutInscJour} onChange={(e) => setDebutInscJour(e.target.value)} />
+            <Field type="time" value={debutInscHeure} onChange={(e) => setDebutInscHeure(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+            Fin des inscriptions (facultatif)
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field type="date" value={finInscJour} onChange={(e) => setFinInscJour(e.target.value)} />
+            <Field type="time" value={finInscHeure} onChange={(e) => setFinInscHeure(e.target.value)} />
+          </div>
+          {!finInscJour && (
+            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+              Non renseigné : les inscriptions se fermeront automatiquement 10 à 15 minutes avant le début du tournoi.
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-col gap-3">
           <SegmentedControl
             options={[
@@ -370,8 +418,41 @@ export default function NouveauTournoiPage() {
               { id: "payant", label: "Payant" },
             ]}
             valeur={payant ? "payant" : "gratuit"}
-            onChange={(v) => setPayant(v === "payant")}
+            onChange={(v) => {
+              if (v === "payant" && !payantAutorise) {
+                setErreur("Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.");
+                return;
+              }
+              setErreur(null);
+              setPayant(v === "payant");
+            }}
           />
+          {!payantAutorise && (
+            <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
+              Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits.
+            </p>
+          )}
+
+          {!payant && (
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={financeParOrganisateur}
+                  onChange={(e) => setFinanceParOrganisateur(e.target.checked)}
+                />
+                Financer un cash prize depuis mon solde TourneyCard
+              </label>
+              {financeParOrganisateur && (
+                <>
+                  <Field label="Cash prize à engager (F)" type="number" min={0} value={cashPrizeXof} onChange={(e) => setCashPrizeXof(e.target.value)} />
+                  <p className="text-xs" style={{ color: cashPrizeNum > solde ? "var(--ds-danger)" : "var(--ds-muted)" }}>
+                    Solde disponible : {formatXof(solde)}. Ce montant est débité immédiatement à la création et devient le cash prize, inscription gratuite pour les participants.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
           {payant && (
             <>
@@ -379,15 +460,42 @@ export default function NouveauTournoiPage() {
                 <Field label="Frais d'inscription (F)" type="number" min={0} value={fraisXof} onChange={(e) => setFraisXof(e.target.value)} />
                 <Field label="Cash prize (F)" type="number" min={0} value={cashPrizeXof} onChange={(e) => setCashPrizeXof(e.target.value)} />
               </div>
-              <div
-                className="p-3 text-xs"
-                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
-              >
-                Tu toucheras environ <strong>{formatXof(commission)}</strong> de
-                commission (5 % des frais collectés) si le tournoi se remplit,
-                en plus du cash prize versé aux finalistes.
-              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={commissionActivee}
+                  onChange={(e) => setCommissionActivee(e.target.checked)}
+                />
+                Activer ma commission (5 % des frais collectés)
+              </label>
 
+              {commissionActivee && (
+                <div
+                  className="p-3 flex flex-col gap-1 text-xs"
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Commission brute (5 %)</span>
+                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.brute)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Part plateforme ({Math.round(tauxPlateforme * 100)} %)</span>
+                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.partPlateforme)}</span>
+                  </div>
+                  <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-accent-600)" }}>
+                    <span>Net perçu (si le tournoi se remplit)</span>
+                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.net)}</span>
+                  </div>
+                  <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
+                    Prélevé uniquement au versement, en plus du cash prize destiné aux finalistes.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {(payant || financeParOrganisateur) && (
+            <>
               {cashPrizeNum > 0 && (
                 <div className="flex flex-col gap-2">
                   <div
@@ -484,6 +592,26 @@ export default function NouveauTournoiPage() {
             onChange={(e) => setReglement(e.target.value)}
             rows={3}
             placeholder="Élimination directe, score à signaler avec capture d'écran..."
+            className="px-3.5 py-2.5 text-sm outline-none resize-none"
+            style={{
+              background: "var(--ds-surface-2)",
+              border: "1px solid var(--ds-border)",
+              borderRadius: "var(--ds-radius-input)",
+              color: "var(--ds-text)",
+              fontFamily: "var(--ds-font-mono)",
+            }}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+            Informations (facultatif)
+          </label>
+          <textarea
+            value={informations}
+            onChange={(e) => setInformations(e.target.value)}
+            rows={3}
+            placeholder="Lieu précis, matériel fourni, contact sur place..."
             className="px-3.5 py-2.5 text-sm outline-none resize-none"
             style={{
               background: "var(--ds-surface-2)",

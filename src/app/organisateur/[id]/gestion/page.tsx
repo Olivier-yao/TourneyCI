@@ -17,17 +17,19 @@ import { GestionMatches } from "./GestionMatches";
 function SectionCloture({
   tournoiId,
   type,
+  brSousType,
   termine,
   onTermine,
 }: {
   tournoiId: string;
   type: "1v1" | "equipes" | "battle_royale";
+  brSousType?: "solo" | "duo" | "squad";
   termine: boolean;
   onTermine: () => void;
 }) {
   const [resultat, setResultat] = useState<{ pointsAttribues: number; gainCredite: number } | null>(null);
 
-  const classement = type === "battle_royale" ? classementFinalBR(tournoiId) : classementFinalBracket(tournoiId);
+  const classement = type === "battle_royale" ? classementFinalBR(tournoiId, brSousType ?? "solo") : classementFinalBracket(tournoiId);
   const pret = classement.length > 0;
 
   function terminer() {
@@ -53,7 +55,7 @@ function SectionCloture({
       >
         <CheckCircle2 size={17} strokeWidth={2} />
         <span className="text-sm">
-          Tournoi clôturé — points attribués automatiquement{resultat && resultat.gainCredite > 0 ? `, ${resultat.gainCredite.toLocaleString("fr-FR")} F crédités` : ""}.
+          Tournoi clôturé — points attribués automatiquement{resultat && resultat.gainCredite > 0 ? `, ${resultat.gainCredite.toLocaleString("fr-FR")} F en attente de vérification (séquestre le temps de recueillir les avis)` : ""}.
         </span>
       </div>
     );
@@ -222,6 +224,7 @@ export default function GestionTournoiPage() {
         <SectionCloture
           tournoiId={params.id}
           type={tournoi.type}
+          brSousType={tournoi.brSousType}
           termine={Boolean(tournoi.termine)}
           onTermine={() => setRafraichir((n) => n + 1)}
         />

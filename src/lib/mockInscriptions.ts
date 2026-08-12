@@ -30,6 +30,15 @@ export function enregistrerInscription(tournoiId: string, equipe?: string) {
   );
 }
 
+/** Renomme l'équipe de l'inscription courante (capitaine uniquement, avant le
+ * début du tournoi — le verrouillage post-démarrage est géré par l'appelant). */
+export function renommerEquipe(tournoiId: string, nouveauNom: string) {
+  if (typeof window === "undefined") return;
+  const existantes = lireInscriptions();
+  const maj = existantes.map((i) => (i.tournoiId === tournoiId && i.equipe ? { ...i, equipe: nouveauNom } : i));
+  localStorage.setItem(CLE_INSCRIPTIONS, JSON.stringify(maj));
+}
+
 export function mesInscriptions(): Inscription[] {
   return lireInscriptions();
 }

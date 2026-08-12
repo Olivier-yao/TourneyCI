@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Bell, CheckCircle2, Users } from "lucide-react";
+import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
-import { estInscrit, inscriptionDe } from "@/lib/mockInscriptions";
+import { estInscrit, inscriptionDe, renommerEquipe } from "@/lib/mockInscriptions";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
@@ -18,12 +18,16 @@ export function CtaInscription({
   typeCompetition,
   equipes,
   modeEquipe,
+  tournoiCommence = false,
+  fermeInscriptions = false,
 }: {
   tournoiId: string;
   fraisXof: number;
   typeCompetition: TypeCompetition;
   equipes?: EquipeInfo[];
   modeEquipe?: ModeEquipe;
+  tournoiCommence?: boolean;
+  fermeInscriptions?: boolean;
 }) {
   const router = useRouter();
   const estEquipes = typeCompetition === "equipes";
@@ -34,6 +38,8 @@ export function CtaInscription({
   const [notifs, setNotifs] = useState(false);
   const [inscrit, setInscrit] = useState(false);
   const [equipeInscrite, setEquipeInscrite] = useState<string | undefined>(undefined);
+  const [renommage, setRenommage] = useState(false);
+  const [nouveauNomEquipe, setNouveauNomEquipe] = useState("");
 
   useEffect(() => {
     // Lu depuis le localStorage : état neutre au premier rendu serveur,
@@ -68,43 +74,80 @@ export function CtaInscription({
     allerAuPaiement(nomEquipe.trim());
   }
 
+  function validerRenommage() {
+    if (!nouveauNomEquipe.trim()) return;
+    renommerEquipe(tournoiId, nouveauNomEquipe.trim());
+    setEquipeInscrite(nouveauNomEquipe.trim());
+    setRenommage(false);
+  }
+
   if (inscrit) {
     return (
       <div
-        className="fixed bottom-0 left-0 right-0 px-5 py-4 flex items-center gap-3"
+        className="fixed bottom-0 left-0 right-0 px-5 py-4 flex flex-col gap-2.5"
         style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
       >
-        <Link
-          href={`/tournois/${tournoiId}/inscrits`}
-          className="flex items-center justify-center w-10 h-10 shrink-0"
-          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
-          aria-label="Voir la liste des inscrits"
-        >
-          <Users size={18} strokeWidth={2} />
-        </Link>
-        <button
-          type="button"
-          onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
-          className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
-          style={{
-            borderRadius: "var(--ds-radius-md)",
-            border: `1px solid ${notifs ? "var(--ds-accent)" : "var(--ds-border)"}`,
-            color: notifs ? "var(--ds-accent-300)" : "var(--ds-muted)",
-          }}
-          aria-label={notifs ? "Désactiver les notifications" : "Activer les notifications"}
-        >
-          <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
-        </button>
-        <div
-          className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[15px] font-medium"
-          style={{
-            borderRadius: "var(--ds-radius-btn)",
-            background: "var(--ds-accent-900)",
-            color: "var(--ds-accent-300)",
-          }}
-        >
-          <CheckCircle2 size={17} strokeWidth={2} />
-          Déjà inscrit{equipeInscrite ? ` · ${equipeInscrite}` : ""}
+        {renommage && (
+          <div className="flex flex-col gap-2">
+            <Field
+              label="Nouveau nom d'équipe"
+              value={nouveauNomEquipe}
+              onChange={(e) => setNouveauNomEquipe(e.target.value)}
+              placeholder={equipeInscrite}
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/tournois/${tournoiId}/inscrits`}
+            className="flex items-center justify-center w-10 h-10 shrink-0"
+            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+            aria-label="Voir la liste des inscrits"
+          >
+            <Users size={18} strokeWidth={2} />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
+            className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+            style={{
+              borderRadius: "var(--ds-radius-md)",
+              border: `1px solid ${notifs ? "var(--ds-accent)" : "var(--ds-border)"}`,
+              color: notifs ? "var(--ds-accent-300)" : "var(--ds-muted)",
+            }}
+            aria-label={notifs ? "Désactiver les notifications" : "Activer les notifications"}
+          >
+            <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
+          </button>
+          {equipeInscrite && !tournoiCommence && (
+            <button
+              type="button"
+              onClick={() => {
+                if (renommage) {
+                  validerRenommage();
+                } else {
+                  setNouveauNomEquipe(equipeInscrite ?? "");
+                  setRenommage(true);
+                }
+              }}
+              className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+              style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+              aria-label={renommage ? "Valider le nouveau nom" : "Renommer l'équipe"}
+            >
+              {renommage ? <CheckIcon size={18} strokeWidth={2} /> : <Pencil size={16} strokeWidth={2} />}
+            </button>
+          )}
+          <div
+            className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[15px] font-medium"
+            style={{
+              borderRadius: "var(--ds-radius-btn)",
+              background: "var(--ds-accent-900)",
+              color: "var(--ds-accent-300)",
+            }}
+          >
+            <CheckCircle2 size={17} strokeWidth={2} />
+            Déjà inscrit{equipeInscrite ? ` · ${equipeInscrite}` : ""}
+          </div>
         </div>
       </div>
     );
@@ -174,8 +217,13 @@ export function CtaInscription({
         >
           <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
         </button>
-        <Button variante="primary" bloc onClick={choixEquipe ? validerEquipe : onClicInscription}>
-          {choixEquipe ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}
+        <Button
+          variante="primary"
+          bloc
+          disabled={fermeInscriptions}
+          onClick={choixEquipe ? validerEquipe : onClicInscription}
+        >
+          {fermeInscriptions ? "Inscriptions fermées" : choixEquipe ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}
         </Button>
       </div>
     </div>

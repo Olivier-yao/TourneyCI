@@ -5,7 +5,8 @@ import Link from "next/link";
 import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { Button } from "@/components/ds/Button";
-import { lireProfil } from "@/lib/mockProfil";
+import { lireProfil, estActif } from "@/lib/mockProfil";
+import { BadgeActif } from "@/components/ds/BadgeActif";
 import { lireSolde } from "@/lib/mockWallet";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
@@ -84,6 +85,7 @@ export default function ProfilPage() {
               >
                 {profil.rang} · #{profil.rangNational} national
               </span>
+              {estActif(profil.matchsJoues) && <BadgeActif />}
               {organisateur.estOrganisateur && organisateur.certifie && (
                 <span
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px]"

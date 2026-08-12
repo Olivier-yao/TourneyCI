@@ -47,6 +47,14 @@ function lireSurcharge(): Partial<Profil> {
   }
 }
 
+/** Seuil de matchs joués à partir duquel un profil est considéré "actif"
+ * (participation régulière aux tournois). */
+const SEUIL_MATCHS_ACTIF = 15;
+
+export function estActif(matchsJoues: number): boolean {
+  return matchsJoues >= SEUIL_MATCHS_ACTIF;
+}
+
 export function sauvegarderProfil(donnees: { pseudo: string; ville: string }) {
   if (typeof window === "undefined") return;
   localStorage.setItem(CLE_PROFIL_MODIFIE, JSON.stringify({ ...lireSurcharge(), ...donnees }));

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trophy, Ticket, ArrowDownLeft } from "lucide-react";
+import { Trophy, Ticket, ArrowDownLeft, Gift, RotateCcw } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Button } from "@/components/ds/Button";
 import { TourneyCard } from "@/components/ds/TourneyCard";
 import { lireProfil, type Profil } from "@/lib/mockProfil";
-import { lireSolde, mesMouvements, gainsTotal, type Mouvement } from "@/lib/mockWallet";
+import { lireSolde, mesMouvements, gainsTotal, retraitEnVerification, type Mouvement } from "@/lib/mockWallet";
 
 const ICONE_MOUVEMENT: Record<Mouvement["type"], typeof Trophy> = {
   gain: Trophy,
@@ -15,6 +15,8 @@ const ICONE_MOUVEMENT: Record<Mouvement["type"], typeof Trophy> = {
   inscription: Ticket,
   recharge: ArrowDownLeft,
   retrait: ArrowDownLeft,
+  financement: Gift,
+  remboursement: RotateCcw,
 };
 
 export default function SoldePage() {
@@ -95,7 +97,17 @@ export default function SoldePage() {
                   <Icone size={15} strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm truncate">{m.libelle}</div>
+                  <div className="text-sm truncate flex items-center gap-1.5">
+                    {m.libelle}
+                    {retraitEnVerification(m) && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 shrink-0"
+                        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                      >
+                        En vérification
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
                     {m.dateLabel}
                   </div>

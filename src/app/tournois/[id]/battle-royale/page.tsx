@@ -6,24 +6,27 @@ import { ArrowLeft, CheckCircle2, Minus, Plus, ListPlus } from "lucide-react";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { tournoiParId } from "@/lib/mockTournaments";
 import {
-  participantsBR,
+  unitesBR,
   manchesBR,
   ajouterMancheBR,
   classementCumuleBR,
+  type SousTypeBR,
 } from "@/lib/mockBattleRoyale";
 
 const RAFRAICHISSEMENT_MS = 15_000;
 
 function SaisieManche({
   tournoiId,
+  sousType,
   numeroSuivant,
   onValide,
 }: {
   tournoiId: string;
+  sousType: SousTypeBR;
   numeroSuivant: number;
   onValide: () => void;
 }) {
-  const participants = participantsBR(tournoiId);
+  const participants = unitesBR(tournoiId, sousType);
   const [placements, setPlacements] = useState<Record<string, string>>({});
   const [eliminations, setEliminations] = useState<Record<string, number>>({});
 
@@ -131,8 +134,8 @@ export default function BattleRoyalePage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrganisateur(estOrganisateur());
     setManches(manchesBR(params.id));
-    setClassement(classementCumuleBR(params.id));
-  }, [params.id, saisieOuverte, rafraichir]);
+    setClassement(classementCumuleBR(params.id, tournoi?.brSousType ?? "solo"));
+  }, [params.id, saisieOuverte, rafraichir, tournoi?.brSousType]);
 
   if (!tournoi) {
     return (
@@ -172,6 +175,7 @@ export default function BattleRoyalePage() {
             {saisieOuverte ? (
               <SaisieManche
                 tournoiId={params.id}
+                sousType={tournoi.brSousType ?? "solo"}
                 numeroSuivant={manches.length + 1}
                 onValide={() => {
                   setSaisieOuverte(false);

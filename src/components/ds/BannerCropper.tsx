@@ -1,28 +1,30 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, X } from "lucide-react";
+import { ImagePlus, X } from "lucide-react";
 import { Button } from "./Button";
 
-const TAILLE_APERCU = 260;
-const TAILLE_SORTIE = 480;
+const APERCU_LARGEUR = 320;
+const APERCU_HAUTEUR = 160;
+const SORTIE_LARGEUR = 800;
+const SORTIE_HAUTEUR = 400;
 
 type Position = { x: number; y: number };
 
 function clamper(pos: Position, echelle: number, natW: number, natH: number): Position {
-  const minX = Math.min(0, TAILLE_APERCU - natW * echelle);
-  const minY = Math.min(0, TAILLE_APERCU - natH * echelle);
+  const minX = Math.min(0, APERCU_LARGEUR - natW * echelle);
+  const minY = Math.min(0, APERCU_HAUTEUR - natH * echelle);
   return {
     x: Math.min(0, Math.max(pos.x, minX)),
     y: Math.min(0, Math.max(pos.y, minY)),
   };
 }
 
-export function PhotoCropper({
-  photoActuelle,
+export function BannerCropper({
+  banniereActuelle,
   onValider,
 }: {
-  photoActuelle?: string;
+  banniereActuelle?: string;
   onValider: (dataUrl: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +38,7 @@ export function PhotoCropper({
   });
 
   function baseEchelle(img: HTMLImageElement) {
-    return Math.max(TAILLE_APERCU / img.naturalWidth, TAILLE_APERCU / img.naturalHeight);
+    return Math.max(APERCU_LARGEUR / img.naturalWidth, APERCU_HAUTEUR / img.naturalHeight);
   }
 
   function ouvrirFichier(fichier: File) {
@@ -48,8 +50,8 @@ export function PhotoCropper({
         setImage(img);
         setZoom(1);
         setPos({
-          x: (TAILLE_APERCU - img.naturalWidth * base) / 2,
-          y: (TAILLE_APERCU - img.naturalHeight * base) / 2,
+          x: (APERCU_LARGEUR - img.naturalWidth * base) / 2,
+          y: (APERCU_HAUTEUR - img.naturalHeight * base) / 2,
         });
       };
       img.src = lecteur.result as string;
@@ -88,24 +90,22 @@ export function PhotoCropper({
     if (!image) return;
     const echelle = baseEchelle(image) * zoom;
     const canvas = document.createElement("canvas");
-    canvas.width = TAILLE_SORTIE;
-    canvas.height = TAILLE_SORTIE;
+    canvas.width = SORTIE_LARGEUR;
+    canvas.height = SORTIE_HAUTEUR;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const facteur = TAILLE_SORTIE / TAILLE_APERCU;
+    const facteur = SORTIE_LARGEUR / APERCU_LARGEUR;
     const sx = -pos.x / echelle;
     const sy = -pos.y / echelle;
-    const sTaille = TAILLE_APERCU / echelle;
-    // Recadrage carré (pas de clip circulaire) : l'image sert aussi bien
-    // dans les avatars ronds (profil, listes) que dans le cadre carré de la
-    // TourneyCard — chaque composant applique son propre border-radius.
-    ctx.drawImage(image, sx, sy, sTaille, sTaille, 0, 0, TAILLE_APERCU * facteur, TAILLE_APERCU * facteur);
+    const sLargeur = APERCU_LARGEUR / echelle;
+    const sHauteur = APERCU_HAUTEUR / echelle;
+    ctx.drawImage(image, sx, sy, sLargeur, sHauteur, 0, 0, APERCU_LARGEUR * facteur, APERCU_HAUTEUR * facteur);
     onValider(canvas.toDataURL("image/jpeg", 0.9));
     setImage(null);
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <input
         ref={inputRef}
         type="file"
@@ -119,32 +119,32 @@ export function PhotoCropper({
       />
 
       {!image && (
-        <div className="flex items-center gap-3">
-          <div
-            className="w-16 h-16 rounded-full overflow-hidden flex items-center justify-center shrink-0"
-            style={{ background: "var(--ds-accent-600)", border: "1px solid var(--ds-border)" }}
-          >
-            {photoActuelle ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoActuelle} alt="Photo de profil" className="w-full h-full object-cover" />
-            ) : (
-              <Camera size={22} color="var(--ds-accent-100)" strokeWidth={2} />
-            )}
-          </div>
-          <Button variante="secondary" type="button" onClick={() => inputRef.current?.click()}>
-            {photoActuelle ? "Changer la photo" : "Ajouter une photo"}
-          </Button>
-        </div>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full h-[110px] flex flex-col items-center justify-center gap-1.5 cursor-pointer overflow-hidden"
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border-strong)", background: "var(--ds-surface)" }}
+        >
+          {banniereActuelle ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={banniereActuelle} alt="Bannière du tournoi" className="w-full h-full object-cover" />
+          ) : (
+            <>
+              <ImagePlus size={20} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+              <span className="text-xs" style={{ color: "var(--ds-muted)" }}>Ajouter une image</span>
+            </>
+          )}
+        </button>
       )}
 
       {image && (
         <div className="flex flex-col gap-3">
           <div
-            className="relative overflow-hidden touch-none select-none"
+            className="relative overflow-hidden touch-none select-none mx-auto"
             style={{
-              width: TAILLE_APERCU,
-              height: TAILLE_APERCU,
-              borderRadius: "50%",
+              width: APERCU_LARGEUR,
+              height: APERCU_HAUTEUR,
+              borderRadius: "var(--ds-radius-md)",
               border: "1px solid var(--ds-border)",
               background: "var(--ds-surface)",
               cursor: "grab",

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, Flame } from "lucide-react";
 import { Avatar } from "@/components/ds/Avatar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { tournoiParId } from "@/lib/mockTournaments";
+import { lireProfil, estActif } from "@/lib/mockProfil";
 
 function tagDe(nom: string): string {
   return `#${nom.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`;
@@ -22,6 +23,13 @@ export default function InscritsPage() {
   const params = useParams<{ id: string }>();
   const tournoi = tournoiParId(params.id);
   const [requete, setRequete] = useState("");
+  const [monPseudo, setMonPseudo] = useState<{ nom: string; actif: boolean } | null>(null);
+
+  useEffect(() => {
+    const profil = lireProfil();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMonPseudo({ nom: profil.pseudo, actif: estActif(profil.matchsJoues) });
+  }, []);
 
   const inscrits = useMemo(() => {
     const noms = tournoi?.inscrits ?? [];
@@ -80,7 +88,12 @@ export default function InscritsPage() {
               >
                 <Avatar initiales={p.nom.slice(0, 2).toUpperCase()} taille={38} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{p.nom}</div>
+                  <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                    {p.nom}
+                    {monPseudo?.nom === p.nom && monPseudo.actif && (
+                      <Flame size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} aria-label="Membre actif" />
+                    )}
+                  </div>
                   <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{p.tag}</div>
                 </div>
                 {p.checkin ? (

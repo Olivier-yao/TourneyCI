@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus, Heart } from "lucide-react";
 import { Button } from "@/components/ds/Button";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
@@ -38,6 +38,18 @@ export default function OrganisateurPage() {
       >
         <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
           Classement des organisateurs
+        </span>
+        <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
+      </Link>
+
+      <Link
+        href="/coup-de-coeur"
+        className="flex items-center justify-between p-3"
+        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+      >
+        <span className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+          <Heart size={14} strokeWidth={2} />
+          Coup de cœur
         </span>
         <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
       </Link>
