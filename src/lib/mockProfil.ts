@@ -47,28 +47,48 @@ export function lireProfil(): Profil {
   return { ...base, rang: calculerGrade(base.matchsJoues, points) };
 }
 
-type PalierGrade = { nom: Rang; matchs: number; points: number };
+export type DefinitionPalier = { id: number; nom: Rang; matchsRequis: number; pointsRequis: number };
 
 /**
- * Paliers de progression (point 66), du plus haut au plus bas : un joueur
- * atteint un palier dès qu'il remplit L'UNE des deux conditions (matchs
- * joués OU points cumulés au classement toutes disciplines confondues) —
- * on retient le palier le plus élevé atteint par au moins un des critères.
+ * Paliers de progression (point 66) : un joueur n'atteint un palier que s'il
+ * remplit LES DEUX conditions (matchs joués ET points cumulés au classement
+ * toutes disciplines confondues) — pas seulement l'une des deux, sinon un
+ * joueur très actif mais peu performant "saute" des paliers sur le seul
+ * volume de matchs.
  */
-const PALIERS_GRADE: PalierGrade[] = [
-  { nom: "Légende", matchs: 100, points: 6000 },
-  { nom: "Élite", matchs: 60, points: 3000 },
-  { nom: "Expert", matchs: 30, points: 1200 },
-  { nom: "Confirmé", matchs: 15, points: 500 },
-  { nom: "Amateur", matchs: 5, points: 150 },
-  { nom: "Débutant", matchs: 0, points: 0 },
+export const PALIERS: DefinitionPalier[] = [
+  { id: 0, nom: "Débutant", matchsRequis: 0, pointsRequis: 0 },
+  { id: 1, nom: "Amateur", matchsRequis: 10, pointsRequis: 120 },
+  { id: 2, nom: "Confirmé", matchsRequis: 30, pointsRequis: 450 },
+  { id: 3, nom: "Expert", matchsRequis: 55, pointsRequis: 900 },
+  { id: 4, nom: "Élite", matchsRequis: 80, pointsRequis: 1500 },
+  { id: 5, nom: "Légende", matchsRequis: 120, pointsRequis: 2500 },
 ];
 
-export function calculerGrade(matchsJoues: number, pointsCumules: number): Rang {
-  for (const palier of PALIERS_GRADE) {
-    if (matchsJoues >= palier.matchs || pointsCumules >= palier.points) return palier.nom;
+export function palierActuel(matchsJoues: number, pointsCumules: number): DefinitionPalier {
+  let atteint = PALIERS[0];
+  for (const p of PALIERS) {
+    if (matchsJoues >= p.matchsRequis && pointsCumules >= p.pointsRequis) atteint = p;
   }
-  return "Débutant";
+  return atteint;
+}
+
+export function palierSuivant(id: number): DefinitionPalier | undefined {
+  return PALIERS.find((p) => p.id === id + 1);
+}
+
+export function calculerGrade(matchsJoues: number, pointsCumules: number): Rang {
+  return palierActuel(matchsJoues, pointsCumules).nom;
+}
+
+/** Approximation à partir des seuls points (classement, palmarès affichés
+ * pour d'autres joueurs dont on ne connaît pas le nombre de matchs joués). */
+export function palierParPoints(pointsCumules: number): DefinitionPalier {
+  let atteint = PALIERS[0];
+  for (const p of PALIERS) {
+    if (pointsCumules >= p.pointsRequis) atteint = p;
+  }
+  return atteint;
 }
 
 function lireSurcharge(): Partial<Profil> {
@@ -144,7 +164,42 @@ export type ClassementEntree = {
   moi?: boolean;
 };
 
-export const VILLES = ["Abidjan", "Bouaké", "Yamoussoukro", "Cocody", "Yopougon"];
+/** Villes disponibles au filtre du classement : Côte d'Ivoire d'abord (base
+ * historique de l'app), puis d'autres grandes villes d'Afrique de l'Ouest et
+ * centrale — l'app n'est plus limitée à un seul pays. Liste illustrative
+ * (mock), à remplacer par un vrai référentiel géographique en phase 8. */
+export const VILLES = [
+  // Côte d'Ivoire
+  "Abidjan",
+  "Bouaké",
+  "Yamoussoukro",
+  "Cocody",
+  "Yopougon",
+  // Sénégal
+  "Dakar",
+  "Thiès",
+  // Mali
+  "Bamako",
+  // Burkina Faso
+  "Ouagadougou",
+  // Ghana
+  "Accra",
+  "Kumasi",
+  // Togo
+  "Lomé",
+  // Bénin
+  "Cotonou",
+  // Nigéria
+  "Lagos",
+  "Abuja",
+  // Cameroun
+  "Douala",
+  "Yaoundé",
+  // RD Congo
+  "Kinshasa",
+  // Kenya
+  "Nairobi",
+];
 
 export const CLASSEMENTS: Record<string, ClassementEntree[]> = {
   eafc: [
@@ -153,6 +208,8 @@ export const CLASSEMENTS: Record<string, ClassementEntree[]> = {
     { position: 3, initiales: "IT", nom: "Ismaël T.", points: 2205, ville: "Abidjan" },
     { position: 4, initiales: "MK", nom: "Malik K.", points: 2140, ville: "Yopougon" },
     { position: 5, initiales: "FT", nom: "Fatou T.", points: 2090, ville: "Bouaké" },
+    { position: 6, initiales: "MD", nom: "Moussa D.", points: 2020, ville: "Dakar" },
+    { position: 7, initiales: "KO", nom: "Koffi O.", points: 1950, ville: "Accra" },
     { position: 14, initiales: "KB", nom: "Kader B.", points: 1780, ville: "Abidjan", moi: true },
   ],
   freefire: [
@@ -161,6 +218,8 @@ export const CLASSEMENTS: Record<string, ClassementEntree[]> = {
     { position: 3, initiales: "KB", nom: "Kader B.", points: 2790, ville: "Abidjan", moi: true },
     { position: 4, initiales: "FT", nom: "Fatou T.", points: 2600, ville: "Bouaké" },
     { position: 5, initiales: "NR", nom: "Nour", points: 2510, ville: "Yamoussoukro" },
+    { position: 6, initiales: "CB", nom: "Chidi B.", points: 2440, ville: "Lagos" },
+    { position: 7, initiales: "AT", nom: "Aminata T.", points: 2380, ville: "Bamako" },
   ],
   codm: [
     { position: 1, initiales: "NR", nom: "Nour", points: 1980, ville: "Yamoussoukro" },
@@ -239,7 +298,7 @@ export function classementDuJeu(jeuId: string): ClassementEntree[] {
 
 /** Somme des points "moi" à travers tous les jeux classés — signal utilisé
  * par calculerGrade() en complément des matchs joués. */
-function mesPointsCumules(): number {
+export function mesPointsCumules(): number {
   let total = 0;
   for (const jeuId of Object.keys(CLASSEMENTS)) {
     const entree = classementDuJeu(jeuId).find((e) => e.moi);

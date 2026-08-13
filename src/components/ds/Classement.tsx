@@ -3,18 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, Flame, Medal } from "lucide-react";
+import { ChevronDown, Crown, Flame, Medal } from "lucide-react";
 import { JEUX } from "@/lib/mockTournaments";
-import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, VILLES, classementDuJeu, estActif, lireProfil, type ClassementEntree } from "@/lib/mockProfil";
+import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, VILLES, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
+import { BadgePalier } from "./Palier";
 import { Avatar } from "./Avatar";
 
-const NB_AFFICHES = 5;
+const NB_AFFICHES = 8;
 
 const JEUX_AVEC_CLASSEMENT = JEUX.filter((jeu) => CLASSEMENTS[jeu.id]);
 
 const VILLES_CLASSEMENT = ["Toutes", ...VILLES];
-
-const COULEURS_PODIUM = ["#e8c34a", "#c9ccd6", "#c98a4a"];
 
 /** Un même joueur peut apparaître dans le classement de plusieurs jeux : on
  * fusionne par nom (somme des points) avant de trier et filtrer par ville,
@@ -36,34 +35,94 @@ function construireClassement(villeActif: string): ClassementEntree[] {
   return [...filtre].sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
 }
 
+const HAUTEURS_MARCHE = [48, 64, 40];
+const TAILLES_AVATAR = [48, 58, 48];
+const ORDRE_PODIUM = [1, 0, 2];
+
+function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?: string }) {
+  if (top3.length === 0) return null;
+  return (
+    <div
+      className="relative overflow-hidden px-3 pt-4"
+      style={{ borderRadius: "var(--ds-radius-lg)", background: "radial-gradient(120% 140% at 50% 0%, var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+    >
+      <div className="grid grid-cols-3 items-end gap-2">
+        {ORDRE_PODIUM.map((i) => {
+          const entree = top3[i];
+          if (!entree) return <div key={i} />;
+          const or = entree.position === 1;
+          return (
+            <Link key={entree.position} href={`/joueur/${encodeURIComponent(entree.nom)}`} className="flex flex-col items-center gap-2">
+              <div className="relative">
+                <Avatar initiales={entree.initiales} taille={TAILLES_AVATAR[i]} photoUrl={entree.moi ? monPhotoUrl : undefined} />
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
+                  style={{
+                    bottom: -7,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "var(--ds-radius-pill)",
+                    background: or ? "var(--ds-accent-700)" : "var(--ds-surface-2)",
+                    border: `1px solid ${or ? "var(--ds-accent-400, var(--ds-accent))" : "var(--ds-border)"}`,
+                    color: or ? "var(--ds-accent-100, var(--ds-accent-300))" : "var(--ds-muted)",
+                  }}
+                >
+                  {or ? <Crown size={10} strokeWidth={2} /> : <Medal size={10} strokeWidth={2} />}
+                </div>
+              </div>
+              <div className="text-center min-w-0 w-full mt-1">
+                <div className="text-xs font-medium truncate">{entree.nom}</div>
+                <div className="text-[11px]" style={{ color: or ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                  {entree.points.toLocaleString("fr-FR")}
+                </div>
+              </div>
+              <div
+                className="w-full flex items-start justify-center pt-1.5"
+                style={{
+                  height: HAUTEURS_MARCHE[i],
+                  borderRadius: "var(--ds-radius-sm) var(--ds-radius-sm) 0 0",
+                  background: or ? "var(--ds-accent-900)" : "transparent",
+                  border: `1px solid ${or ? "var(--ds-accent-700)" : "var(--ds-border)"}`,
+                  borderBottom: 0,
+                }}
+              >
+                <span className="text-sm" style={{ color: or ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                  {entree.position}
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function LigneClassement({ entree, monBadgeActif, monPhotoUrl }: { entree: ClassementEntree; monBadgeActif: boolean; monPhotoUrl?: string }) {
-  const podium = entree.position <= 3 ? COULEURS_PODIUM[entree.position - 1] : undefined;
   return (
     <motion.div layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}>
       <Link
         href={`/joueur/${encodeURIComponent(entree.nom)}`}
-        className="flex items-center gap-3 py-2.5"
+        className="flex items-center gap-3 py-2.5 px-2.5 -mx-2.5"
         style={{
-          borderBottom: "1px solid var(--ds-border)",
+          borderRadius: "var(--ds-radius-md)",
           background: entree.moi ? "var(--ds-accent-900)" : "transparent",
-          borderRadius: entree.moi || podium ? "var(--ds-radius-md)" : undefined,
-          paddingLeft: entree.moi || podium ? 10 : 0,
-          paddingRight: entree.moi || podium ? 10 : 0,
-          borderLeft: podium ? `3px solid ${podium}` : undefined,
+          boxShadow: entree.moi ? "0 0 0 1px var(--ds-accent)" : "0 1px 0 var(--ds-border)",
         }}
       >
         <div
-          className="w-6 flex items-center justify-center text-[13px]"
-          style={{ color: podium ?? (entree.moi ? "var(--ds-accent-300)" : "var(--ds-muted)"), fontFamily: "var(--ds-font-mono)" }}
+          className="w-5 text-[12px]"
+          style={{ color: entree.moi ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
         >
-          {podium ? <Medal size={15} strokeWidth={2} style={{ color: podium }} /> : entree.position}
+          {entree.position}
         </div>
-        <Avatar initiales={entree.initiales} taille={podium ? 32 : 28} photoUrl={entree.moi ? monPhotoUrl : undefined} />
-        <div className="flex-1 flex items-center gap-1.5 text-sm" style={{ fontWeight: entree.moi || podium ? 600 : 400 }}>
-          {entree.nom}
+        <Avatar initiales={entree.initiales} taille={28} photoUrl={entree.moi ? monPhotoUrl : undefined} />
+        <div className="flex-1 flex items-center gap-1.5 text-sm min-w-0" style={{ fontWeight: entree.moi ? 600 : 400 }}>
+          <span className="truncate">{entree.nom}</span>
+          <BadgePalier palier={palierParPoints(entree.points)} taille="sm" />
           {entree.moi && monBadgeActif && <Flame size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} aria-label="Membre actif" />}
         </div>
-        <div className="text-[13px]" style={{ color: podium ?? "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+        <div className="text-[13px]" style={{ color: entree.moi ? "var(--ds-accent-300)" : "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}>
           {entree.points.toLocaleString("fr-FR")}
         </div>
       </Link>
@@ -84,9 +143,10 @@ export function Classement() {
     setMonPhotoUrl(profil.photoUrl);
   }, []);
 
-  const top = classement.slice(0, NB_AFFICHES);
+  const top3 = classement.slice(0, 3);
+  const reste = classement.slice(3, NB_AFFICHES);
   const moi = classement.find((e) => e.moi);
-  const moiDansTop = top.some((e) => e.moi);
+  const moiVisible = classement.slice(0, NB_AFFICHES).some((e) => e.moi);
 
   return (
     <div className="flex flex-col gap-3">
@@ -130,28 +190,32 @@ export function Classement() {
       <AnimatePresence mode="wait">
         <motion.div
           key={villeActif}
-          className="flex flex-col"
+          className="flex flex-col gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.14 }}
         >
-        {top.map((entree) => (
-          <LigneClassement key={entree.position} entree={entree} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
-        ))}
-        {!moiDansTop && moi && (
-          <>
-            <div className="text-center text-xs py-1" style={{ color: "var(--ds-muted)" }}>
-              ···
-            </div>
-            <LigneClassement entree={moi} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
-          </>
-        )}
-        {classement.length === 0 && (
-          <p className="text-sm py-2" style={{ color: "var(--ds-text-muted)" }}>
-            Pas encore de classement pour cette ville.
-          </p>
-        )}
+          <Podium top3={top3} monPhotoUrl={monPhotoUrl} />
+
+          <div className="flex flex-col">
+            {reste.map((entree) => (
+              <LigneClassement key={entree.position} entree={entree} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
+            ))}
+            {!moiVisible && moi && (
+              <>
+                <div className="text-center text-xs py-1" style={{ color: "var(--ds-muted)" }}>
+                  ···
+                </div>
+                <LigneClassement entree={moi} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
+              </>
+            )}
+            {classement.length === 0 && (
+              <p className="text-sm py-2" style={{ color: "var(--ds-text-muted)" }}>
+                Pas encore de classement pour cette ville.
+              </p>
+            )}
+          </div>
         </motion.div>
       </AnimatePresence>
     </div>

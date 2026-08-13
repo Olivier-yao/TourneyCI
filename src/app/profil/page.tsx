@@ -5,8 +5,9 @@ import Link from "next/link";
 import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { Button } from "@/components/ds/Button";
-import { lireProfil, estActif } from "@/lib/mockProfil";
+import { lireProfil, estActif, mesPointsCumules, palierActuel } from "@/lib/mockProfil";
 import { BadgeActif } from "@/components/ds/BadgeActif";
+import { BadgePalier } from "@/components/ds/Palier";
 import { lireSolde } from "@/lib/mockWallet";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
@@ -79,12 +80,14 @@ export default function ProfilPage() {
               @{profil.pseudo.toLowerCase().replace(/[^a-z]/g, "")} · {profil.ville}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px]"
-                style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+              <Link
+                href="/profil/progression"
+                className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 text-[11px]"
+                style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent-700)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
               >
+                <BadgePalier palier={palierActuel(profil.matchsJoues, mesPointsCumules())} taille="sm" />
                 {profil.rang} · #{profil.rangNational} national
-              </span>
+              </Link>
               {estActif(profil.matchsJoues) && <BadgeActif />}
               {organisateur.estOrganisateur && organisateur.certifie && (
                 <span

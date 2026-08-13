@@ -11,8 +11,10 @@ import { ThemeToggle } from "@/components/ds/ThemeToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto } from "@/lib/mockProfil";
 import { deconnecter } from "@/lib/mockAuth";
+import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 function ParametresInterne() {
+  const connecte = useExigerConnexion();
   const router = useRouter();
   const [profil, setProfil] = useState(lireProfil);
   const [enregistre, setEnregistre] = useState(false);
@@ -26,8 +28,13 @@ function ParametresInterne() {
   function seDeconnecter() {
     if (!window.confirm("Te déconnecter de Tourney ?")) return;
     deconnecter();
-    router.push("/verify");
+    // router.replace (pas push) : cet écran ne doit pas rester accessible
+    // via le bouton retour une fois déconnecté. On repasse par "/" pour
+    // rejouer l'écran de chargement (Splash) et retomber sur la connexion.
+    router.replace("/");
   }
+
+  if (!connecte) return null;
 
   return (
     <div
