@@ -164,43 +164,6 @@ export type ClassementEntree = {
   moi?: boolean;
 };
 
-/** Villes disponibles au filtre du classement : Côte d'Ivoire d'abord (base
- * historique de l'app), puis d'autres grandes villes d'Afrique de l'Ouest et
- * centrale — l'app n'est plus limitée à un seul pays. Liste illustrative
- * (mock), à remplacer par un vrai référentiel géographique en phase 8. */
-export const VILLES = [
-  // Côte d'Ivoire
-  "Abidjan",
-  "Bouaké",
-  "Yamoussoukro",
-  "Cocody",
-  "Yopougon",
-  // Sénégal
-  "Dakar",
-  "Thiès",
-  // Mali
-  "Bamako",
-  // Burkina Faso
-  "Ouagadougou",
-  // Ghana
-  "Accra",
-  "Kumasi",
-  // Togo
-  "Lomé",
-  // Bénin
-  "Cotonou",
-  // Nigéria
-  "Lagos",
-  "Abuja",
-  // Cameroun
-  "Douala",
-  "Yaoundé",
-  // RD Congo
-  "Kinshasa",
-  // Kenya
-  "Nairobi",
-];
-
 export const CLASSEMENTS: Record<string, ClassementEntree[]> = {
   eafc: [
     { position: 1, initiales: "SD", nom: "Sory D.", points: 2480, ville: "Abidjan" },

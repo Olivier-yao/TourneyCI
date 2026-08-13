@@ -17,14 +17,15 @@ import {
   decomposerCommission,
   tauxPlateformeSurCommission,
   capaciteLobbyMax,
+  repartitionAutomatique,
+  COMMISSION_PCT,
   FRAIS_CREATION_TOURNOI_PAYANT_XOF,
   type TypeCompetition,
   type Modalite,
   type ModeEquipe,
-  type RepartitionCashPrize,
 } from "@/lib/mockTournaments";
 
-type RepartitionMode = "vainqueur" | "top3" | "perso";
+type ModeFinalistes = "1" | "3" | "perso";
 
 const TYPES: { id: TypeCompetition; label: string }[] = [
   { id: "1v1", label: "1v1" },
@@ -120,10 +121,8 @@ export default function NouveauTournoiPage() {
   }, []);
   const [fraisXof, setFraisXof] = useState("1000");
   const [cashPrizeXof, setCashPrizeXof] = useState("0");
-  const [repartitionMode, setRepartitionMode] = useState<RepartitionMode>("vainqueur");
-  const [repartitionPerso, setRepartitionPerso] = useState<RepartitionCashPrize[]>([
-    { label: "1er", montantXof: 0 },
-  ]);
+  const [modeFinalistes, setModeFinalistes] = useState<ModeFinalistes>("1");
+  const [nbFinalistesPerso, setNbFinalistesPerso] = useState("5");
   const [dateJour, setDateJour] = useState("");
   const [dateHeure, setDateHeure] = useState("20:00");
   const [checkinHeure, setCheckinHeure] = useState("19:30");
@@ -157,17 +156,11 @@ export default function NouveauTournoiPage() {
     type === "battle_royale" ? Math.min(Number(placesBR) || 0, capaciteMax) : Number(placesTotal) || 0;
   const commission = payant && commissionActivee ? decomposerCommission(Number(fraisXof) || 0, places) : { brute: 0, partPlateforme: 0, net: 0 };
   const cashPrizeNum = Number(cashPrizeXof) || 0;
-
-  const repartitionCalculee: RepartitionCashPrize[] =
-    repartitionMode === "vainqueur"
-      ? [{ label: "Vainqueur", montantXof: cashPrizeNum }]
-      : repartitionMode === "top3"
-        ? [
-            { label: "1er", montantXof: Math.round(cashPrizeNum * 0.5) },
-            { label: "2e", montantXof: Math.round(cashPrizeNum * 0.3) },
-            { label: "3e", montantXof: Math.round(cashPrizeNum * 0.2) },
-          ]
-        : repartitionPerso;
+  // Le cash prize affiché aux joueurs et effectivement réparti est toujours
+  // net de la commission organisateur, quand elle est activée (point 81).
+  const cashPrizeEffectif = payant && commissionActivee ? Math.max(0, cashPrizeNum - commission.brute) : cashPrizeNum;
+  const nbFinalistes = modeFinalistes === "1" ? 1 : modeFinalistes === "3" ? 3 : Math.max(1, Number(nbFinalistesPerso) || 1);
+  const repartitionCalculee = repartitionAutomatique(cashPrizeEffectif, nbFinalistes);
 
   function labelFormat(): string {
     if (type === "1v1") return "1v1";
@@ -237,7 +230,7 @@ export default function NouveauTournoiPage() {
       modalite,
       ville: modalite === "virtuel" ? "En ligne" : ville.trim(),
       dateLabel: dateLabel.trim(),
-      cashPrizeXof: cashPrizeNum,
+      cashPrizeXof: cashPrizeEffectif,
       fraisXof: payant ? Number(fraisXof) || 0 : 0,
       financementCashPrize: financeParOrganisateur ? "organisateur" : "inscriptions",
       commissionActivee: payant && commissionActivee,
@@ -255,7 +248,7 @@ export default function NouveauTournoiPage() {
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       brSousType: type === "battle_royale" ? brSousType : undefined,
       repartitionCashPrize:
-        (payant || financeParOrganisateur) && cashPrizeNum > 0 ? repartitionCalculee : undefined,
+        (payant || financeParOrganisateur) && cashPrizeEffectif > 0 ? repartitionCalculee : undefined,
     });
 
     router.push(`/tournois/${tournoi.id}`);
@@ -515,7 +508,7 @@ export default function NouveauTournoiPage() {
                   checked={commissionActivee}
                   onChange={(e) => setCommissionActivee(e.target.checked)}
                 />
-                Activer ma commission (5 % des frais collectés)
+                Activer ma commission ({Math.round(COMMISSION_PCT * 100)} % des frais collectés)
               </label>
 
               {commissionActivee && (
@@ -524,7 +517,7 @@ export default function NouveauTournoiPage() {
                   style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
                 >
                   <div className="flex items-center justify-between">
-                    <span>Commission brute (5 %)</span>
+                    <span>Commission brute ({Math.round(COMMISSION_PCT * 100)} %)</span>
                     <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.brute)}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -536,7 +529,7 @@ export default function NouveauTournoiPage() {
                     <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.net)}</span>
                   </div>
                   <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
-                    Prélevé uniquement au versement, en plus du cash prize destiné aux finalistes.
+                    Prélevée sur le cash prize avant répartition entre finalistes — le montant affiché aux joueurs sera déjà net de cette commission.
                   </p>
                 </div>
               )}
@@ -553,79 +546,43 @@ export default function NouveauTournoiPage() {
                   >
                     Répartition du cash prize
                   </div>
+                  {payant && commissionActivee && (
+                    <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                      Cash prize net de ta commission : {formatXof(cashPrizeEffectif)} (sur {formatXof(cashPrizeNum)} annoncés).
+                    </p>
+                  )}
+                  <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                    Choisis combien de finalistes se partagent le cash prize — la répartition entre eux est calculée automatiquement (barème dégressif).
+                  </p>
                   <SegmentedControl
                     options={[
-                      { id: "vainqueur" as RepartitionMode, label: "Vainqueur" },
-                      { id: "top3" as RepartitionMode, label: "Top 3" },
-                      { id: "perso" as RepartitionMode, label: "Personnalisée" },
+                      { id: "1" as ModeFinalistes, label: "Vainqueur" },
+                      { id: "3" as ModeFinalistes, label: "Top 3" },
+                      { id: "perso" as ModeFinalistes, label: "Personnalisé" },
                     ]}
-                    valeur={repartitionMode}
-                    onChange={setRepartitionMode}
+                    valeur={modeFinalistes}
+                    onChange={setModeFinalistes}
                   />
 
-                  {repartitionMode === "perso" ? (
-                    <div className="flex flex-col gap-2">
-                      {repartitionPerso.map((r, i) => (
-                        <div key={i} className="flex gap-2 items-center">
-                          <input
-                            value={r.label}
-                            onChange={(e) => {
-                              const copie = [...repartitionPerso];
-                              copie[i] = { ...copie[i], label: e.target.value };
-                              setRepartitionPerso(copie);
-                            }}
-                            placeholder="Ex: 3e"
-                            className="w-20 h-10 px-2.5 text-sm outline-none"
-                            style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)" }}
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            value={r.montantXof}
-                            onChange={(e) => {
-                              const copie = [...repartitionPerso];
-                              copie[i] = { ...copie[i], montantXof: Number(e.target.value) || 0 };
-                              setRepartitionPerso(copie);
-                            }}
-                            className="flex-1 h-10 px-2.5 text-sm outline-none"
-                            style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
-                          />
-                          {repartitionPerso.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setRepartitionPerso(repartitionPerso.filter((_, j) => j !== i))}
-                              className="text-xs cursor-pointer"
-                              style={{ color: "var(--ds-danger)" }}
-                            >
-                              Retirer
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setRepartitionPerso([
-                            ...repartitionPerso,
-                            { label: `${repartitionPerso.length + 1}e`, montantXof: 0 },
-                          ])
-                        }
-                        className="text-xs font-medium text-left cursor-pointer"
-                        style={{ color: "var(--ds-accent-300)" }}
-                      >
-                        + Ajouter une place
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {repartitionCalculee.map((r) => (
-                        <div key={r.label} className="flex items-center justify-between text-sm">
-                          <span style={{ color: "var(--ds-muted)" }}>{r.label}</span>
-                          <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(r.montantXof)}</span>
-                        </div>
-                      ))}
-                    </div>
+                  {modeFinalistes === "perso" && (
+                    <Field
+                      label="Nombre de finalistes"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={nbFinalistesPerso}
+                      onChange={(e) => setNbFinalistesPerso(e.target.value)}
+                    />
                   )}
+
+                  <div className="flex flex-col gap-1.5">
+                    {repartitionCalculee.map((r) => (
+                      <div key={r.label} className="flex items-center justify-between text-sm">
+                        <span style={{ color: "var(--ds-muted)" }}>{r.label}</span>
+                        <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(r.montantXof)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </>

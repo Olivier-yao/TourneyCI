@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Info, CheckCircle2 } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Button } from "@/components/ds/Button";
+import { Field } from "@/components/ds/Input";
 import { recharger } from "@/lib/mockWallet";
 
 const MONTANTS = [5000, 10000, 25000, 50000];
+const MONTANT_MIN_XOF = 500;
 
 const MOYENS = [
   { id: "orange", label: "Orange Money", indice: "07 ••" },
@@ -19,12 +21,19 @@ const MOYENS = [
 export default function RechargerPage() {
   const router = useRouter();
   const [montant, setMontant] = useState(10000);
+  const [personnalise, setPersonnalise] = useState(false);
+  const [montantPerso, setMontantPerso] = useState("");
   const [moyen, setMoyen] = useState<(typeof MOYENS)[number]["id"]>("orange");
   const [fait, setFait] = useState(false);
 
+  const montantSaisi = personnalise ? Number(montantPerso) || 0 : montant;
+  const montantInvalide = personnalise && montantSaisi > 0 && montantSaisi < MONTANT_MIN_XOF;
+  const montantValide = montantSaisi >= MONTANT_MIN_XOF;
+
   function confirmer() {
+    if (!montantValide) return;
     const libelleMoyen = MOYENS.find((m) => m.id === moyen)?.label ?? moyen;
-    recharger(montant, libelleMoyen);
+    recharger(montantSaisi, libelleMoyen);
     setFait(true);
     setTimeout(() => router.push("/profil/solde"), 1400);
   }
@@ -35,7 +44,7 @@ export default function RechargerPage() {
         <CheckCircle2 size={36} style={{ color: "var(--ds-accent-300)" }} />
         <p className="text-base font-medium">Recharge effectuée</p>
         <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-          {montant.toLocaleString("fr-FR")} F ajoutés à ta TourneyCard.
+          {montantSaisi.toLocaleString("fr-FR")} F ajoutés à ta TourneyCard.
         </p>
       </div>
     );
@@ -50,29 +59,57 @@ export default function RechargerPage() {
           Montant
         </div>
         <div className="mt-1.5 text-3xl font-medium" style={{ fontFamily: "var(--ds-font-mono)" }}>
-          {montant.toLocaleString("fr-FR")} F
+          {montantSaisi.toLocaleString("fr-FR")} F
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {MONTANTS.map((m) => (
           <button
             key={m}
             type="button"
-            onClick={() => setMontant(m)}
+            onClick={() => {
+              setPersonnalise(false);
+              setMontant(m);
+            }}
             className="flex-1 h-9 text-xs cursor-pointer"
             style={{
               borderRadius: "var(--ds-radius-pill)",
               fontFamily: "var(--ds-font-mono)",
-              background: montant === m ? "var(--ds-accent-900)" : "transparent",
-              color: montant === m ? "var(--ds-accent-300)" : "var(--ds-muted)",
-              border: `1px solid ${montant === m ? "var(--ds-accent)" : "var(--ds-border)"}`,
+              background: !personnalise && montant === m ? "var(--ds-accent-900)" : "transparent",
+              color: !personnalise && montant === m ? "var(--ds-accent-300)" : "var(--ds-muted)",
+              border: `1px solid ${!personnalise && montant === m ? "var(--ds-accent)" : "var(--ds-border)"}`,
             }}
           >
             {(m / 1000).toFixed(0)} 000
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setPersonnalise(true)}
+          className="flex-1 h-9 text-xs cursor-pointer"
+          style={{
+            borderRadius: "var(--ds-radius-pill)",
+            fontFamily: "var(--ds-font-mono)",
+            background: personnalise ? "var(--ds-accent-900)" : "transparent",
+            color: personnalise ? "var(--ds-accent-300)" : "var(--ds-muted)",
+            border: `1px solid ${personnalise ? "var(--ds-accent)" : "var(--ds-border)"}`,
+          }}
+        >
+          Autre
+        </button>
       </div>
+
+      {personnalise && (
+        <Field
+          type="number"
+          min={MONTANT_MIN_XOF}
+          value={montantPerso}
+          onChange={(e) => setMontantPerso(e.target.value.replace(/[^0-9]/g, ""))}
+          placeholder={`Minimum ${MONTANT_MIN_XOF} F`}
+          erreur={montantInvalide ? `Le montant minimum est de ${MONTANT_MIN_XOF} F.` : undefined}
+        />
+      )}
 
       <div>
         <div className="text-[11px] uppercase tracking-wide mb-2.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
@@ -111,8 +148,8 @@ export default function RechargerPage() {
       </div>
 
       <div className="mt-auto">
-        <Button variante="primary" bloc onClick={confirmer}>
-          Recharger {montant.toLocaleString("fr-FR")} F
+        <Button variante="primary" bloc onClick={confirmer} disabled={!montantValide}>
+          Recharger {montantSaisi.toLocaleString("fr-FR")} F
         </Button>
       </div>
     </div>

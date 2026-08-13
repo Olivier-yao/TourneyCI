@@ -113,3 +113,14 @@ export function laisserAvisOrganisateur(organisateur: string, type: TypeAvis) {
   };
   localStorage.setItem(CLE_AVIS_ORGANISATEUR, JSON.stringify([...lireToutOrganisateur(), avis]));
 }
+
+/** Retire l'avis (cœur ou cœur brisé) laissé sur cet organisateur — l'unicité
+ * du point 51 reste respectée (un seul avis actif à la fois), mais rien
+ * n'empêche d'en redonner un différent ensuite (point 77). */
+export function retirerAvisOrganisateur(organisateur: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    CLE_AVIS_ORGANISATEUR,
+    JSON.stringify(lireToutOrganisateur().filter((a) => a.organisateur !== organisateur)),
+  );
+}

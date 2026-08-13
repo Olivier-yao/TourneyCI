@@ -56,8 +56,8 @@ export type Tournoi = {
   /** Origine du financement du cash prize : frais d'inscription des
    * participants (défaut) ou solde de l'organisateur (inscription gratuite). */
   financementCashPrize?: "inscriptions" | "organisateur";
-  /** Commission organisateur activée pour ce tournoi payant (5 % des frais
-   * collectés, moins la part plateforme prélevée au versement). */
+  /** Commission organisateur activée pour ce tournoi payant (COMMISSION_PCT
+   * des frais collectés, moins la part plateforme prélevée au versement). */
   commissionActivee?: boolean;
   repartitionCashPrize?: RepartitionCashPrize[];
   banniereUrl?: string;
@@ -86,7 +86,17 @@ export function clotureEffectiveInscriptions(
   return undefined;
 }
 
-export function inscriptionsFermees(tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs">): boolean {
+/** Complet : la capacité fixée par l'organisateur est atteinte — les
+ * inscriptions se ferment alors immédiatement, sans attendre la marge de
+ * 10-15 min avant le début (point 76). */
+export function tournoiComplet(tournoi: Pick<Tournoi, "placesInscrites" | "placesTotal">): boolean {
+  return tournoi.placesTotal > 0 && tournoi.placesInscrites >= tournoi.placesTotal;
+}
+
+export function inscriptionsFermees(
+  tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs" | "placesInscrites" | "placesTotal">,
+): boolean {
+  if (tournoiComplet(tournoi)) return true;
   const cloture = clotureEffectiveInscriptions(tournoi);
   return cloture !== undefined && Date.now() >= cloture;
 }
@@ -96,7 +106,12 @@ export function inscriptionsPasEncoreOuvertes(tournoi: Pick<Tournoi, "debutInscr
 }
 
 /** La bracket reste masquée jusqu'à 10 min après la clôture effective des inscriptions. */
-export function bracketVerrouillee(tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs">): boolean {
+export function bracketVerrouillee(
+  tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs" | "placesInscrites" | "placesTotal">,
+): boolean {
+  // Un tournoi complet débloque l'accès en avance (point 76) : plus la peine
+  // d'attendre la marge post-clôture puisque les inscriptions sont déjà closes.
+  if (tournoiComplet(tournoi)) return false;
   const cloture = clotureEffectiveInscriptions(tournoi);
   if (cloture === undefined) return false;
   return Date.now() < cloture + DELAI_VERROU_BRACKET_MS;
@@ -108,10 +123,26 @@ export const FRAIS_CREATION_TOURNOI_PAYANT_XOF = 150;
 
 /** Commission de l'organisateur sur les tournois payants (optionnelle,
  * activée tournoi par tournoi), en plus du cash prize. */
-export const COMMISSION_PCT = 0.05;
+export const COMMISSION_PCT = 0.15;
 
 export function commissionEstimee(fraisXof: number, placesTotal: number): number {
   return Math.round(fraisXof * placesTotal * COMMISSION_PCT);
+}
+
+/** Répartition automatique et dégressive du cash prize entre N finalistes
+ * (point 82) : plus de saisie manuelle place par place — l'organisateur ne
+ * choisit que le nombre de finalistes, l'app calcule les parts (poids en
+ * 1/rang, comme un barème de prize pool esport classique). */
+export function repartitionAutomatique(montantNetXof: number, nbFinalistes: number): RepartitionCashPrize[] {
+  const n = Math.max(1, Math.min(Math.round(nbFinalistes) || 1, 20));
+  const libelle = (i: number) => (i === 0 ? "1er" : i === 1 ? "2e" : i === 2 ? "3e" : `${i + 1}e`);
+  if (n === 1) return [{ label: "Vainqueur", montantXof: montantNetXof }];
+  const poids = Array.from({ length: n }, (_, i) => 1 / (i + 1));
+  const totalPoids = poids.reduce((a, b) => a + b, 0);
+  const montants = poids.map((p) => Math.round((p / totalPoids) * montantNetXof));
+  const ecart = montantNetXof - montants.reduce((a, b) => a + b, 0);
+  montants[montants.length - 1] += ecart;
+  return montants.map((montantXof, i) => ({ label: libelle(i), montantXof }));
 }
 
 const CLE_TAUX_PLATEFORME = "tourney-taux-plateforme-commission";
@@ -132,7 +163,7 @@ export function definirTauxPlateformeSurCommission(taux: number) {
   localStorage.setItem(CLE_TAUX_PLATEFORME, String(Math.min(1, Math.max(0, taux))));
 }
 
-/** Décompose la commission organisateur : brute (5 % des frais collectés),
+/** Décompose la commission organisateur : brute (part des frais collectés),
  * part prélevée par la plateforme, net réellement perçu par l'organisateur.
  * Le prélèvement n'a lieu qu'au moment du versement (fin de tournoi), jamais
  * à la création — l'organisateur ne peut donc jamais être en perte. */
@@ -530,7 +561,7 @@ function pointsPourPlaceBR(place: number, effectif: number): number {
  * Clôture un tournoi : distribue les points de classement de façon
  * automatique et équilibrée selon la place finale (bracket ou battle royale),
  * puis crédite le solde de l'utilisateur local s'il fait partie des gagnants
- * du cash prize. La commission de l'organisateur (5 %) n'est créditée que
+ * du cash prize. La commission de l'organisateur n'est créditée que
  * s'il est certifié (cf. mockOrganisateur).
  */
 /**

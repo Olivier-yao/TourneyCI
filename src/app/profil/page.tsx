@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { Button } from "@/components/ds/Button";
@@ -13,10 +14,12 @@ import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
 import { tournoiParId, estTermine, mesTournoisOrganises } from "@/lib/mockTournaments";
 import { estCertifie } from "@/lib/mockOrganisateur";
+import { rolePrefere, definirRole, type Role } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 export default function ProfilPage() {
   const connecte = useExigerConnexion();
+  const router = useRouter();
   const [profil] = useState(lireProfil);
   const [solde, setSolde] = useState(0);
   const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0 });
@@ -24,6 +27,7 @@ export default function ProfilPage() {
     estOrganisateur: false,
     certifie: false,
   });
+  const [role, setRole] = useState<Role>("joueur");
   const winrate = Math.round((profil.victoires / profil.matchsJoues) * 100);
 
   useEffect(() => {
@@ -36,7 +40,14 @@ export default function ProfilPage() {
     setSolde(lireSolde());
     setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length });
     setOrganisateur({ estOrganisateur: mesTournoisOrganises().length > 0, certifie: estCertifie() });
+    setRole(rolePrefere());
   }, []);
+
+  function basculerRole(nouveau: Role) {
+    definirRole(nouveau);
+    setRole(nouveau);
+    if (nouveau === "organisateur") router.push("/organisateur");
+  }
 
   const menu = [
     { href: "/profil/solde", icone: Wallet, label: "Solde & TourneyCard", valeur: null as number | null },
@@ -109,6 +120,40 @@ export default function ProfilPage() {
         >
           <Settings size={18} strokeWidth={2} />
         </Link>
+      </div>
+
+      <div className="px-5 -mt-2 mb-1">
+        <div
+          className="relative flex p-[3px]"
+          style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}
+        >
+          <div
+            className="absolute top-[3px] bottom-[3px] transition-all duration-200"
+            style={{
+              width: "calc(50% - 3px)",
+              left: role === "organisateur" ? "50%" : "3px",
+              borderRadius: "var(--ds-radius-pill)",
+              background: "var(--ds-accent-900)",
+              boxShadow: "0 0 0 1px var(--ds-accent)",
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => basculerRole("joueur")}
+            className="relative flex-1 h-9 text-xs font-medium cursor-pointer"
+            style={{ color: role === "joueur" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
+          >
+            Joueur
+          </button>
+          <button
+            type="button"
+            onClick={() => basculerRole("organisateur")}
+            className="relative flex-1 h-9 text-xs font-medium cursor-pointer"
+            style={{ color: role === "organisateur" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
+          >
+            Organisateur
+          </button>
+        </div>
       </div>
 
       <div className="px-5">

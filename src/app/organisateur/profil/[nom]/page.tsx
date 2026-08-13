@@ -3,13 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Heart, HeartCrack, Pencil, Share2, Trophy } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, estAnnule } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
+import { Modal } from "@/components/ds/Modal";
+import { Avatar } from "@/components/ds/Avatar";
 import { PRESS } from "@/components/ds/Button";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
-import { suisOrganisateur, basculerSuiviOrganisateur } from "@/lib/mockSuiviOrganisateur";
+import {
+  suisOrganisateur,
+  basculerSuiviOrganisateur,
+  compteurFollowers,
+  listeFollowers,
+  suiviMasque,
+  definirMasquageSuivi,
+} from "@/lib/mockSuiviOrganisateur";
 import {
   statistiquesReputation,
   nomOrganisateurActuel,
@@ -21,7 +30,7 @@ import {
   banniereOrganisateur,
   definirBanniereOrganisateur,
 } from "@/lib/mockOrganisateur";
-import { compterAvis, monAvisPourOrganisateur, laisserAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
+import { compterAvis, monAvisPourOrganisateur, laisserAvisOrganisateur, retirerAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 function BarreReputation({ label, valeurLabel, pourcentage, accentuee }: { label: string; valeurLabel: string; pourcentage: number; accentuee: boolean }) {
@@ -59,6 +68,9 @@ export default function ProfilOrganisateurPage() {
   const [bio, setBio] = useState<string | undefined>(undefined);
   const [banniere, setBanniere] = useState<string | undefined>(undefined);
   const [suivi, setSuivi] = useState(false);
+  const [nbFollowers, setNbFollowers] = useState(0);
+  const [masqueFollowers, setMasqueFollowers] = useState(false);
+  const [modaleFollowersOuverte, setModaleFollowersOuverte] = useState(false);
   const [editionTag, setEditionTag] = useState(false);
   const [editionBio, setEditionBio] = useState(false);
   const [brouillonTag, setBrouillonTag] = useState("");
@@ -82,6 +94,8 @@ export default function ProfilOrganisateurPage() {
     setStats(statistiquesReputation(nom));
     setMonAvis(monAvisPourOrganisateur(nom)?.type ?? null);
     setSuivi(suisOrganisateur(nom));
+    setNbFollowers(compteurFollowers(nom));
+    setMasqueFollowers(suiviMasque(nom));
     const classement = classementOrganisateurs();
     setRang(classement.findIndex((o) => o.nom === nom) + 1);
     const moi = nomOrganisateurActuel() === nom;
@@ -107,6 +121,11 @@ export default function ProfilOrganisateurPage() {
 
   function voter(type: TypeAvis) {
     laisserAvisOrganisateur(nom, type);
+    rafraichir();
+  }
+
+  function retirerAvis() {
+    retirerAvisOrganisateur(nom);
     rafraichir();
   }
 
@@ -251,7 +270,30 @@ export default function ProfilOrganisateurPage() {
               #{rang} ORGANISATEURS
             </span>
           )}
+          {(cestMoi || !masqueFollowers) && (
+            <button
+              type="button"
+              onClick={() => setModaleFollowersOuverte(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+            >
+              <Users size={11} strokeWidth={2} />
+              {nbFollowers} FOLLOWERS
+              {cestMoi && masqueFollowers && <EyeOff size={11} strokeWidth={2} />}
+            </button>
+          )}
         </div>
+
+        {cestMoi && (
+          <label className="flex items-center gap-2 text-xs cursor-pointer -mt-1" style={{ color: "var(--ds-muted)" }}>
+            <input
+              type="checkbox"
+              checked={masqueFollowers}
+              onChange={(e) => { definirMasquageSuivi(nom, e.target.checked); setMasqueFollowers(e.target.checked); }}
+            />
+            Masquer mon nombre de followers aux visiteurs de mon profil
+          </label>
+        )}
 
         {editionBio ? (
           <div className="flex flex-col gap-2">
@@ -307,9 +349,14 @@ export default function ProfilOrganisateurPage() {
         {!cestMoi && (
           <div className="flex flex-col gap-2">
             {monAvis ? (
-              <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                Tu as déjà donné ton avis sur cet organisateur.
-              </p>
+              <div className="flex items-center gap-2.5 text-xs" style={{ color: "var(--ds-muted)" }}>
+                <span className="flex-1">
+                  Tu as déjà donné ton avis sur cet organisateur ({monAvis === "coeur" ? "positif" : "négatif"}).
+                </span>
+                <button type="button" onClick={retirerAvis} className={`font-medium shrink-0 ${PRESS}`} style={{ color: "var(--ds-accent-300)" }}>
+                  Retirer
+                </button>
+              </div>
             ) : (
               <div className="flex gap-2.5">
                 <button
@@ -374,7 +421,10 @@ export default function ProfilOrganisateurPage() {
         {!cestMoi && (
           <button
             type="button"
-            onClick={() => setSuivi(basculerSuiviOrganisateur(nom))}
+            onClick={() => {
+              setSuivi(basculerSuiviOrganisateur(nom));
+              setNbFollowers(compteurFollowers(nom));
+            }}
             className={`h-[46px] text-sm font-medium mb-2 ${PRESS}`}
             style={{
               borderRadius: "var(--ds-radius-md)",
@@ -386,6 +436,17 @@ export default function ProfilOrganisateurPage() {
           </button>
         )}
       </div>
+
+      <Modal ouvert={modaleFollowersOuverte} titre={`${nbFollowers} followers`} onFermer={() => setModaleFollowersOuverte(false)}>
+        <div className="flex flex-col gap-2 not-italic" style={{ whiteSpace: "normal" }}>
+          {listeFollowers(nom).map((n) => (
+            <div key={n} className="flex items-center gap-3">
+              <Avatar initiales={n.slice(0, 2).toUpperCase()} taille={30} />
+              <span className="text-sm" style={{ color: "var(--ds-text)" }}>{n}</span>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 /**
  * Certification organisateur (mock) : tant que l'organisateur n'a pas
  * complété la vérification d'âge + document officiel, il ne touche pas la
- * commission de 5 % sur ses tournois payants (elle reste calculée pour
- * information mais n'est jamais créditée).
+ * commission sur ses tournois payants (elle reste calculée pour information
+ * mais n'est jamais créditée).
  */
 
 import { avisDeOrganisateur, avisGlobalDeOrganisateur } from "./mockAvis";

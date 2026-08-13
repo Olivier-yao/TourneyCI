@@ -132,6 +132,15 @@ function DetailTournoiInterne() {
   const pourcentagePlaces = Math.round(
     (tournoi.placesInscrites / tournoi.placesTotal) * 100,
   );
+
+  const nomType = tournoi.type === "battle_royale" ? "Battle Royale" : tournoi.type === "equipes" ? "Équipes" : "1v1";
+  const sousType =
+    tournoi.type === "battle_royale" && tournoi.brSousType
+      ? tournoi.brSousType.charAt(0).toUpperCase() + tournoi.brSousType.slice(1)
+      : tournoi.type === "equipes" && tournoi.modeEquipe
+        ? tournoi.modeEquipe === "libre" ? "Libre" : "Prédéfinies"
+        : undefined;
+  const typeLabel = sousType ? `${nomType} · ${sousType}` : nomType;
   const aUnBracket =
     tournoi.type === "battle_royale"
       ? participantsBR(params.id).length > 0
@@ -190,6 +199,17 @@ function DetailTournoiInterne() {
               fontFamily: "var(--ds-font-mono)",
             }}
           >
+            {typeLabel}
+          </span>
+          <span
+            className="px-2.5 py-1 text-[11px]"
+            style={{
+              borderRadius: "var(--ds-radius-pill)",
+              border: "1px solid var(--ds-border)",
+              color: "var(--ds-muted)",
+              fontFamily: "var(--ds-font-mono)",
+            }}
+          >
             {tournoi.format}
           </span>
           {tournoi.modalite === "virtuel" && (
@@ -235,7 +255,16 @@ function DetailTournoiInterne() {
 
         <p className="text-[13px]" style={{ color: "var(--ds-muted)" }}>
           Organisé par{" "}
-          <Link href={`/organisateur/profil/${encodeURIComponent(tournoi.organisateur)}`} style={{ color: "var(--ds-accent-300)" }}>
+          <Link
+            href={`/organisateur/profil/${encodeURIComponent(tournoi.organisateur)}`}
+            style={{
+              color: "var(--ds-accent-300)",
+              textDecoration: "underline",
+              textDecorationStyle: "dotted",
+              textDecorationColor: "var(--ds-accent-700)",
+              textUnderlineOffset: "3px",
+            }}
+          >
             {tournoi.organisateur}
           </Link>{" "}
           · {tournoi.dateLabel}

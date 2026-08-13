@@ -5,7 +5,8 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Crown, Flame, Medal } from "lucide-react";
 import { JEUX } from "@/lib/mockTournaments";
-import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, VILLES, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
+import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
+import { PAYS, villesDuPays } from "@/lib/mockGeographie";
 import { BadgePalier } from "./Palier";
 import { Avatar } from "./Avatar";
 
@@ -13,12 +14,15 @@ const NB_AFFICHES = 8;
 
 const JEUX_AVEC_CLASSEMENT = JEUX.filter((jeu) => CLASSEMENTS[jeu.id]);
 
-const VILLES_CLASSEMENT = ["Toutes", ...VILLES];
+const PAYS_TOUS = "tous";
+const VILLE_TOUTES = "toutes";
 
 /** Un même joueur peut apparaître dans le classement de plusieurs jeux : on
- * fusionne par nom (somme des points) avant de trier et filtrer par ville,
- * sinon il apparaît en double dans le classement global/par ville. */
-function construireClassement(villeActif: string): ClassementEntree[] {
+ * fusionne par nom (somme des points) avant de trier et filtrer, sinon il
+ * apparaît en double dans le classement global/par ville — le tri final se
+ * fait toujours après cette fusion pour garantir un ordre strictement
+ * décroissant sans doublon de rang. */
+function construireClassement(paysActif: string, villeActif: string): ClassementEntree[] {
   const base = JEUX_AVEC_CLASSEMENT.flatMap((j) => classementDuJeu(j.id));
   const parNom = new Map<string, ClassementEntree>();
   for (const entree of base) {
@@ -30,9 +34,14 @@ function construireClassement(villeActif: string): ClassementEntree[] {
       parNom.set(cle, { ...entree });
     }
   }
-  const fusionne = Array.from(parNom.values());
-  const filtre = villeActif === "Toutes" ? fusionne : fusionne.filter((e) => e.ville === villeActif);
-  return [...filtre].sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
+  let fusionne = Array.from(parNom.values());
+  if (villeActif !== VILLE_TOUTES) {
+    fusionne = fusionne.filter((e) => e.ville === villeActif);
+  } else if (paysActif !== PAYS_TOUS) {
+    const villes = villesDuPays(paysActif);
+    fusionne = fusionne.filter((e) => villes.includes(e.ville));
+  }
+  return [...fusionne].sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
 }
 
 const HAUTEURS_MARCHE = [48, 64, 40];
@@ -49,10 +58,10 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
       <div className="grid grid-cols-3 items-end gap-2">
         {ORDRE_PODIUM.map((i) => {
           const entree = top3[i];
-          if (!entree) return <div key={i} />;
+          if (!entree) return <div key={`vide-${i}`} />;
           const or = entree.position === 1;
           return (
-            <Link key={entree.position} href={`/joueur/${encodeURIComponent(entree.nom)}`} className="flex flex-col items-center gap-2">
+            <Link key={`podium-${entree.position}`} href={`/joueur/${encodeURIComponent(entree.nom)}`} className="flex flex-col items-center gap-2">
               <div className="relative">
                 <Avatar initiales={entree.initiales} taille={TAILLES_AVATAR[i]} photoUrl={entree.moi ? monPhotoUrl : undefined} />
                 <div
@@ -131,10 +140,12 @@ function LigneClassement({ entree, monBadgeActif, monPhotoUrl }: { entree: Class
 }
 
 export function Classement() {
-  const [villeActif, setVilleActif] = useState<string>("Toutes");
+  const [paysActif, setPaysActif] = useState<string>(PAYS_TOUS);
+  const [villeActif, setVilleActif] = useState<string>(VILLE_TOUTES);
   const [monBadgeActif, setMonBadgeActif] = useState(false);
   const [monPhotoUrl, setMonPhotoUrl] = useState<string | undefined>(undefined);
-  const classement = construireClassement(villeActif);
+  const classement = construireClassement(paysActif, villeActif);
+  const villesDisponibles = paysActif === PAYS_TOUS ? PAYS.flatMap((p) => p.villes) : villesDuPays(paysActif);
 
   useEffect(() => {
     const profil = lireProfil();
@@ -161,6 +172,36 @@ export function Classement() {
       <div className="flex gap-2">
         <div className="relative flex-1">
           <select
+            value={paysActif}
+            onChange={(e) => {
+              setPaysActif(e.target.value);
+              setVilleActif(VILLE_TOUTES);
+            }}
+            className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
+            style={{
+              borderRadius: "var(--ds-radius-md)",
+              background: "var(--ds-surface)",
+              border: "1px solid var(--ds-border)",
+              color: "var(--ds-text)",
+              fontFamily: "var(--ds-font-body)",
+            }}
+          >
+            <option value={PAYS_TOUS}>Tous les pays</option>
+            {PAYS.map((pays) => (
+              <option key={pays.id} value={pays.id}>
+                {pays.nom}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{ color: "var(--ds-muted)" }}
+          />
+        </div>
+        <div className="relative flex-1">
+          <select
             value={villeActif}
             onChange={(e) => setVilleActif(e.target.value)}
             className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
@@ -172,7 +213,8 @@ export function Classement() {
               fontFamily: "var(--ds-font-body)",
             }}
           >
-            {VILLES_CLASSEMENT.map((ville) => (
+            <option value={VILLE_TOUTES}>Toutes les villes</option>
+            {villesDisponibles.map((ville) => (
               <option key={ville} value={ville}>
                 {ville}
               </option>
@@ -189,7 +231,7 @@ export function Classement() {
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={villeActif}
+          key={`${paysActif}-${villeActif}`}
           className="flex flex-col gap-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
