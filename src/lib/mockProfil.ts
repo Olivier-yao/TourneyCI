@@ -2,7 +2,7 @@
  * Données mock pour la phase 6 du chantier V2 (profil + classement).
  */
 
-export type Rang = "Rookie" | "Confirmé" | "Élite" | "Légende";
+export type Rang = "Débutant" | "Amateur" | "Confirmé" | "Expert" | "Élite" | "Légende";
 
 export type Profil = {
   pseudo: string;
@@ -17,7 +17,7 @@ export type Profil = {
 export const MON_PROFIL: Profil = {
   pseudo: "Kader B.",
   ville: "Abidjan",
-  rang: "Élite",
+  rang: "Légende",
   rangNational: 14,
   matchsJoues: 86,
   victoires: 61,
@@ -25,8 +25,9 @@ export const MON_PROFIL: Profil = {
 
 const CLE_PROFIL_MODIFIE = "tourney-profil-modifie";
 
-/** Fusionne MON_PROFIL avec les surcharges (pseudo/ville) enregistrées en localStorage. */
-export function lireProfil(): Profil {
+/** Profil de base (pseudo/ville/photo) sans le grade calculé — utilisé en
+ * interne pour éviter une boucle infinie avec calculerGrade()/lireProfil(). */
+function profilBase(): Profil {
   if (typeof window === "undefined") return MON_PROFIL;
   try {
     const brut = localStorage.getItem(CLE_PROFIL_MODIFIE);
@@ -35,6 +36,39 @@ export function lireProfil(): Profil {
   } catch {
     return MON_PROFIL;
   }
+}
+
+/** Fusionne MON_PROFIL avec les surcharges (pseudo/ville) enregistrées en
+ * localStorage, et recalcule le grade (point 66) selon les matchs joués et
+ * les points cumulés au classement. */
+export function lireProfil(): Profil {
+  const base = profilBase();
+  const points = mesPointsCumules();
+  return { ...base, rang: calculerGrade(base.matchsJoues, points) };
+}
+
+type PalierGrade = { nom: Rang; matchs: number; points: number };
+
+/**
+ * Paliers de progression (point 66), du plus haut au plus bas : un joueur
+ * atteint un palier dès qu'il remplit L'UNE des deux conditions (matchs
+ * joués OU points cumulés au classement toutes disciplines confondues) —
+ * on retient le palier le plus élevé atteint par au moins un des critères.
+ */
+const PALIERS_GRADE: PalierGrade[] = [
+  { nom: "Légende", matchs: 100, points: 6000 },
+  { nom: "Élite", matchs: 60, points: 3000 },
+  { nom: "Expert", matchs: 30, points: 1200 },
+  { nom: "Confirmé", matchs: 15, points: 500 },
+  { nom: "Amateur", matchs: 5, points: 150 },
+  { nom: "Débutant", matchs: 0, points: 0 },
+];
+
+export function calculerGrade(matchsJoues: number, pointsCumules: number): Rang {
+  for (const palier of PALIERS_GRADE) {
+    if (matchsJoues >= palier.matchs || pointsCumules >= palier.points) return palier.nom;
+  }
+  return "Débutant";
 }
 
 function lireSurcharge(): Partial<Profil> {
@@ -198,7 +232,18 @@ export function classementDuJeu(jeuId: string): ClassementEntree[] {
   }
   // La ligne "moi" affiche toujours le pseudo actuel (source unique = le
   // profil), pas le nom figé dans les données de seed.
-  const monPseudo = lireProfil().pseudo;
+  const monPseudo = profilBase().pseudo;
   const avecPseudoActuel = fusion.map((e) => (e.moi ? { ...e, nom: monPseudo, initiales: initiales(monPseudo) } : e));
   return avecPseudoActuel.sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
+}
+
+/** Somme des points "moi" à travers tous les jeux classés — signal utilisé
+ * par calculerGrade() en complément des matchs joués. */
+function mesPointsCumules(): number {
+  let total = 0;
+  for (const jeuId of Object.keys(CLASSEMENTS)) {
+    const entree = classementDuJeu(jeuId).find((e) => e.moi);
+    if (entree) total += entree.points;
+  }
+  return total;
 }
