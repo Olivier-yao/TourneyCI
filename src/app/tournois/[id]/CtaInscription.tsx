@@ -8,6 +8,7 @@ import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
 import { Avatar } from "@/components/ds/Avatar";
+import { EcussonEquipe } from "@/components/ds/Palier";
 import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { estInscrit, inscriptionDe, renommerEquipe, enregistrerInscription } from "@/lib/mockInscriptions";
@@ -494,94 +495,6 @@ export function CtaInscription({
         </div>
       )}
 
-      {etapeBR === "menu" && (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setEtapeBR("creer")}
-            className={`h-11 text-sm font-medium ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
-          >
-            Créer une équipe
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setEquipesBR(equipesDuTournoi(tournoiId));
-              setEtapeBR("rejoindre");
-            }}
-            className={`h-11 text-sm font-medium ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
-          >
-            Rejoindre une équipe existante
-          </button>
-          <button
-            type="button"
-            onClick={validerEquipeAleatoire}
-            className={`h-11 text-sm font-medium ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-accent-300)" }}
-          >
-            Équipe aléatoire
-          </button>
-        </div>
-      )}
-
-      {etapeBR === "creer" && (
-        <div className="flex flex-col gap-2.5">
-          <Field label="Nom de ton équipe" value={nomEquipeBR} onChange={(e) => setNomEquipeBR(e.target.value)} placeholder="Les Lions" />
-          {fraisXof > 0 && brSousType && brSousType !== "solo" && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={payerPourEquipe} onChange={(e) => setPayerPourEquipe(e.target.checked)} />
-              Payer pour toute mon équipe maintenant ({formatXof(fraisXof * TAILLE_EQUIPE_BR[brSousType])})
-            </label>
-          )}
-          {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
-        </div>
-      )}
-
-      {etapeBR === "rejoindre" && (
-        <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto">
-          {equipesBR.length === 0 ? (
-            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>Aucune équipe pour l&apos;instant — crée la première.</p>
-          ) : (
-            equipesBR.map((e) => {
-              const taille = brSousType && brSousType !== "solo" ? TAILLE_EQUIPE_BR[brSousType] : e.membres.length;
-              const complete = e.membres.length >= taille;
-              const enAttente = aUneDemandeEnAttente(e.id, monPseudo);
-              return (
-                <div
-                  key={e.id}
-                  className="flex items-center gap-3 p-2.5"
-                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
-                >
-                  <Avatar initiales={e.nom.slice(0, 2).toUpperCase()} taille={32} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{e.nom}</div>
-                    <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                      {e.membres.length}/{taille}{e.paiementCouvert ? " · frais déjà payés" : ""}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={complete || enAttente}
-                    onClick={() => demanderRejoindreEquipe(e)}
-                    className={`px-3 py-1.5 text-xs font-semibold shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
-                    style={{
-                      borderRadius: "var(--ds-radius-pill)",
-                      background: complete || enAttente ? "transparent" : "var(--ds-btn-primary-bg)",
-                      border: complete || enAttente ? "1px solid var(--ds-border)" : undefined,
-                      color: complete || enAttente ? "var(--ds-muted)" : "var(--ds-btn-primary-text)",
-                    }}
-                  >
-                    {enAttente ? "Envoyée" : complete ? "Complète" : "Rejoindre"}
-                  </button>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-
       <div className="flex gap-2.5 items-center">
         <button
           type="button"
@@ -610,21 +523,137 @@ export function CtaInscription({
         >
           <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
         </button>
-        {etapeBR !== "menu" && etapeBR !== "rejoindre" && (
-          <Button
-            variante="primary"
-            bloc
-            disabled={fermeInscriptions}
-            onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : etapeBR === "creer" ? validerEquipeBR : onClicInscription}
-          >
-            {fermeInscriptions
-              ? "Inscriptions fermées"
-              : choixEquipe || choixTag || etapeBR === "creer"
-                ? "Continuer"
-                : `S'inscrire · ${formatXof(fraisXof)}`}
-          </Button>
-        )}
+        <Button
+          variante="primary"
+          bloc
+          disabled={fermeInscriptions}
+          onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : onClicInscription}
+        >
+          {fermeInscriptions
+            ? "Inscriptions fermées"
+            : choixEquipe || choixTag
+              ? "Continuer"
+              : `S'inscrire · ${formatXof(fraisXof)}`}
+        </Button>
       </div>
+
+      <Modal ouvert={etapeBR !== null} titre="Comment tu joues ?" onFermer={() => setEtapeBR(null)}>
+        <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+          {brSousType && brSousType !== "solo" && (
+            <p className="text-xs -mt-1" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              {brSousType === "duo" ? "Duo" : "Squad"} de {TAILLE_EQUIPE_BR[brSousType]}
+              {fraisXof > 0 ? ` · ${formatXof(fraisXof)} par joueur` : " · gratuit"}
+            </p>
+          )}
+
+          {etapeBR === "menu" && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setEtapeBR("creer")}
+                className={`flex items-center gap-3 p-3.5 text-left ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+              >
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Créer une équipe</div>
+                  <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>TU DEVIENS CHEF · TU INVITES TES JOUEURS</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEquipesBR(equipesDuTournoi(tournoiId));
+                  setEtapeBR("rejoindre");
+                }}
+                className={`flex items-center gap-3 p-3.5 text-left ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+              >
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Rejoindre une équipe</div>
+                  <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    {equipesDuTournoi(tournoiId).length} ÉQUIPE{equipesDuTournoi(tournoiId).length === 1 ? "" : "S"} CHERCHENT DES JOUEURS
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={validerEquipeAleatoire}
+                className={`flex items-center gap-3 p-3.5 text-left ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+              >
+                <div className="flex-1">
+                  <div className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Équipe aléatoire</div>
+                  <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>ON TE PLACE DANS UNE SQUAD INCOMPLÈTE</div>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {etapeBR === "creer" && (
+            <div className="flex flex-col gap-2.5">
+              <Field label="Nom de ton équipe" value={nomEquipeBR} onChange={(e) => setNomEquipeBR(e.target.value)} placeholder="Les Lions" />
+              {fraisXof > 0 && brSousType && brSousType !== "solo" && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={payerPourEquipe} onChange={(e) => setPayerPourEquipe(e.target.checked)} />
+                  Payer pour toute mon équipe maintenant ({formatXof(fraisXof * TAILLE_EQUIPE_BR[brSousType])})
+                </label>
+              )}
+              {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+              <button
+                type="button"
+                onClick={validerEquipeBR}
+                className={`h-11 text-sm font-medium ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+              >
+                Continuer
+              </button>
+            </div>
+          )}
+
+          {etapeBR === "rejoindre" && (
+            <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+              {equipesBR.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--ds-muted)" }}>Aucune équipe pour l&apos;instant — crée la première.</p>
+              ) : (
+                equipesBR.map((e) => {
+                  const taille = brSousType && brSousType !== "solo" ? TAILLE_EQUIPE_BR[brSousType] : e.membres.length;
+                  const complete = e.membres.length >= taille;
+                  const enAttente = aUneDemandeEnAttente(e.id, monPseudo);
+                  return (
+                    <div
+                      key={e.id}
+                      className="flex items-center gap-3 p-2.5"
+                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+                    >
+                      <EcussonEquipe initiales={e.nom.slice(0, 2).toUpperCase()} style={e.paiementCouvert ? "accent" : "neutre"} largeur={40} hauteur={46} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{e.nom}</div>
+                        <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                          {e.membres.length}/{taille}{e.paiementCouvert ? " · frais déjà payés" : ""}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={complete || enAttente}
+                        onClick={() => demanderRejoindreEquipe(e)}
+                        className={`px-3 py-1.5 text-xs font-semibold shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+                        style={{
+                          borderRadius: "var(--ds-radius-pill)",
+                          background: complete || enAttente ? "transparent" : "var(--ds-btn-primary-bg)",
+                          border: complete || enAttente ? "1px solid var(--ds-border)" : undefined,
+                          color: complete || enAttente ? "var(--ds-muted)" : "var(--ds-btn-primary-text)",
+                        }}
+                      >
+                        {enAttente ? "Envoyée" : complete ? "Complète" : "Rejoindre"}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </Modal>
 
       <Modal ouvert={confirmationOuverte} titre="Confirmer l'inscription" onFermer={() => setConfirmationOuverte(false)}>
         <div className="flex flex-col gap-2 not-italic" style={{ whiteSpace: "normal" }}>

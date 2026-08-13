@@ -30,8 +30,7 @@ export function MatchLiveClient({
 }) {
   const router = useRouter();
   const [minute, setMinute] = useState(match.minute ?? 0);
-  const [panneau, setPanneau] = useState<"aucun" | "litige" | "score">("aucun");
-  const [litigeEnvoye, setLitigeEnvoye] = useState(false);
+  const [panneau, setPanneau] = useState<"aucun" | "score">("aucun");
   const [scoreEnvoye, setScoreEnvoye] = useState(false);
   const [captureNom, setCaptureNom] = useState<string | null>(null);
 
@@ -126,28 +125,6 @@ export function MatchLiveClient({
           <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
         </button>
 
-        {panneau === "litige" && (
-          <div
-            className="p-4 flex flex-col gap-3"
-            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-          >
-            {litigeEnvoye ? (
-              <p className="text-sm" style={{ color: "var(--ds-accent-300)" }}>
-                Litige signalé — un organisateur va être notifié.
-              </p>
-            ) : (
-              <>
-                <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-                  Signale un souci sur ce match (score contesté, comportement, etc.).
-                </p>
-                <Button variante="primary" onClick={() => setLitigeEnvoye(true)}>
-                  Confirmer le litige
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-
         {panneau === "score" && (
           <div
             className="p-4 flex flex-col gap-3"
@@ -191,7 +168,7 @@ export function MatchLiveClient({
       >
         <Button
           variante="secondary"
-          onClick={() => setPanneau(panneau === "litige" ? "aucun" : "litige")}
+          onClick={() => router.push(`/matches/${match.id}/litige`)}
         >
           Litige
         </Button>

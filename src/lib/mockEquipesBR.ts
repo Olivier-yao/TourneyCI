@@ -76,6 +76,11 @@ export function equipeDeJoueur(tournoiId: string, nom: string): EquipeBR | undef
   return equipesDuTournoi(tournoiId).find((e) => e.membres.includes(nom));
 }
 
+/** Toutes les équipes (tous tournois confondus) dont ce joueur est membre. */
+export function equipesDuJoueur(nom: string): EquipeBR[] {
+  return lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.membres.includes(nom));
+}
+
 export function creerEquipeBR(tournoiId: string, nom: string, chef: string, paiementCouvert: boolean): EquipeBR {
   const equipe: EquipeBR = {
     id: `eqbr-${Date.now().toString(36)}`,

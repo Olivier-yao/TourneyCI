@@ -3,35 +3,48 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Plus, Heart, ShieldCheck, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ds/Button";
+import { ChevronRight, Plus, Heart, ShieldCheck, IdCard, AtSign, Lock } from "lucide-react";
+import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
-import { mesTournoisOrganises } from "@/lib/mockTournaments";
+import { hexagoneStyle } from "@/components/ds/Palier";
+import { mesTournoisOrganises, COMMISSION_PCT } from "@/lib/mockTournaments";
 import { estCertifie } from "@/lib/mockOrganisateur";
 import { nomOrganisateur, definirNomOrganisateur } from "@/lib/mockOrganisateur";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type EtapeOnboarding = "verification" | "nom" | "complet";
 
-function OnboardingVerification({ onVerifier }: { onVerifier: () => void }) {
+function LigneEtape({ n, titre, meta, actuelle, faite }: { n: number; titre: string; meta: string; actuelle: boolean; faite: boolean }) {
   return (
-    <div className="flex flex-col items-center text-center gap-3 py-10 px-4">
-      <ShieldCheck size={28} style={{ color: "var(--ds-accent-300)" }} />
-      <div className="text-lg font-medium">Deviens organisateur</div>
-      <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-        Avant de pouvoir créer des tournois, vérifie ton identité (pièce officielle) et confirme avoir 18 ans ou plus.
-      </p>
-      <Button variante="primary" onClick={onVerifier}>
-        Vérifier mon identité
-        <ArrowRight size={16} strokeWidth={2} />
-      </Button>
+    <div
+      className="flex items-center gap-3 p-3.5"
+      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: actuelle ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)" }}
+    >
+      <div
+        className="w-[30px] h-[30px] flex items-center justify-center shrink-0 text-xs"
+        style={{ borderRadius: "var(--ds-radius-pill)", background: actuelle ? "var(--ds-accent-800)" : "var(--ds-surface-2)", color: actuelle ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+      >
+        {n}
+      </div>
+      <div className="flex-1">
+        <div className="text-sm font-medium" style={{ color: actuelle ? "var(--ds-text)" : "var(--ds-muted)" }}>{titre}</div>
+        <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{meta}</div>
+      </div>
+      {faite ? (
+        <ShieldCheck size={15} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+      ) : actuelle ? (
+        <IdCard size={15} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+      ) : (
+        <AtSign size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+      )}
     </div>
   );
 }
 
-function OnboardingNom({ onValide }: { onValide: (nom: string) => void }) {
+function OnboardingOrganisateur({ etape, onVerifier, onValideNom }: { etape: "verification" | "nom"; onVerifier: () => void; onValideNom: (nom: string) => void }) {
+  const router = useRouter();
   const [nom, setNom] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
 
@@ -40,24 +53,79 @@ function OnboardingNom({ onValide }: { onValide: (nom: string) => void }) {
       setErreur("Choisis un nom d'organisateur.");
       return;
     }
-    onValide(nom.trim());
+    onValideNom(nom.trim());
   }
 
   return (
-    <div className="flex flex-col gap-3 py-6 px-1">
-      <div className="flex items-center gap-2 text-sm" style={{ color: "var(--ds-accent-300)" }}>
-        <ShieldCheck size={16} strokeWidth={2} />
-        Identité vérifiée
+    <div className="relative min-h-screen flex flex-col overflow-hidden" style={{ background: "var(--ds-bg)" }}>
+      <div
+        className="absolute inset-0"
+        style={{ background: "radial-gradient(120% 90% at 50% 0%, var(--ds-accent-900) 0%, var(--ds-bg) 58%)" }}
+      />
+      <div className="relative flex-1 flex flex-col px-5 pt-6 pb-24 gap-3">
+        <div className="text-[10px] uppercase tracking-wide text-center" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          Devenir organisateur
+        </div>
+
+        <div className="flex justify-center py-2">
+          <div
+            className="flex items-center justify-center"
+            style={{ ...hexagoneStyle, width: 92, height: 102, background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)", boxShadow: "0 0 44px color-mix(in srgb, var(--ds-accent) 26%, transparent)" }}
+          >
+            <ShieldCheck size={38} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-2xl leading-tight" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
+            Deviens organisateur certifié
+          </div>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+            Deux étapes avant ton premier tournoi. La certification débloque les tournois payants et le versement de ta commission de {Math.round(COMMISSION_PCT * 100)} %.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 mt-1">
+          <LigneEtape n={1} titre="Vérification d'identité" meta="CNI RECTO/VERSO + SELFIE" actuelle={etape === "verification"} faite={etape === "nom"} />
+          <LigneEtape n={2} titre="Choix du nom d'organisateur" meta="NOM PUBLIC · MODIFIABLE UNE FOIS" actuelle={etape === "nom"} faite={false} />
+        </div>
+
+        {etape === "nom" && (
+          <div className="flex flex-col gap-2.5 mt-1">
+            <Field label="Nom d'organisateur" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex: Abidjan Battle Royale" />
+            {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+          </div>
+        )}
+
+        <div className="mt-auto p-3.5 flex items-start gap-2.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}>
+          <Lock size={17} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent-400, var(--ds-accent))" }} />
+          <div>
+            <div className="text-sm font-medium">Tournois gratuits dès maintenant</div>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--ds-text-muted)" }}>
+              Tu peux organiser sans attendre la validation ; seuls les tournois payants demandent la certification.
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="text-lg font-medium">Choisis ton nom d&apos;organisateur</div>
-      <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-        Ce nom (différent de ton pseudo joueur) sera affiché sur tous les tournois que tu organises.
-      </p>
-      <Field label="Nom d'organisateur" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex: Abidjan Battle Royale" />
-      {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
-      <Button variante="primary" onClick={valider}>
-        Valider et continuer
-      </Button>
+
+      <div className="relative px-5 pb-6 flex gap-2.5">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className={`flex-1 h-[46px] text-sm font-medium ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+        >
+          Plus tard
+        </button>
+        <button
+          type="button"
+          onClick={etape === "verification" ? onVerifier : valider}
+          className={`flex-[2] h-[46px] text-sm font-medium ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+        >
+          {etape === "verification" ? "Vérifier mon identité" : "Valider et continuer"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -79,27 +147,17 @@ export default function OrganisateurPage() {
 
   if (!connecte) return null;
 
-  if (etape === "verification") {
+  if (etape === "verification" || etape === "nom") {
     return (
-      <div className="min-h-screen flex flex-col px-5 pt-4 pb-24 gap-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-        <OnboardingVerification onVerifier={() => router.push("/verification-identite")} />
-        <TabBar />
-      </div>
-    );
-  }
-
-  if (etape === "nom") {
-    return (
-      <div className="min-h-screen flex flex-col px-5 pt-4 pb-24 gap-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-        <OnboardingNom
-          onValide={(nom) => {
-            definirNomOrganisateur(nom);
-            setNomOrg(nom);
-            setEtape("complet");
-          }}
-        />
-        <TabBar />
-      </div>
+      <OnboardingOrganisateur
+        etape={etape}
+        onVerifier={() => router.push("/verification-identite")}
+        onValideNom={(nom) => {
+          definirNomOrganisateur(nom);
+          setNomOrg(nom);
+          setEtape("complet");
+        }}
+      />
     );
   }
 

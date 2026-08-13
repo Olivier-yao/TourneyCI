@@ -11,6 +11,7 @@ import { BadgePalier } from "@/components/ds/Palier";
 import { lireSolde } from "@/lib/mockWallet";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
+import { equipesDuJoueur } from "@/lib/mockEquipesBR";
 import { tournoiParId, estTermine, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
 import { compteurFollowers } from "@/lib/mockSuiviOrganisateur";
@@ -22,7 +23,7 @@ export default function ProfilPage() {
   const connecte = useExigerConnexion();
   const [profil] = useState(lireProfil);
   const [solde, setSolde] = useState(0);
-  const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0 });
+  const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0, equipes: 0 });
   const [organisateur, setOrganisateur] = useState<{ estOrganisateur: boolean; certifie: boolean }>({
     estOrganisateur: false,
     certifie: false,
@@ -48,7 +49,7 @@ export default function ProfilPage() {
     }).length;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
-    setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length });
+    setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesDuJoueur(lireProfil().pseudo).length });
     setOrganisateur({ estOrganisateur: mesTournoisOrganises().length > 0, certifie: estCertifie() });
     setRole(rolePrefere());
 
@@ -77,6 +78,7 @@ export default function ProfilPage() {
     { href: "/profil/solde", icone: Wallet, label: "Solde & TourneyCard", valeur: null as number | null },
     { href: "/profil/historique", icone: History, label: "Historique de tournois", valeur: compteurs.historique },
     { href: "/profil/inscriptions", icone: Ticket, label: "Mes inscriptions", valeur: compteurs.inscriptions },
+    { href: "/mes-equipes", icone: Users, label: "Mes équipes", valeur: compteurs.equipes },
     { href: "/favoris", icone: Bookmark, label: "Favoris", valeur: compteurs.favoris },
   ];
 
