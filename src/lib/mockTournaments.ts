@@ -10,7 +10,7 @@ import { classementFinalBracket } from "./mockBracket";
 import { classementFinalBR } from "./mockBattleRoyale";
 import { attribuerPoints, lireProfil } from "./mockProfil";
 import { crediter } from "./mockWallet";
-import { estCertifie } from "./mockOrganisateur";
+import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
 import { estInscrit, inscriptionDe } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
 import { avisDuTournoi } from "./mockAvis";
@@ -69,6 +69,10 @@ export type Tournoi = {
    * d'inscription. Si absents, comportement par défaut (voir clotureEffectiveInscriptions). */
   debutInscriptionsTs?: number;
   finInscriptionsTs?: number;
+  /** Démo testable côté organisateur (point 85) : l'organisateur affiché est
+   * toujours celui de l'appareil courant plutôt qu'un nom figé, pour que
+   * n'importe quel testeur retrouve ces tournois dans sa propre gestion. */
+  organisateurDynamique?: boolean;
 };
 
 const DELAI_VERROU_BRACKET_MS = 10 * 60 * 1000;
@@ -386,6 +390,129 @@ export const TOURNOIS: Tournoi[] = [
     reglement: "Élimination directe, BO5 sur tous les tours.",
     inscrits: ["ZK", "PT"],
   },
+
+  // ---- Démos "en cours" testables côté organisateur (point 85) ----
+  // organisateurDynamique: true => affiché comme organisé par l'appareil
+  // courant, quel que soit le nom d'organisateur choisi par le testeur.
+  {
+    id: "demo-1v1-en-cours",
+    code: "DM1V1X",
+    jeuId: "tekken",
+    jeuLabel: "Tekken 8",
+    titre: "Démo · 1v1 en cours",
+    organisateur: "",
+    organisateurDynamique: true,
+    format: "1v1 · BO5",
+    type: "1v1",
+    modalite: "virtuel",
+    ville: "En ligne",
+    dateLabel: "En cours",
+    cashPrizeXof: 40000,
+    fraisXof: 500,
+    placesInscrites: 4,
+    placesTotal: 4,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Élimination directe, BO5 sur tous les tours.",
+    inscrits: ["Fofana", "Bamba", "Traoré", "Adjoua"],
+    debutTournoiTs: Date.now() - 45 * 60 * 1000,
+  },
+  {
+    id: "demo-equipes-en-cours",
+    code: "DMEQPX",
+    jeuId: "codm",
+    jeuLabel: "Call of Duty Mobile",
+    titre: "Démo · Équipes en cours",
+    organisateur: "",
+    organisateurDynamique: true,
+    format: "Équipes · 5v5",
+    type: "equipes",
+    modalite: "presentiel",
+    ville: "Abidjan",
+    dateLabel: "En cours",
+    cashPrizeXof: 80000,
+    fraisXof: 2000,
+    placesInscrites: 4,
+    placesTotal: 4,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Poules puis élimination directe. BO3 dès les demies.",
+    inscrits: ["Team Alpha", "Team Beta", "Team Gamma", "Team Delta"],
+    modeEquipe: "libre",
+    debutTournoiTs: Date.now() - 40 * 60 * 1000,
+  },
+  {
+    id: "demo-br-solo-en-cours",
+    code: "DMBRSX",
+    jeuId: "pubgm",
+    jeuLabel: "PUBG Mobile",
+    titre: "Démo · Battle Royale Solo en cours",
+    organisateur: "",
+    organisateurDynamique: true,
+    format: "Battle Royale · Solo · 50 joueurs",
+    type: "battle_royale",
+    modalite: "virtuel",
+    ville: "En ligne",
+    dateLabel: "En cours",
+    cashPrizeXof: 50000,
+    fraisXof: 500,
+    placesInscrites: 50,
+    placesTotal: 50,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Manches successives, barème de points cumulés.",
+    inscrits: ["Kader B.", "Yao M.", "Aya K."],
+    brSousType: "solo",
+    debutTournoiTs: Date.now() - 25 * 60 * 1000,
+  },
+  {
+    id: "demo-br-duo-en-cours",
+    code: "DMBRDX",
+    jeuId: "freefire",
+    jeuLabel: "Free Fire",
+    titre: "Démo · Battle Royale Duo en cours",
+    organisateur: "",
+    organisateurDynamique: true,
+    format: "Battle Royale · Duo · 30 joueurs (15 duos)",
+    type: "battle_royale",
+    modalite: "presentiel",
+    ville: "Abidjan",
+    dateLabel: "En cours",
+    cashPrizeXof: 45000,
+    fraisXof: 1000,
+    placesInscrites: 30,
+    placesTotal: 30,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Manches successives par duo. Barème de points cumulés.",
+    inscrits: ["Duo 1", "Duo 2", "Duo 3"],
+    brSousType: "duo",
+    debutTournoiTs: Date.now() - 20 * 60 * 1000,
+  },
+  {
+    id: "demo-br-squad-en-cours",
+    code: "DMBRQX",
+    jeuId: "freefire",
+    jeuLabel: "Free Fire",
+    titre: "Démo · Battle Royale Squad en cours",
+    organisateur: "",
+    organisateurDynamique: true,
+    format: "Battle Royale · Squad · 32 joueurs (8 squads)",
+    type: "battle_royale",
+    modalite: "presentiel",
+    ville: "Abidjan",
+    dateLabel: "En cours",
+    cashPrizeXof: 60000,
+    fraisXof: 1000,
+    placesInscrites: 32,
+    placesTotal: 32,
+    checkin: "Terminé",
+    enDirect: true,
+    reglement: "Manches successives par squad de 4. Barème de points cumulés.",
+    inscrits: ["Squad 1", "Squad 2", "Squad 3"],
+    brSousType: "squad",
+    debutTournoiTs: Date.now() - 15 * 60 * 1000,
+  },
 ];
 
 const CLE_TOURNOIS_CREES = "tourney-tournois-crees";
@@ -483,6 +610,7 @@ function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
     const monNom = inscription ? (inscription.equipe ?? inscription.tag ?? profil.pseudo) : null;
     return {
       ...t,
+      organisateur: t.organisateurDynamique ? nomOrganisateurActuel() : t.organisateur,
       placesInscrites: t.placesInscrites + (supplements[t.id] ?? 0),
       termine: t.termine || termines.includes(t.id),
       annule: t.annule || annules.includes(t.id),

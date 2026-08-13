@@ -155,10 +155,17 @@ export default function NouveauTournoiPage() {
   const places =
     type === "battle_royale" ? Math.min(Number(placesBR) || 0, capaciteMax) : Number(placesTotal) || 0;
   const commission = payant && commissionActivee ? decomposerCommission(Number(fraisXof) || 0, places) : { brute: 0, partPlateforme: 0, net: 0 };
+  // Cash prize d'un tournoi payant : plus de saisie manuelle (point 84) — la
+  // cagnotte est entièrement dérivée des frais d'inscription collectés
+  // (frais × places attendues), moins la commission de l'organisateur si
+  // elle est activée. Se recalcule en temps réel à chaque changement.
+  const poolBrut = payant ? (Number(fraisXof) || 0) * places : 0;
+  const cashPrizeAutoPayant = Math.max(0, poolBrut - commission.brute);
+  // Pour un tournoi gratuit financé par l'organisateur, il n'y a pas de
+  // cagnotte à dériver de frais inexistants : ce montant reste une saisie
+  // manuelle (ce que l'organisateur engage lui-même depuis son solde).
   const cashPrizeNum = Number(cashPrizeXof) || 0;
-  // Le cash prize affiché aux joueurs et effectivement réparti est toujours
-  // net de la commission organisateur, quand elle est activée (point 81).
-  const cashPrizeEffectif = payant && commissionActivee ? Math.max(0, cashPrizeNum - commission.brute) : cashPrizeNum;
+  const cashPrizeEffectif = payant ? cashPrizeAutoPayant : financeParOrganisateur ? cashPrizeNum : 0;
   const nbFinalistes = modeFinalistes === "1" ? 1 : modeFinalistes === "3" ? 3 : Math.max(1, Number(nbFinalistesPerso) || 1);
   const repartitionCalculee = repartitionAutomatique(cashPrizeEffectif, nbFinalistes);
 
@@ -493,10 +500,7 @@ export default function NouveauTournoiPage() {
 
           {payant && (
             <>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Frais d'inscription (F)" type="number" min={0} value={fraisXof} onChange={(e) => setFraisXof(e.target.value)} />
-                <Field label="Cash prize (F)" type="number" min={0} value={cashPrizeXof} onChange={(e) => setCashPrizeXof(e.target.value)} />
-              </div>
+              <Field label="Frais d'inscription (F)" type="number" min={0} value={fraisXof} onChange={(e) => setFraisXof(e.target.value)} />
               {Number(fraisXof) > 0 && (
                 <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
                   Des frais de création de {formatXof(FRAIS_CREATION_TOURNOI_PAYANT_XOF)} te seront demandés avant la publication (tournoi payant à l&apos;inscription).
@@ -536,9 +540,7 @@ export default function NouveauTournoiPage() {
             </>
           )}
 
-          {(payant || financeParOrganisateur) && (
-            <>
-              {cashPrizeNum > 0 && (
+          {((payant && Number(fraisXof) > 0 && places > 0) || (financeParOrganisateur && cashPrizeNum > 0)) && (
                 <div className="flex flex-col gap-2">
                   <div
                     className="text-xs uppercase tracking-wide"
@@ -546,10 +548,29 @@ export default function NouveauTournoiPage() {
                   >
                     Répartition du cash prize
                   </div>
-                  {payant && commissionActivee && (
-                    <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                      Cash prize net de ta commission : {formatXof(cashPrizeEffectif)} (sur {formatXof(cashPrizeNum)} annoncés).
-                    </p>
+                  {payant && (
+                    <div
+                      className="p-3 flex flex-col gap-1 text-xs"
+                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span style={{ color: "var(--ds-muted)" }}>Cagnotte attendue ({places} places × {formatXof(Number(fraisXof) || 0)})</span>
+                        <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(poolBrut)}</span>
+                      </div>
+                      {commissionActivee && (
+                        <div className="flex items-center justify-between">
+                          <span style={{ color: "var(--ds-muted)" }}>Ta commission ({Math.round(COMMISSION_PCT * 100)} %)</span>
+                          <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.brute)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-border)" }}>
+                        <span>Cash prize (pour les finalistes)</span>
+                        <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{formatXof(cashPrizeEffectif)}</span>
+                      </div>
+                      <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
+                        Recalculé automatiquement si tu changes les frais, le nombre de places ou la commission.
+                      </p>
+                    </div>
                   )}
                   <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
                     Choisis combien de finalistes se partagent le cash prize — la répartition entre eux est calculée automatiquement (barème dégressif).
@@ -584,8 +605,6 @@ export default function NouveauTournoiPage() {
                     ))}
                   </div>
                 </div>
-              )}
-            </>
           )}
         </div>
 

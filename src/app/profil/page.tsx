@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck } from "lucide-react";
+import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck, Heart, HeartCrack, Users, Trophy, Plus } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { Button } from "@/components/ds/Button";
 import { lireProfil, estActif, mesPointsCumules, palierActuel } from "@/lib/mockProfil";
@@ -12,14 +11,15 @@ import { BadgePalier } from "@/components/ds/Palier";
 import { lireSolde } from "@/lib/mockWallet";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
-import { tournoiParId, estTermine, mesTournoisOrganises } from "@/lib/mockTournaments";
-import { estCertifie } from "@/lib/mockOrganisateur";
+import { tournoiParId, estTermine, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
+import { estCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
+import { compteurFollowers } from "@/lib/mockSuiviOrganisateur";
+import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { rolePrefere, definirRole, type Role } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 export default function ProfilPage() {
   const connecte = useExigerConnexion();
-  const router = useRouter();
   const [profil] = useState(lireProfil);
   const [solde, setSolde] = useState(0);
   const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0 });
@@ -28,6 +28,16 @@ export default function ProfilPage() {
     certifie: false,
   });
   const [role, setRole] = useState<Role>("joueur");
+  const [vueOrga, setVueOrga] = useState<{
+    onboardingOk: boolean;
+    nom: string;
+    tag?: string;
+    coeurs: number;
+    coeursBrises: number;
+    followers: number;
+    rang: number;
+    tournois: Tournoi[];
+  } | null>(null);
   const winrate = Math.round((profil.victoires / profil.matchsJoues) * 100);
 
   useEffect(() => {
@@ -41,12 +51,26 @@ export default function ProfilPage() {
     setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length });
     setOrganisateur({ estOrganisateur: mesTournoisOrganises().length > 0, certifie: estCertifie() });
     setRole(rolePrefere());
+
+    const onboardingOk = onboardingOrganisateurComplet();
+    const nomOrga = nomOrganisateurActuel();
+    const stats = statistiquesReputation(nomOrga);
+    const classement = classementOrganisateurs();
+    setVueOrga({
+      onboardingOk,
+      nom: nomOrga,
+      tag: tagOrganisateur(),
+      coeurs: stats.coeurs,
+      coeursBrises: stats.coeursBrises,
+      followers: compteurFollowers(nomOrga),
+      rang: classement.findIndex((o) => o.nom === nomOrga) + 1,
+      tournois: mesTournoisOrganises(),
+    });
   }, []);
 
   function basculerRole(nouveau: Role) {
     definirRole(nouveau);
     setRole(nouveau);
-    if (nouveau === "organisateur") router.push("/organisateur");
   }
 
   const menu = [
@@ -156,6 +180,8 @@ export default function ProfilPage() {
         </div>
       </div>
 
+      {role === "joueur" && (
+      <>
       <div className="px-5">
         <div
           className="p-4"
@@ -268,6 +294,102 @@ export default function ProfilPage() {
           </Link>
         )}
       </div>
+      </>
+      )}
+
+      {role === "organisateur" && vueOrga && (
+        <div className="px-5 pt-2 pb-24 flex-1 flex flex-col gap-4">
+          {!vueOrga.onboardingOk ? (
+            <div className="flex flex-col items-center text-center gap-3 py-10 px-4">
+              <ShieldCheck size={26} style={{ color: "var(--ds-accent-300)" }} />
+              <div className="text-base font-medium">Deviens organisateur</div>
+              <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
+                Vérifie ton identité pour pouvoir créer et gérer tes propres tournois.
+              </p>
+              <Link href="/verification-identite">
+                <Button variante="primary">Vérifier mon identité</Button>
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-lg font-medium">{vueOrga.nom}</div>
+                  {vueOrga.tag && <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>@{vueOrga.tag}</div>}
+                </div>
+                <Link href="/organisateur/nouveau">
+                  <Button variante="secondary">
+                    <Plus size={15} strokeWidth={2} />
+                    Créer
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-3 flex flex-col items-center gap-1" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+                  <div className="flex items-center gap-1.5">
+                    <Users size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+                    <span className="text-lg" style={{ fontFamily: "var(--ds-font-mono)" }}>{vueOrga.followers}</span>
+                  </div>
+                  <div className="text-[10px]" style={{ color: "var(--ds-muted)" }}>followers</div>
+                </div>
+                <div className="p-3 flex flex-col items-center gap-1" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+                  <div className="flex items-center gap-1.5">
+                    <Heart size={14} strokeWidth={2} fill="currentColor" style={{ color: "var(--ds-accent-400)" }} />
+                    <span className="text-lg" style={{ fontFamily: "var(--ds-font-mono)" }}>{vueOrga.coeurs}</span>
+                  </div>
+                  <div className="text-[10px]" style={{ color: "var(--ds-muted)" }}>cœurs</div>
+                </div>
+                <div className="p-3 flex flex-col items-center gap-1" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+                  <div className="flex items-center gap-1.5">
+                    <HeartCrack size={14} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                    <span className="text-lg" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{vueOrga.coeursBrises}</span>
+                  </div>
+                  <div className="text-[10px]" style={{ color: "var(--ds-muted)" }}>brisés</div>
+                </div>
+              </div>
+
+              <Link
+                href={`/organisateur/profil/${encodeURIComponent(vueOrga.nom)}`}
+                className="flex items-center justify-between p-3"
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+              >
+                <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+                  Voir mon profil organisateur complet
+                </span>
+                <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
+              </Link>
+
+              <div className="flex flex-col gap-2">
+                <div className="text-[11px] uppercase tracking-wide flex items-center gap-2" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                  <Trophy size={13} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+                  Tournois organisés · {vueOrga.tournois.length}
+                </div>
+                {vueOrga.tournois.length === 0 ? (
+                  <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>Aucun tournoi pour l&apos;instant.</p>
+                ) : (
+                  vueOrga.tournois.map((t) => (
+                    <Link
+                      key={t.id}
+                      href={`/tournois/${t.id}`}
+                      className="flex items-center gap-3 p-3"
+                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{t.titre}</div>
+                        <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                          {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal}
+                        </div>
+                      </div>
+                      <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
+                    </Link>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <TabBar />
     </div>

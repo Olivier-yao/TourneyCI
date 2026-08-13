@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, estAnnule } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
@@ -67,6 +67,7 @@ export default function ProfilOrganisateurPage() {
   const [tag, setTag] = useState<string | undefined>(undefined);
   const [bio, setBio] = useState<string | undefined>(undefined);
   const [banniere, setBanniere] = useState<string | undefined>(undefined);
+  const [editionBanniereOuverte, setEditionBanniereOuverte] = useState(false);
   const [suivi, setSuivi] = useState(false);
   const [nbFollowers, setNbFollowers] = useState(0);
   const [masqueFollowers, setMasqueFollowers] = useState(false);
@@ -187,15 +188,33 @@ export default function ProfilOrganisateurPage() {
         >
           <Share2 size={14} strokeWidth={2} />
         </button>
+        {cestMoi && (
+          <button
+            type="button"
+            onClick={() => setEditionBanniereOuverte(true)}
+            className={`absolute bottom-3 right-[18px] flex items-center gap-1.5 px-3 h-8 text-xs font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-pill)", background: "color-mix(in srgb, var(--ds-bg) 70%, transparent)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+          >
+            <Camera size={13} strokeWidth={2} />
+            {banniere ? "Changer" : "Ajouter une bannière"}
+          </button>
+        )}
       </div>
 
-      <div className="flex flex-col px-5 py-4 gap-4">
-        {cestMoi && (
-          <div className="-mt-[92px] mb-2">
-            <BannerCropper banniereActuelle={banniere} onValider={(dataUrl) => { definirBanniereOrganisateur(dataUrl); setBanniere(dataUrl); }} />
-          </div>
-        )}
+      <Modal ouvert={editionBanniereOuverte} titre="Bannière du profil" onFermer={() => setEditionBanniereOuverte(false)}>
+        <div className="not-italic" style={{ whiteSpace: "normal" }}>
+          <BannerCropper
+            banniereActuelle={banniere}
+            onValider={(dataUrl) => {
+              definirBanniereOrganisateur(dataUrl);
+              setBanniere(dataUrl);
+              setEditionBanniereOuverte(false);
+            }}
+          />
+        </div>
+      </Modal>
 
+      <div className="flex flex-col px-5 py-4 gap-4">
         {!cestMoi && (
           <div className="flex items-end gap-3.5 -mt-[34px]">
             <div className="relative shrink-0">

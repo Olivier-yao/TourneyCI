@@ -122,6 +122,10 @@ const PARTICIPANTS_INITIAUX: Record<string, ParticipantBR[]> = {
   "freefire-night": genererParticipants(15),
   "br-solo-yopougon": genererParticipants(14, 7),
   "br-squad-treichville": genererParticipantsSquad(48, 4, 16, 13),
+  // Démo en cours (point 85), organisateur = utilisateur courant.
+  "demo-br-solo-en-cours": genererParticipants(10, 77),
+  "demo-br-duo-en-cours": genererParticipantsSquad(30, 2, 8, 91),
+  "demo-br-squad-en-cours": genererParticipantsSquad(32, 4, 8, 63),
 };
 
 const CLE_PARTICIPANTS_BR = "tourney-participants-br";

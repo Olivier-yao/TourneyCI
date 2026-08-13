@@ -56,14 +56,14 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
       style={{ borderRadius: "var(--ds-radius-lg)", background: "radial-gradient(120% 140% at 50% 0%, var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
     >
       <div className="grid grid-cols-3 items-end gap-2">
-        {ORDRE_PODIUM.map((i) => {
+        {ORDRE_PODIUM.map((i, colonne) => {
           const entree = top3[i];
           if (!entree) return <div key={`vide-${i}`} />;
           const or = entree.position === 1;
           return (
             <Link key={`podium-${entree.position}`} href={`/joueur/${encodeURIComponent(entree.nom)}`} className="flex flex-col items-center gap-2">
               <div className="relative">
-                <Avatar initiales={entree.initiales} taille={TAILLES_AVATAR[i]} photoUrl={entree.moi ? monPhotoUrl : undefined} />
+                <Avatar initiales={entree.initiales} taille={TAILLES_AVATAR[colonne]} photoUrl={entree.moi ? monPhotoUrl : undefined} />
                 <div
                   className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
                   style={{
@@ -88,7 +88,7 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
               <div
                 className="w-full flex items-start justify-center pt-1.5"
                 style={{
-                  height: HAUTEURS_MARCHE[i],
+                  height: HAUTEURS_MARCHE[colonne],
                   borderRadius: "var(--ds-radius-sm) var(--ds-radius-sm) 0 0",
                   background: or ? "var(--ds-accent-900)" : "transparent",
                   border: `1px solid ${or ? "var(--ds-accent-700)" : "var(--ds-border)"}`,
