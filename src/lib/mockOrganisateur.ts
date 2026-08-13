@@ -77,6 +77,47 @@ export function onboardingOrganisateurComplet(): boolean {
 }
 
 /**
+ * Identité complémentaire du profil organisateur (point 58/59) : TAG
+ * personnel, bio et bannière. Comme le nom d'organisateur ci-dessus, ces
+ * champs ne sont connus que de l'appareil courant (pas de backend partagé) —
+ * ils ne sont donc affichables que sur le profil "cestMoi", pas sur celui
+ * d'un autre organisateur consulté depuis cet appareil.
+ */
+const CLE_TAG_ORGANISATEUR = "tourney-tag-organisateur";
+const CLE_BIO_ORGANISATEUR = "tourney-bio-organisateur";
+const CLE_BANNIERE_ORGANISATEUR = "tourney-banniere-organisateur";
+
+export function tagOrganisateur(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return localStorage.getItem(CLE_TAG_ORGANISATEUR) || undefined;
+}
+
+export function definirTagOrganisateur(tag: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_TAG_ORGANISATEUR, tag.trim());
+}
+
+export function bioOrganisateur(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return localStorage.getItem(CLE_BIO_ORGANISATEUR) || undefined;
+}
+
+export function definirBioOrganisateur(bio: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_BIO_ORGANISATEUR, bio.trim());
+}
+
+export function banniereOrganisateur(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return localStorage.getItem(CLE_BANNIERE_ORGANISATEUR) || undefined;
+}
+
+export function definirBanniereOrganisateur(dataUrl: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_BANNIERE_ORGANISATEUR, dataUrl);
+}
+
+/**
  * Réputation & modération anti-triche (mock) — basée sur les avis
  * cœur/cœur brisé laissés en fin de tournoi (cf. mockAvis). Un organisateur
  * qui accumule trop de cœurs brisés voit sa capacité à créer des tournois

@@ -16,6 +16,7 @@ import {
   creerTournoi,
   decomposerCommission,
   tauxPlateformeSurCommission,
+  capaciteLobbyMax,
   FRAIS_CREATION_TOURNOI_PAYANT_XOF,
   type TypeCompetition,
   type Modalite,
@@ -96,6 +97,7 @@ export default function NouveauTournoiPage() {
   const [modeEquipe, setModeEquipe] = useState<ModeEquipe>("libre");
   const [nomsEquipes, setNomsEquipes] = useState("");
   const [placesTotal, setPlacesTotal] = useState("16");
+  const [placesBR, setPlacesBR] = useState("50");
   const [payant, setPayant] = useState(false);
   const [commissionActivee, setCommissionActivee] = useState(false);
   const [tauxPlateforme, setTauxPlateforme] = useState(0.2);
@@ -150,7 +152,9 @@ export default function NouveauTournoiPage() {
   const jeu = JEUX.find((j) => j.id === jeuId);
   const jeuIdFinal = jeuId === "autre" ? jeuPersonnalise.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : jeuId;
   const jeuLabelFinal = jeuId === "autre" ? jeuPersonnalise.trim() : (jeu?.label ?? "");
-  const places = type === "battle_royale" ? 50 : Number(placesTotal) || 0;
+  const capaciteMax = capaciteLobbyMax(jeuIdFinal);
+  const places =
+    type === "battle_royale" ? Math.min(Number(placesBR) || 0, capaciteMax) : Number(placesTotal) || 0;
   const commission = payant && commissionActivee ? decomposerCommission(Number(fraisXof) || 0, places) : { brute: 0, partPlateforme: 0, net: 0 };
   const cashPrizeNum = Number(cashPrizeXof) || 0;
 
@@ -402,8 +406,16 @@ export default function NouveauTournoiPage() {
               Sous-type
             </label>
             <SegmentedControl options={SOUS_TYPES_BR} valeur={brSousType} onChange={setBrSousType} />
+            <Field
+              label={`Nombre de ${brSousType === "solo" ? "joueurs" : "places"}`}
+              type="number"
+              min={2}
+              max={capaciteMax}
+              value={placesBR}
+              onChange={(e) => setPlacesBR(e.target.value)}
+            />
             <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-              50 joueurs par défaut pour un Battle Royale.
+              Capacité maximale de lobby pour ce jeu : {capaciteMax} joueurs.
             </p>
           </div>
         )}

@@ -12,6 +12,7 @@ import { formatXof } from "@/lib/formatXof";
 import { incrementerInscrits } from "@/lib/mockTournaments";
 import { enregistrerInscription } from "@/lib/mockInscriptions";
 import { lireSolde, debiter } from "@/lib/mockWallet";
+import { marquerPaiementCouvert } from "@/lib/mockEquipesBR";
 import type { Tournoi } from "@/lib/mockTournaments";
 
 type Etape = "moyen" | "attente" | "succes" | "echec";
@@ -35,12 +36,21 @@ export function FluxPaiement({
   tournoi,
   equipe,
   tag,
+  montant,
+  equipeId,
 }: {
   tournoi: Tournoi;
   equipe?: string;
   tag?: string;
+  /** Montant réellement dû pour cette inscription (peut différer des frais
+   * unitaires du tournoi quand le chef paie pour toute son équipe). */
+  montant?: number;
+  /** Présent uniquement quand ce paiement couvre toute une équipe BR (point
+   * 56) : marque l'équipe comme "frais déjà payés" une fois le paiement confirmé. */
+  equipeId?: string;
 }) {
   const router = useRouter();
+  const montantDu = montant ?? tournoi.fraisXof;
   const [etape, setEtape] = useState<Etape>("moyen");
   const [moyen, setMoyen] = useState<MoyenPaiement>("orange");
   const [telephone, setTelephone] = useState(numeroInitial);
@@ -52,18 +62,23 @@ export function FluxPaiement({
     setSoldeCarte(lireSolde());
   }, []);
 
+  function inscriptionReussie() {
+    enregistrerInscription(tournoi.id, tag, equipe);
+    incrementerInscrits(tournoi.id);
+    if (equipeId) marquerPaiementCouvert(equipeId);
+  }
+
   function payer(e: React.FormEvent) {
     e.preventDefault();
 
     if (moyen === "tourneycard") {
-      const ok = tournoi.fraisXof === 0 || debiter(tournoi.fraisXof, `Inscription · ${tournoi.titre}`, "inscription");
+      const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription");
       if (!ok) {
         setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
         return;
       }
       setErreur(null);
-      enregistrerInscription(tournoi.id, equipe);
-      incrementerInscrits(tournoi.id);
+      inscriptionReussie();
       setEtape("succes");
       return;
     }
@@ -77,10 +92,7 @@ export function FluxPaiement({
     // Simulation : le vrai flux attendrait la confirmation USSD de l'agrégateur.
     setTimeout(() => {
       const reussi = !telephone.includes("0000");
-      if (reussi) {
-        enregistrerInscription(tournoi.id, tag, equipe);
-        incrementerInscrits(tournoi.id);
-      }
+      if (reussi) inscriptionReussie();
       setEtape(reussi ? "succes" : "echec");
     }, 2200);
   }
@@ -159,7 +171,7 @@ export function FluxPaiement({
             Montant à payer
           </div>
           <div className="mt-1.5 text-3xl font-semibold" style={{ fontFamily: "var(--ds-font-mono)" }}>
-            {formatXof(tournoi.fraisXof)}
+            {formatXof(montantDu)}
           </div>
           <div className="mt-1 text-[13px]" style={{ color: "var(--ds-muted)" }}>
             {tournoi.titre} · frais inclus
@@ -167,6 +179,7 @@ export function FluxPaiement({
           {equipe && (
             <div className="mt-1 text-[13px]" style={{ color: "var(--ds-accent-300)" }}>
               Équipe : {equipe}
+              {equipeId ? " (paiement pour toute l'équipe)" : ""}
             </div>
           )}
         </div>
@@ -261,7 +274,7 @@ export function FluxPaiement({
         </div>
 
         <Button variante="primary" bloc type="submit">
-          Payer {formatXof(tournoi.fraisXof)}
+          Payer {formatXof(montantDu)}
         </Button>
       </form>
     </div>

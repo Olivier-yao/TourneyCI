@@ -170,6 +170,21 @@ export const JEUX: { id: string; label: string; genre: GenreJeu }[] = [
 
 export const TYPES_JEU: GenreJeu[] = ["FPS", "TPS", "Combat", "Sport", "Battle Royale"];
 
+/** Capacité technique maximale d'une lobby par jeu (Battle Royale) : plafond
+ * que l'organisateur ne peut pas dépasser en choisissant son effectif. */
+const CAPACITE_LOBBY_PAR_JEU: Record<string, number> = {
+  freefire: 50,
+  pubgm: 100,
+  fortnite: 100,
+  bloodstrike: 60,
+  farlight84: 60,
+};
+const CAPACITE_LOBBY_DEFAUT = 50;
+
+export function capaciteLobbyMax(jeuId: string): number {
+  return CAPACITE_LOBBY_PAR_JEU[jeuId] ?? CAPACITE_LOBBY_DEFAUT;
+}
+
 export const MODES_JEU = ["1v1", "Team", "Battle Royale", "Recherche et destruction", "Capture de zone"] as const;
 export type ModeJeu = (typeof MODES_JEU)[number];
 

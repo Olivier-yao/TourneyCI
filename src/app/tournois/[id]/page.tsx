@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
@@ -78,8 +78,10 @@ function BoutonPartager() {
   );
 }
 
-export default function DetailTournoiPage() {
+function DetailTournoiInterne() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const equipePreselectionneeId = searchParams.get("equipe") ?? undefined;
   const tournoi = tournoiParId(params.id);
   const [organisateur, setOrganisateur] = useState(false);
   const [modaleOuverte, setModaleOuverte] = useState<"informations" | "reglement" | null>(null);
@@ -99,10 +101,10 @@ export default function DetailTournoiPage() {
     setEstMonTournoi(monTournoi);
     setAccesChat(estInscrit(params.id) || estOrganisateur());
     if (tournoi) setFermeInscriptions(inscriptionsFermees(tournoi));
-    // Un joueur peut laisser un cœur sur un tournoi à tout moment en le
-    // consultant, pas seulement une fois celui-ci terminé (point 51) — sauf
-    // s'il en est l'organisateur.
-    setDemanderAvis(!monTournoi && !monAvisPourTournoi(params.id));
+    // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
+    // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
+    // l'inscription ni pendant le déroulement, et jamais à l'organisateur.
+    setDemanderAvis(!monTournoi && Boolean(tournoi?.termine) && !monAvisPourTournoi(params.id));
     setAvisCompte(compterAvis(params.id));
     if (tournoi?.termine) {
       reevaluerPaiementsEnAttente();
@@ -239,27 +241,6 @@ export default function DetailTournoiPage() {
           · {tournoi.dateLabel}
         </p>
 
-        {(avisCompte.coeurs > 0 || avisCompte.coeursBrises > 0) && (
-          <div className="flex items-center gap-3 text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-            <span className="flex items-center gap-1"><Heart size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />{avisCompte.coeurs}</span>
-            <span className="flex items-center gap-1"><HeartCrack size={12} strokeWidth={2} style={{ color: "var(--ds-danger)" }} />{avisCompte.coeursBrises}</span>
-          </div>
-        )}
-
-        {demanderAvis && (
-          <AvisCoeur
-            tournoiId={tournoi.id}
-            tournoiTitre={tournoi.titre}
-            organisateur={tournoi.organisateur}
-            onEnvoye={() => {
-              setDemanderAvis(false);
-              reevaluerPaiementsEnAttente();
-              setEnSequestre(cashPrizeEnSequestre(tournoi.id));
-              setAvisCompte(compterAvis(tournoi.id));
-            }}
-          />
-        )}
-
         {peutContester && (
           <AppelResultats
             tournoiId={tournoi.id}
@@ -363,6 +344,27 @@ export default function DetailTournoiPage() {
           </div>
         )}
 
+        {(avisCompte.coeurs > 0 || avisCompte.coeursBrises > 0) && (
+          <div className="flex items-center gap-3 text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            <span className="flex items-center gap-1"><Heart size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />{avisCompte.coeurs}</span>
+            <span className="flex items-center gap-1"><HeartCrack size={12} strokeWidth={2} style={{ color: "var(--ds-danger)" }} />{avisCompte.coeursBrises}</span>
+          </div>
+        )}
+
+        {demanderAvis && (
+          <AvisCoeur
+            tournoiId={tournoi.id}
+            tournoiTitre={tournoi.titre}
+            organisateur={tournoi.organisateur}
+            onEnvoye={() => {
+              setDemanderAvis(false);
+              reevaluerPaiementsEnAttente();
+              setEnSequestre(cashPrizeEnSequestre(tournoi.id));
+              setAvisCompte(compterAvis(tournoi.id));
+            }}
+          />
+        )}
+
         {aUnBracket && (
           <Link
             href={lienBracket}
@@ -415,6 +417,9 @@ export default function DetailTournoiPage() {
         typeCompetition={tournoi.type}
         equipes={tournoi.equipes}
         modeEquipe={tournoi.modeEquipe}
+        brSousType={tournoi.brSousType}
+        organisateur={tournoi.organisateur}
+        equipePreselectionneeId={equipePreselectionneeId}
         tournoiCommence={tournoi.enDirect || Boolean(tournoi.termine) || Boolean(tournoi.annule)}
         fermeInscriptions={fermeInscriptions}
         estMonTournoi={estMonTournoi}
@@ -427,5 +432,13 @@ export default function DetailTournoiPage() {
         {tournoi.reglement}
       </Modal>
     </div>
+  );
+}
+
+export default function DetailTournoiPage() {
+  return (
+    <Suspense fallback={null}>
+      <DetailTournoiInterne />
+    </Suspense>
   );
 }

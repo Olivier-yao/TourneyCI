@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Search, CheckCircle2, Flame } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, Flame, Lock } from "lucide-react";
 import { Avatar } from "@/components/ds/Avatar";
 import { EmptyState } from "@/components/ds/EmptyState";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { PRESS } from "@/components/ds/Button";
+import { tournoiParId, inscriptionsFermees } from "@/lib/mockTournaments";
 import { lireProfil, estActif } from "@/lib/mockProfil";
 import { inscriptionDe } from "@/lib/mockInscriptions";
 import { estPresent, definirPresence } from "@/lib/mockCheckin";
 import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 function tagDe(nom: string): string {
   return `#${nom.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`;
@@ -22,6 +24,7 @@ export default function InscritsPage() {
   const [requete, setRequete] = useState("");
   const [monPseudo, setMonPseudo] = useState<{ nom: string; actif: boolean; photoUrl?: string } | null>(null);
   const [organisateur, setOrganisateur] = useState(false);
+  const [estMonTournoi, setEstMonTournoi] = useState(false);
   const [versionCheckin, setVersionCheckin] = useState(0);
 
   useEffect(() => {
@@ -31,6 +34,8 @@ export default function InscritsPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
     setOrganisateur(estOrganisateur());
+    setEstMonTournoi(tournoi?.organisateur === nomOrganisateurActuel());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   const inscrits = useMemo(() => {
@@ -51,6 +56,27 @@ export default function InscritsPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <p>Tournoi introuvable.</p>
         <Link href="/tournois" style={{ color: "var(--ds-accent-300)" }}>Retour aux tournois</Link>
+      </div>
+    );
+  }
+
+  if (!estMonTournoi && !inscriptionsFermees(tournoi)) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+        <div className="sticky top-0 z-10 px-5 pt-[22px] pb-3 flex items-center gap-3" style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}>
+          <Link href={`/tournois/${params.id}`} className={PRESS} style={{ color: "var(--ds-muted)" }}>
+            <ArrowLeft size={19} strokeWidth={2} />
+          </Link>
+          <div className="text-lg" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
+            Inscrits
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <Lock size={22} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            La liste des inscrits sera visible une fois les inscriptions closes.
+          </p>
+        </div>
       </div>
     );
   }

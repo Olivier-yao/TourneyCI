@@ -2,17 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon } from "lucide-react";
+import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon, Sparkles, Crown } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ds/Button";
+import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
+import { Avatar } from "@/components/ds/Avatar";
 import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { estInscrit, inscriptionDe, renommerEquipe, enregistrerInscription } from "@/lib/mockInscriptions";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
 import { incrementerInscrits } from "@/lib/mockTournaments";
 import { lireProfil } from "@/lib/mockProfil";
+import { monSoutienPourOrganisateur, soutenirOrganisateur } from "@/lib/mockSoutien";
+import {
+  equipesDuTournoi,
+  equipeParId,
+  equipeDeJoueur,
+  creerEquipeBR,
+  demanderRejoindre,
+  aUneDemandeEnAttente,
+  rejoindreEquipeAleatoire,
+  TAILLE_EQUIPE_BR,
+  type EquipeBR,
+} from "@/lib/mockEquipesBR";
+import type { SousTypeBR } from "@/lib/mockBattleRoyale";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
 export function CtaInscription({
@@ -24,6 +38,9 @@ export function CtaInscription({
   typeCompetition,
   equipes,
   modeEquipe,
+  brSousType,
+  organisateur,
+  equipePreselectionneeId,
   tournoiCommence = false,
   fermeInscriptions = false,
   estMonTournoi = false,
@@ -36,12 +53,16 @@ export function CtaInscription({
   typeCompetition: TypeCompetition;
   equipes?: EquipeInfo[];
   modeEquipe?: ModeEquipe;
+  brSousType?: SousTypeBR;
+  organisateur: string;
+  equipePreselectionneeId?: string;
   tournoiCommence?: boolean;
   fermeInscriptions?: boolean;
   estMonTournoi?: boolean;
 }) {
   const router = useRouter();
   const estEquipes = typeCompetition === "equipes";
+  const estBREquipes = typeCompetition === "battle_royale" && brSousType && brSousType !== "solo";
   const [choixEquipe, setChoixEquipe] = useState(false);
   const [nomEquipe, setNomEquipe] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -53,12 +74,26 @@ export function CtaInscription({
   const [nouveauNomEquipe, setNouveauNomEquipe] = useState("");
   const [confirmationOuverte, setConfirmationOuverte] = useState(false);
   const [equipeEnAttente, setEquipeEnAttente] = useState<string | undefined>(undefined);
+  const [equipeIdEnAttente, setEquipeIdEnAttente] = useState<string | undefined>(undefined);
   const [choixTag, setChoixTag] = useState(false);
   const [monPseudo, setMonPseudo] = useState("");
   const [utiliserPseudo, setUtiliserPseudo] = useState(true);
   const [tagPerso, setTagPerso] = useState("");
   const [tagEnAttente, setTagEnAttente] = useState<string | undefined>(undefined);
   const [presenceAcceptee, setPresenceAcceptee] = useState(false);
+  const [montantEnAttente, setMontantEnAttente] = useState(fraisXof);
+
+  const [etapeBR, setEtapeBR] = useState<"menu" | "creer" | "rejoindre" | null>(null);
+  const [equipesBR, setEquipesBR] = useState<EquipeBR[]>([]);
+  const [nomEquipeBR, setNomEquipeBR] = useState("");
+  const [payerPourEquipe, setPayerPourEquipe] = useState(false);
+  const [equipeInvitee, setEquipeInvitee] = useState<EquipeBR | undefined>(undefined);
+  const [demandeEnvoyee, setDemandeEnvoyee] = useState(false);
+  const [equipeEnAttentePaiement, setEquipeEnAttentePaiement] = useState<EquipeBR | undefined>(undefined);
+
+  const [soutien, setSoutien] = useState(false);
+  const [soutienModalOuvert, setSoutienModalOuvert] = useState(false);
+  const [monEquipeChef, setMonEquipeChef] = useState<EquipeBR | undefined>(undefined);
 
   useEffect(() => {
     // Lu depuis le localStorage : état neutre au premier rendu serveur,
@@ -66,46 +101,76 @@ export function CtaInscription({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFavori(estFavori(tournoiId));
     setNotifs(notifsActivees(tournoiId));
+    setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
+    const profil = lireProfil();
+    setMonPseudo(profil.pseudo);
+
+    const equipeConfirmee = estBREquipes ? equipeDeJoueur(tournoiId, profil.pseudo) : undefined;
+    const dejaInscrit = estInscrit(tournoiId);
+    if (!dejaInscrit && equipeConfirmee) {
+      if (fraisXof === 0 || equipeConfirmee.paiementCouvert) {
+        enregistrerInscription(tournoiId, undefined, equipeConfirmee.nom);
+        incrementerInscrits(tournoiId);
+      } else {
+        setEquipeEnAttentePaiement(equipeConfirmee);
+      }
+    }
     setInscrit(estInscrit(tournoiId));
     setEquipeInscrite(inscriptionDe(tournoiId)?.equipe);
-    setMonPseudo(lireProfil().pseudo);
+    setMonEquipeChef(equipeConfirmee && equipeConfirmee.chef === profil.pseudo ? equipeConfirmee : undefined);
+
+    if (estBREquipes && equipePreselectionneeId && !dejaInscrit && !equipeConfirmee) {
+      const equipe = equipeParId(equipePreselectionneeId);
+      setEquipeInvitee(equipe);
+      setDemandeEnvoyee(equipe ? aUneDemandeEnAttente(equipe.id, profil.pseudo) : false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournoiId]);
 
-  function allerAuPaiement(equipe?: string, tag?: string) {
+  function allerAuPaiement(opts: { equipe?: string; tag?: string; montant?: number; equipeId?: string }) {
     const params = new URLSearchParams();
-    if (equipe) params.set("equipe", equipe);
-    if (tag) params.set("tag", tag);
+    if (opts.equipe) params.set("equipe", opts.equipe);
+    if (opts.tag) params.set("tag", opts.tag);
+    if (opts.montant !== undefined) params.set("montant", String(opts.montant));
+    if (opts.equipeId) params.set("equipeId", opts.equipeId);
     const query = params.toString();
     router.push(`/paiement/${tournoiId}${query ? `?${query}` : ""}`);
   }
 
-  function demarrerInscription(equipe?: string, tag?: string) {
+  function demarrerInscription(equipe?: string, tag?: string, equipeId?: string, montant = fraisXof) {
     // Gratuit ou payant : toujours une étape de confirmation récapitulative
     // (+ avertissement présence obligatoire) avant de finaliser l'inscription
     // ou d'envoyer la demande de paiement Mobile Money.
     setEquipeEnAttente(equipe);
+    setEquipeIdEnAttente(equipeId);
     setTagEnAttente(tag);
+    setMontantEnAttente(montant);
     setPresenceAcceptee(false);
     setConfirmationOuverte(true);
   }
 
   function confirmerInscription() {
     if (!presenceAcceptee) return;
-    if (fraisXof === 0) {
+    if (montantEnAttente === 0) {
       enregistrerInscription(tournoiId, tagEnAttente, equipeEnAttente);
       incrementerInscrits(tournoiId);
       setConfirmationOuverte(false);
       setInscrit(true);
       setEquipeInscrite(equipeEnAttente);
+      setEquipeEnAttentePaiement(undefined);
       return;
     }
     setConfirmationOuverte(false);
-    allerAuPaiement(equipeEnAttente, tagEnAttente);
+    allerAuPaiement({ equipe: equipeEnAttente, tag: tagEnAttente, montant: montantEnAttente, equipeId: equipeIdEnAttente });
   }
 
   function onClicInscription() {
     if (estEquipes) {
       setChoixEquipe(true);
+      return;
+    }
+    if (estBREquipes) {
+      setEtapeBR("menu");
       return;
     }
     setChoixTag(true);
@@ -129,12 +194,91 @@ export function CtaInscription({
     demarrerInscription(undefined, tag);
   }
 
+  function validerEquipeBR() {
+    if (!nomEquipeBR.trim()) {
+      setErreur("Choisis un nom pour ton équipe.");
+      return;
+    }
+    if (!brSousType || brSousType === "solo") return;
+    setErreur(null);
+    const equipe = creerEquipeBR(tournoiId, nomEquipeBR.trim(), monPseudo, false);
+    const taille = TAILLE_EQUIPE_BR[brSousType];
+    const montant = payerPourEquipe ? fraisXof * taille : fraisXof;
+    setEtapeBR(null);
+    demarrerInscription(equipe.nom, undefined, payerPourEquipe ? equipe.id : undefined, montant);
+  }
+
+  function validerEquipeAleatoire() {
+    if (!brSousType || brSousType === "solo") return;
+    const equipe = rejoindreEquipeAleatoire(tournoiId, monPseudo, brSousType);
+    setEtapeBR(null);
+    demarrerInscription(equipe.nom, undefined, undefined, fraisXof);
+  }
+
+  function demanderRejoindreEquipe(equipe: EquipeBR) {
+    demanderRejoindre(equipe.id, monPseudo);
+    setEquipeInvitee(equipe);
+    setDemandeEnvoyee(true);
+    setEtapeBR(null);
+  }
+
+  function payerPourFinaliserAdhesion() {
+    if (!equipeEnAttentePaiement) return;
+    demarrerInscription(equipeEnAttentePaiement.nom, undefined, undefined, fraisXof);
+  }
+
   function validerRenommage() {
     if (!nouveauNomEquipe.trim()) return;
     renommerEquipe(tournoiId, nouveauNomEquipe.trim());
     setEquipeInscrite(nouveauNomEquipe.trim());
     setRenommage(false);
   }
+
+  function envoyerSoutien() {
+    soutenirOrganisateur(organisateur, tournoiId);
+    setSoutien(true);
+  }
+
+  const boutonSoutien = (
+    <button
+      type="button"
+      onClick={() => setSoutienModalOuvert(true)}
+      className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
+      style={{
+        borderRadius: "var(--ds-radius-md)",
+        border: `1px solid ${soutien ? "var(--ds-accent)" : "var(--ds-border)"}`,
+        color: soutien ? "var(--ds-accent-300)" : "var(--ds-muted)",
+      }}
+      aria-label="Soutenir l'organisateur"
+    >
+      <Sparkles size={17} strokeWidth={2} fill={soutien ? "currentColor" : "none"} />
+    </button>
+  );
+
+  const modaleSoutien = (
+    <Modal ouvert={soutienModalOuvert} titre="Soutenir l'organisateur" onFermer={() => setSoutienModalOuvert(false)}>
+      <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+        {soutien ? (
+          <p className="text-sm">Tu as déjà envoyé ton soutien à {organisateur}. Merci !</p>
+        ) : (
+          <>
+            <p className="text-sm">
+              Montre à <strong>{organisateur}</strong> que tu apprécies l&apos;organisation de ses tournois — ce
+              soutien alimente un indicateur sur son profil, distinct des avis laissés en fin de tournoi.
+            </p>
+            <button
+              type="button"
+              onClick={envoyerSoutien}
+              className={`h-10 text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+            >
+              Envoyer mon soutien
+            </button>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
 
   if (estMonTournoi) {
     return (
@@ -185,10 +329,21 @@ export function CtaInscription({
           >
             <Users size={18} strokeWidth={2} />
           </Link>
+          {monEquipeChef && (
+            <Link
+              href={`/tournois/${tournoiId}/equipe/${monEquipeChef.id}`}
+              className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+              aria-label="Gérer mon équipe"
+            >
+              <Crown size={17} strokeWidth={2} />
+            </Link>
+          )}
+          {boutonSoutien}
           <button
             type="button"
             onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
-            className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+            className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
             style={{
               borderRadius: "var(--ds-radius-md)",
               border: `1px solid ${notifs ? "var(--ds-accent)" : "var(--ds-border)"}`,
@@ -209,7 +364,7 @@ export function CtaInscription({
                   setRenommage(true);
                 }
               }}
-              className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+              className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
               style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
               aria-label={renommage ? "Valider le nouveau nom" : "Renommer l'équipe"}
             >
@@ -228,6 +383,7 @@ export function CtaInscription({
             Déjà inscrit{equipeInscrite ? ` · ${equipeInscrite}` : ""}
           </div>
         </div>
+        {modaleSoutien}
       </div>
     );
   }
@@ -237,6 +393,53 @@ export function CtaInscription({
       className="fixed bottom-0 left-0 right-0 px-5 py-4 flex flex-col gap-3"
       style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
     >
+      {equipeEnAttentePaiement && (
+        <div
+          className="flex items-center gap-2.5 p-3"
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+        >
+          <CheckCircle2 size={16} strokeWidth={2} className="shrink-0" />
+          <div className="flex-1 text-sm">
+            Tu as été accepté dans l&apos;équipe <strong>{equipeEnAttentePaiement.nom}</strong> — finalise ton
+            inscription pour confirmer ta place.
+          </div>
+          <button
+            type="button"
+            onClick={payerPourFinaliserAdhesion}
+            className={`px-3 py-1.5 text-xs font-semibold shrink-0 ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+          >
+            Finaliser
+          </button>
+        </div>
+      )}
+
+      {equipeInvitee && !equipeEnAttentePaiement && (
+        <div
+          className="flex items-center gap-2.5 p-3"
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+        >
+          <Avatar initiales={equipeInvitee.nom.slice(0, 2).toUpperCase()} taille={32} />
+          <div className="flex-1 text-sm">
+            {demandeEnvoyee ? (
+              <>Demande envoyée pour rejoindre <strong>{equipeInvitee.nom}</strong> — en attente de validation du chef d&apos;équipe.</>
+            ) : (
+              <>Tu es invité à rejoindre <strong>{equipeInvitee.nom}</strong>.</>
+            )}
+          </div>
+          {!demandeEnvoyee && (
+            <button
+              type="button"
+              onClick={() => demanderRejoindreEquipe(equipeInvitee)}
+              className={`px-3 py-1.5 text-xs font-semibold shrink-0 ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+            >
+              Rejoindre
+            </button>
+          )}
+        </div>
+      )}
+
       {choixEquipe && (
         <div className="flex flex-col gap-2.5">
           {modeEquipe === "predefinies" && equipes && equipes.length > 0 ? (
@@ -246,7 +449,7 @@ export function CtaInscription({
                   key={e.id}
                   type="button"
                   onClick={() => setNomEquipe(e.nom)}
-                  className="px-3 py-2 text-sm cursor-pointer"
+                  className={`px-3 py-2 text-sm ${PRESS}`}
                   style={{
                     borderRadius: "var(--ds-radius-pill)",
                     border: `1px solid ${nomEquipe === e.nom ? "var(--ds-accent)" : "var(--ds-border)"}`,
@@ -291,11 +494,99 @@ export function CtaInscription({
         </div>
       )}
 
+      {etapeBR === "menu" && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setEtapeBR("creer")}
+            className={`h-11 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+          >
+            Créer une équipe
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEquipesBR(equipesDuTournoi(tournoiId));
+              setEtapeBR("rejoindre");
+            }}
+            className={`h-11 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+          >
+            Rejoindre une équipe existante
+          </button>
+          <button
+            type="button"
+            onClick={validerEquipeAleatoire}
+            className={`h-11 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-accent-300)" }}
+          >
+            Équipe aléatoire
+          </button>
+        </div>
+      )}
+
+      {etapeBR === "creer" && (
+        <div className="flex flex-col gap-2.5">
+          <Field label="Nom de ton équipe" value={nomEquipeBR} onChange={(e) => setNomEquipeBR(e.target.value)} placeholder="Les Lions" />
+          {fraisXof > 0 && brSousType && brSousType !== "solo" && (
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={payerPourEquipe} onChange={(e) => setPayerPourEquipe(e.target.checked)} />
+              Payer pour toute mon équipe maintenant ({formatXof(fraisXof * TAILLE_EQUIPE_BR[brSousType])})
+            </label>
+          )}
+          {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+        </div>
+      )}
+
+      {etapeBR === "rejoindre" && (
+        <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto">
+          {equipesBR.length === 0 ? (
+            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>Aucune équipe pour l&apos;instant — crée la première.</p>
+          ) : (
+            equipesBR.map((e) => {
+              const taille = brSousType && brSousType !== "solo" ? TAILLE_EQUIPE_BR[brSousType] : e.membres.length;
+              const complete = e.membres.length >= taille;
+              const enAttente = aUneDemandeEnAttente(e.id, monPseudo);
+              return (
+                <div
+                  key={e.id}
+                  className="flex items-center gap-3 p-2.5"
+                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
+                >
+                  <Avatar initiales={e.nom.slice(0, 2).toUpperCase()} taille={32} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{e.nom}</div>
+                    <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                      {e.membres.length}/{taille}{e.paiementCouvert ? " · frais déjà payés" : ""}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={complete || enAttente}
+                    onClick={() => demanderRejoindreEquipe(e)}
+                    className={`px-3 py-1.5 text-xs font-semibold shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+                    style={{
+                      borderRadius: "var(--ds-radius-pill)",
+                      background: complete || enAttente ? "transparent" : "var(--ds-btn-primary-bg)",
+                      border: complete || enAttente ? "1px solid var(--ds-border)" : undefined,
+                      color: complete || enAttente ? "var(--ds-muted)" : "var(--ds-btn-primary-text)",
+                    }}
+                  >
+                    {enAttente ? "Envoyée" : complete ? "Complète" : "Rejoindre"}
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
       <div className="flex gap-2.5 items-center">
         <button
           type="button"
           onClick={() => setFavori(basculerFavori(tournoiId))}
-          className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+          className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
           style={{
             borderRadius: "var(--ds-radius-md)",
             border: `1px solid ${favori ? "var(--ds-accent)" : "var(--ds-border)"}`,
@@ -305,10 +596,11 @@ export function CtaInscription({
         >
           <Bookmark size={18} strokeWidth={2} fill={favori ? "currentColor" : "none"} />
         </button>
+        {boutonSoutien}
         <button
           type="button"
           onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
-          className="flex items-center justify-center w-10 h-10 shrink-0 cursor-pointer"
+          className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
           style={{
             borderRadius: "var(--ds-radius-md)",
             border: `1px solid ${notifs ? "var(--ds-accent)" : "var(--ds-border)"}`,
@@ -318,14 +610,20 @@ export function CtaInscription({
         >
           <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
         </button>
-        <Button
-          variante="primary"
-          bloc
-          disabled={fermeInscriptions}
-          onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : onClicInscription}
-        >
-          {fermeInscriptions ? "Inscriptions fermées" : choixEquipe || choixTag ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}
-        </Button>
+        {etapeBR !== "menu" && etapeBR !== "rejoindre" && (
+          <Button
+            variante="primary"
+            bloc
+            disabled={fermeInscriptions}
+            onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : etapeBR === "creer" ? validerEquipeBR : onClicInscription}
+          >
+            {fermeInscriptions
+              ? "Inscriptions fermées"
+              : choixEquipe || choixTag || etapeBR === "creer"
+                ? "Continuer"
+                : `S'inscrire · ${formatXof(fraisXof)}`}
+          </Button>
+        )}
       </div>
 
       <Modal ouvert={confirmationOuverte} titre="Confirmer l'inscription" onFermer={() => setConfirmationOuverte(false)}>
@@ -334,10 +632,13 @@ export function CtaInscription({
           <p>{jeuLabel} · {dateLabel}</p>
           {equipeEnAttente && <p>Équipe : {equipeEnAttente}</p>}
           {tagEnAttente && <p>TAG : {tagEnAttente}</p>}
-          {fraisXof === 0 ? (
+          {montantEnAttente === 0 ? (
             <p style={{ color: "var(--ds-accent-300)" }}>Inscription gratuite — aucun paiement requis.</p>
           ) : (
-            <p style={{ color: "var(--ds-accent-300)" }}>Montant à payer : {formatXof(fraisXof)} (Mobile Money ou TourneyCard, à l&apos;étape suivante).</p>
+            <p style={{ color: "var(--ds-accent-300)" }}>
+              Montant à payer : {formatXof(montantEnAttente)}
+              {equipeIdEnAttente ? " (pour toute l'équipe)" : ""} (Mobile Money ou TourneyCard, à l&apos;étape suivante).
+            </p>
           )}
           <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
             <input
@@ -355,7 +656,7 @@ export function CtaInscription({
           <button
             type="button"
             onClick={() => setConfirmationOuverte(false)}
-            className="flex-1 h-10 text-sm font-medium cursor-pointer"
+            className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
             style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
           >
             Annuler
@@ -364,13 +665,15 @@ export function CtaInscription({
             type="button"
             onClick={confirmerInscription}
             disabled={!presenceAcceptee}
-            className="flex-[2] h-10 text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`flex-[2] h-10 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
             style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
           >
-            {fraisXof === 0 ? "Confirmer mon inscription" : `Continuer vers le paiement · ${formatXof(fraisXof)}`}
+            {montantEnAttente === 0 ? "Confirmer mon inscription" : `Continuer vers le paiement · ${formatXof(montantEnAttente)}`}
           </button>
         </div>
       </Modal>
+
+      {modaleSoutien}
     </div>
   );
 }

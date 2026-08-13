@@ -9,6 +9,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   bloc?: boolean;
 };
 
+/** Micro-interaction de clic réutilisable (léger effet d'échelle au press,
+ * cohérent avec la direction Nocturne) : à appliquer aux boutons bruts qui ne
+ * passent pas par ce composant (icônes, contrôles segmentés...). */
+export const PRESS = "cursor-pointer transition-transform duration-150 ease-out active:scale-[.96]";
+
 const stylesParVariante: Record<Variante, CSSProperties> = {
   primary: {
     background: "var(--ds-btn-primary-bg)",
@@ -47,14 +52,14 @@ export function Button({
     <button
       {...props}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 font-medium transition-colors cursor-pointer active:scale-[.98] disabled:opacity-45 disabled:cursor-not-allowed ${
+      className={`inline-flex items-center justify-center gap-2 font-medium transition-[background-color,color,transform] ${PRESS} disabled:opacity-45 disabled:cursor-not-allowed disabled:active:scale-100 ${
         estIcone ? "h-9 w-9" : "h-[46px] px-5 text-[15px]"
       } ${bloc ? "w-full" : ""} ${className}`}
       style={{
         ...stylesParVariante[variante],
         borderRadius: estIcone ? "var(--ds-radius-md)" : "var(--ds-radius-btn)",
         fontFamily: "var(--ds-font-body)",
-        transitionDuration: "120ms",
+        transitionDuration: "150ms",
         ...style,
       }}
     >
