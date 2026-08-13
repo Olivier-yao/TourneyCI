@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ChevronDown, Flame } from "lucide-react";
 import { JEUX } from "@/lib/mockTournaments";
 import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, VILLES, classementDuJeu, estActif, lireProfil, type ClassementEntree } from "@/lib/mockProfil";
@@ -20,7 +21,8 @@ function construireClassement(villeActif: string): ClassementEntree[] {
 
 function LigneClassement({ entree, monBadgeActif, monPhotoUrl }: { entree: ClassementEntree; monBadgeActif: boolean; monPhotoUrl?: string }) {
   return (
-    <div
+    <Link
+      href={`/joueur/${encodeURIComponent(entree.nom)}`}
       className="flex items-center gap-3 py-2.5"
       style={{
         borderBottom: "1px solid var(--ds-border)",
@@ -44,7 +46,7 @@ function LigneClassement({ entree, monBadgeActif, monPhotoUrl }: { entree: Class
       <div className="text-[13px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
         {entree.points.toLocaleString("fr-FR")}
       </div>
-    </div>
+    </Link>
   );
 }
 

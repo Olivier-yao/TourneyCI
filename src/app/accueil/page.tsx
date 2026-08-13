@@ -6,17 +6,20 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Bell, ChevronRight, X, SlidersHorizontal } from "lucide-react";
 import { Card, CardKicker, CardTitle } from "@/components/ds/Card";
+import { Avatar } from "@/components/ds/Avatar";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
-import { identifiantConnexion, consommerTransitionEntree } from "@/lib/mockAuth";
+import { consommerTransitionEntree } from "@/lib/mockAuth";
+import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, genreDuJeu, modeDuTournoi } from "@/lib/mockTournaments";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { mesNotifications, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
 import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
+import { Modal } from "@/components/ds/Modal";
 
 const conteneurVariants = {
   cache: {},
@@ -33,20 +36,23 @@ export default function AccueilV2Page() {
   const router = useRouter();
   const [requete, setRequete] = useState("");
   const [notifOuvertes, setNotifOuvertes] = useState(false);
+  const [notifDetail, setNotifDetail] = useState<NotificationApp | null>(null);
   const [notifications, setNotifications] = useState<NotificationApp[]>([]);
   const [transitionCube, setTransitionCube] = useState(false);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
-  const [utilisateur] = useState(() => {
-    const identifiant = identifiantConnexion();
-    const nom = identifiant?.includes("@") ? identifiant.split("@")[0] : "Joueur";
-    return { nom, initiales: nom.slice(0, 2).toUpperCase() };
-  });
+  const [utilisateur, setUtilisateur] = useState({ nom: "Joueur", initiales: "JO", photoUrl: undefined as string | undefined });
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotifications(mesNotifications());
     setTransitionCube(consommerTransitionEntree());
+    const profil = lireProfil();
+    setUtilisateur({
+      nom: profil.pseudo,
+      initiales: profil.pseudo.split(" ").map((m) => m[0]).filter(Boolean).join("").slice(0, 2).toUpperCase(),
+      photoUrl: profil.photoUrl,
+    });
   }, []);
 
   if (!connecte) return null;
@@ -95,12 +101,7 @@ export default function AccueilV2Page() {
         >
           <motion.div variants={elementVariants} className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div
-                className="flex items-center justify-center w-10 h-10 text-[14px] font-bold"
-                style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
-              >
-                {utilisateur.initiales}
-              </div>
+              <Avatar initiales={utilisateur.initiales} photoUrl={utilisateur.photoUrl} taille={40} />
               <div>
                 <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
                   Bonsoir
@@ -134,10 +135,20 @@ export default function AccueilV2Page() {
                       <p className="text-xs p-2" style={{ color: "var(--ds-muted)" }}>Aucune notification.</p>
                     ) : (
                       notifications.map((n) => (
-                        <div key={n.id} className="p-2.5" style={{ borderBottom: "1px solid var(--ds-border)" }}>
+                        <button
+                          key={n.id}
+                          type="button"
+                          onClick={() => {
+                            setNotifOuvertes(false);
+                            if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
+                            else setNotifDetail(n);
+                          }}
+                          className="w-full text-left p-2.5 cursor-pointer"
+                          style={{ borderBottom: "1px solid var(--ds-border)" }}
+                        >
                           <div className="text-[13px]">{n.texte}</div>
                           <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
-                        </div>
+                        </button>
                       ))
                     )}
                   </motion.div>
@@ -318,6 +329,15 @@ export default function AccueilV2Page() {
         onFermer={() => setFiltresOuverts(false)}
         onAppliquer={setFiltres}
       />
+
+      <Modal ouvert={notifDetail !== null} titre="Notification" onFermer={() => setNotifDetail(null)}>
+        {notifDetail && (
+          <div className="flex flex-col gap-2" style={{ whiteSpace: "normal" }}>
+            <p>{notifDetail.texte}</p>
+            <p style={{ color: "var(--ds-muted)" }}>{notifDetail.temps}</p>
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

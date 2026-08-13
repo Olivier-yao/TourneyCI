@@ -61,3 +61,55 @@ export function laisserAvis(
   };
   localStorage.setItem(CLE_AVIS, JSON.stringify([...lireTout(), avis]));
 }
+
+export function compterAvis(tournoiId: string): { coeurs: number; coeursBrises: number } {
+  const avis = avisDuTournoi(tournoiId);
+  return {
+    coeurs: avis.filter((a) => a.type === "coeur").length,
+    coeursBrises: avis.filter((a) => a.type === "coeur_brise").length,
+  };
+}
+
+/**
+ * Avis global laissé directement à un organisateur, indépendamment de tout
+ * tournoi précis (cf. point 51 — un seul avis par organisateur et par
+ * utilisateur, distinct des avis par tournoi ci-dessus).
+ */
+export type AvisOrganisateur = {
+  id: string;
+  organisateur: string;
+  type: TypeAvis;
+  horodatage: number;
+};
+
+const CLE_AVIS_ORGANISATEUR = "tourney-avis-organisateur";
+
+function lireToutOrganisateur(): AvisOrganisateur[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const brut = localStorage.getItem(CLE_AVIS_ORGANISATEUR);
+    return brut ? (JSON.parse(brut) as AvisOrganisateur[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function avisGlobalDeOrganisateur(organisateur: string): AvisOrganisateur[] {
+  return lireToutOrganisateur().filter((a) => a.organisateur === organisateur);
+}
+
+export function monAvisPourOrganisateur(organisateur: string): AvisOrganisateur | undefined {
+  return lireToutOrganisateur().find((a) => a.organisateur === organisateur);
+}
+
+export function laisserAvisOrganisateur(organisateur: string, type: TypeAvis) {
+  if (typeof window === "undefined") return;
+  if (monAvisPourOrganisateur(organisateur)) return;
+  const avis: AvisOrganisateur = {
+    id: `avisorg-${Date.now().toString(36)}`,
+    organisateur,
+    type,
+    horodatage: Date.now(),
+  };
+  localStorage.setItem(CLE_AVIS_ORGANISATEUR, JSON.stringify([...lireToutOrganisateur(), avis]));
+}

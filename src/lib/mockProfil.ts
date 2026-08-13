@@ -196,5 +196,9 @@ export function classementDuJeu(jeuId: string): ClassementEntree[] {
     if (existant) existant.points += entree.points;
     else fusion.push(entree);
   }
-  return fusion.sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
+  // La ligne "moi" affiche toujours le pseudo actuel (source unique = le
+  // profil), pas le nom figé dans les données de seed.
+  const monPseudo = lireProfil().pseudo;
+  const avecPseudoActuel = fusion.map((e) => (e.moi ? { ...e, nom: monPseudo, initiales: initiales(monPseudo) } : e));
+  return avecPseudoActuel.sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
 }

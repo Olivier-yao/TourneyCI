@@ -434,7 +434,7 @@ function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
   return tournois.map((t) => {
     const inscrits = t.inscrits;
     const inscription = estInscrit(t.id) ? inscriptionDe(t.id) : undefined;
-    const monNom = inscription ? (inscription.equipe ?? profil.pseudo) : null;
+    const monNom = inscription ? (inscription.equipe ?? inscription.tag ?? profil.pseudo) : null;
     return {
       ...t,
       placesInscrites: t.placesInscrites + (supplements[t.id] ?? 0),

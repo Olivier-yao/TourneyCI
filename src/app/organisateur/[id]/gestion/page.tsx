@@ -185,6 +185,15 @@ export default function GestionTournoiPage() {
         </div>
       </div>
 
+      <Link
+        href={`/tournois/${params.id}/inscrits`}
+        className="flex items-center gap-2 p-3"
+        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+      >
+        <CheckCircle2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+        <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Check-in des inscrits</span>
+      </Link>
+
       <div className="flex flex-col gap-3">
         <div className="text-base font-medium flex items-center gap-2">
           <Trophy size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />

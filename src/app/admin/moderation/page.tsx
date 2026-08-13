@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Ban, CheckCircle2, Lock } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Button } from "@/components/ds/Button";
-import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
 import {
   statistiquesReputation,
@@ -12,6 +11,7 @@ import {
   confirmerTricheEtBannir,
   leverSuspension,
   listeNoire,
+  nomOrganisateurActuel,
   type StatutModeration,
 } from "@/lib/mockOrganisateur";
 import {
@@ -49,7 +49,7 @@ function ModerationAdminContenu() {
   const [tauxPlateforme, setTauxPlateforme] = useState("20");
 
   function rafraichir() {
-    const nom = lireProfil().pseudo;
+    const nom = nomOrganisateurActuel();
     setOrganisateur(nom);
     setStats(statistiquesReputation(nom));
     setStatut(statutModeration(nom));

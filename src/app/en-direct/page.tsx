@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Users, Radio } from "lucide-react";
-import { LiveBadge } from "@/components/ds/LiveBadge";
+import { ArrowLeft, ChevronRight, Users, Radio, Heart } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
+import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { manchesBR } from "@/lib/mockBattleRoyale";
+import { compterAvis } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type Tri = "cashprize" | "participants" | "recent";
@@ -104,10 +105,20 @@ export default function EnDirectPage() {
                     className="flex items-center gap-3 p-3"
                     style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
                   >
-                    <LiveBadge />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{t.titre}</div>
-                      <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    <div className="relative shrink-0 w-11 h-11 overflow-hidden" style={{ borderRadius: "var(--ds-radius-sm)" }}>
+                      {t.banniereUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={t.banniereUrl} alt={t.titre} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImagePlaceholder label="" hauteur={44} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-[5px] h-[5px] rounded-full animate-pulse shrink-0" style={{ background: "var(--ds-accent-300)" }} />
+                        <span className="text-sm font-medium truncate">{t.titre}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
                         <span>{t.jeuLabel}</span>
                         <span>·</span>
                         <span>{phase}</span>
@@ -116,6 +127,12 @@ export default function EnDirectPage() {
                           <Users size={11} strokeWidth={2} />
                           {spectateurs(t)}
                         </span>
+                        {compterAvis(t.id).coeurs > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Heart size={11} strokeWidth={2} />
+                            {compterAvis(t.id).coeurs}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-0.5 shrink-0">

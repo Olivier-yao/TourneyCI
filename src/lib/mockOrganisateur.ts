@@ -5,7 +5,8 @@
  * information mais n'est jamais créditée).
  */
 
-import { avisDeOrganisateur } from "./mockAvis";
+import { avisDeOrganisateur, avisGlobalDeOrganisateur } from "./mockAvis";
+import { lireProfil } from "./mockProfil";
 
 export type DemandeCertification = {
   ageConfirme: boolean;
@@ -48,6 +49,34 @@ export function soumettreCertification(ageConfirme: boolean, documentNom: string
 }
 
 /**
+ * Nom d'organisateur (distinct du pseudo joueur). Ne peut être choisi
+ * qu'une fois la vérification d'identité complétée (cf. point 41/49) : la
+ * saisie du nom n'est débloquée qu'après estCertifie().
+ */
+const CLE_NOM_ORGANISATEUR = "tourney-nom-organisateur";
+
+export function nomOrganisateur(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return localStorage.getItem(CLE_NOM_ORGANISATEUR) || undefined;
+}
+
+export function definirNomOrganisateur(nom: string) {
+  if (typeof window === "undefined" || !nom.trim() || !estCertifie()) return;
+  localStorage.setItem(CLE_NOM_ORGANISATEUR, nom.trim());
+}
+
+/** Identité organisateur utilisée partout où un tournoi doit être rattaché
+ * à un organisateur (création, réputation, modération) : le nom
+ * d'organisateur une fois choisi, sinon le pseudo joueur en repli. */
+export function nomOrganisateurActuel(): string {
+  return nomOrganisateur() ?? lireProfil().pseudo;
+}
+
+export function onboardingOrganisateurComplet(): boolean {
+  return estCertifie() && Boolean(nomOrganisateur());
+}
+
+/**
  * Réputation & modération anti-triche (mock) — basée sur les avis
  * cœur/cœur brisé laissés en fin de tournoi (cf. mockAvis). Un organisateur
  * qui accumule trop de cœurs brisés voit sa capacité à créer des tournois
@@ -58,11 +87,15 @@ export function soumettreCertification(ageConfirme: boolean, documentNom: string
  */
 export const SEUIL_COEURS_BRISES_SUSPENSION = 3;
 
+/** Réputation globale : cumule les avis laissés sur chacun de ses tournois
+ * (point 19/51) et les avis laissés directement sur son profil (point 51). */
 export function statistiquesReputation(organisateur: string): { coeurs: number; coeursBrises: number } {
-  const avis = avisDeOrganisateur(organisateur);
+  const parTournoi = avisDeOrganisateur(organisateur);
+  const global = avisGlobalDeOrganisateur(organisateur);
+  const tout = [...parTournoi, ...global];
   return {
-    coeurs: avis.filter((a) => a.type === "coeur").length,
-    coeursBrises: avis.filter((a) => a.type === "coeur_brise").length,
+    coeurs: tout.filter((a) => a.type === "coeur").length,
+    coeursBrises: tout.filter((a) => a.type === "coeur_brise").length,
   };
 }
 

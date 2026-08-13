@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle } from "lucide-react";
+import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -13,9 +13,10 @@ import { tournoiParId, inscriptionsFermees, reevaluerPaiementsEnAttente, cashPri
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { participantsBR } from "@/lib/mockBattleRoyale";
 import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { lireProfil } from "@/lib/mockProfil";
-import { monAvisPourTournoi } from "@/lib/mockAvis";
+import { monAvisPourTournoi, compterAvis } from "@/lib/mockAvis";
 import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";
 import { AvisCoeur } from "@/components/ds/AvisCoeur";
 import { AppelResultats } from "@/components/ds/AppelResultats";
@@ -88,13 +89,21 @@ export default function DetailTournoiPage() {
   const [enSequestre, setEnSequestre] = useState(false);
   const [peutContester, setPeutContester] = useState(false);
   const [monAppel, setMonAppel] = useState<Appel | undefined>(undefined);
+  const [estMonTournoi, setEstMonTournoi] = useState(false);
+  const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
 
   useEffect(() => {
+    const monTournoi = Boolean(tournoi) && tournoi?.organisateur === nomOrganisateurActuel();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrganisateur(estOrganisateur());
+    setEstMonTournoi(monTournoi);
     setAccesChat(estInscrit(params.id) || estOrganisateur());
     if (tournoi) setFermeInscriptions(inscriptionsFermees(tournoi));
-    setDemanderAvis(Boolean(tournoi?.termine) && estInscrit(params.id) && !monAvisPourTournoi(params.id));
+    // Un joueur peut laisser un cœur sur un tournoi à tout moment en le
+    // consultant, pas seulement une fois celui-ci terminé (point 51) — sauf
+    // s'il en est l'organisateur.
+    setDemanderAvis(!monTournoi && !monAvisPourTournoi(params.id));
+    setAvisCompte(compterAvis(params.id));
     if (tournoi?.termine) {
       reevaluerPaiementsEnAttente();
       setEnSequestre(cashPrizeEnSequestre(params.id));
@@ -224,9 +233,18 @@ export default function DetailTournoiPage() {
 
         <p className="text-[13px]" style={{ color: "var(--ds-muted)" }}>
           Organisé par{" "}
-          <span style={{ color: "var(--ds-accent-300)" }}>{tournoi.organisateur}</span> ·{" "}
-          {tournoi.dateLabel}
+          <Link href={`/organisateur/profil/${encodeURIComponent(tournoi.organisateur)}`} style={{ color: "var(--ds-accent-300)" }}>
+            {tournoi.organisateur}
+          </Link>{" "}
+          · {tournoi.dateLabel}
         </p>
+
+        {(avisCompte.coeurs > 0 || avisCompte.coeursBrises > 0) && (
+          <div className="flex items-center gap-3 text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            <span className="flex items-center gap-1"><Heart size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />{avisCompte.coeurs}</span>
+            <span className="flex items-center gap-1"><HeartCrack size={12} strokeWidth={2} style={{ color: "var(--ds-danger)" }} />{avisCompte.coeursBrises}</span>
+          </div>
+        )}
 
         {demanderAvis && (
           <AvisCoeur
@@ -237,6 +255,7 @@ export default function DetailTournoiPage() {
               setDemanderAvis(false);
               reevaluerPaiementsEnAttente();
               setEnSequestre(cashPrizeEnSequestre(tournoi.id));
+              setAvisCompte(compterAvis(tournoi.id));
             }}
           />
         )}
@@ -398,6 +417,7 @@ export default function DetailTournoiPage() {
         modeEquipe={tournoi.modeEquipe}
         tournoiCommence={tournoi.enDirect || Boolean(tournoi.termine) || Boolean(tournoi.annule)}
         fermeInscriptions={fermeInscriptions}
+        estMonTournoi={estMonTournoi}
       />
 
       <Modal ouvert={modaleOuverte === "informations"} titre="Informations" onFermer={() => setModaleOuverte(null)}>

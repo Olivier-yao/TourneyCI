@@ -8,9 +8,8 @@ import { Field } from "@/components/ds/Input";
 import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
-import { lireProfil } from "@/lib/mockProfil";
 import { lireSolde, debiter } from "@/lib/mockWallet";
-import { peutCreerTournoiPayant } from "@/lib/mockOrganisateur";
+import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet } from "@/lib/mockOrganisateur";
 import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
@@ -103,12 +102,19 @@ export default function NouveauTournoiPage() {
   const [financeParOrganisateur, setFinanceParOrganisateur] = useState(false);
   const [solde, setSolde] = useState(0);
   const [payantAutorise, setPayantAutorise] = useState(true);
+  const [onboardingOk, setOnboardingOk] = useState(false);
 
   useEffect(() => {
+    if (!onboardingOrganisateurComplet()) {
+      router.replace("/organisateur");
+      return;
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
-    setPayantAutorise(peutCreerTournoiPayant(lireProfil().pseudo));
+    setPayantAutorise(peutCreerTournoiPayant(nomOrganisateurActuel()));
     setTauxPlateforme(tauxPlateformeSurCommission());
+    setOnboardingOk(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [fraisXof, setFraisXof] = useState("1000");
   const [cashPrizeXof, setCashPrizeXof] = useState("0");
@@ -221,7 +227,7 @@ export default function NouveauTournoiPage() {
       jeuId: jeuIdFinal,
       jeuLabel: jeuLabelFinal,
       titre: titre.trim(),
-      organisateur: lireProfil().pseudo,
+      organisateur: nomOrganisateurActuel(),
       format: labelFormat(),
       type,
       modalite,
@@ -269,6 +275,8 @@ export default function NouveauTournoiPage() {
       </div>
     );
   }
+
+  if (!onboardingOk) return null;
 
   return (
     <div

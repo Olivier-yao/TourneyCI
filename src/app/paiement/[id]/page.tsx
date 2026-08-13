@@ -11,6 +11,7 @@ function PaiementInterne() {
   const searchParams = useSearchParams();
   const tournoi = tournoiParId(params.id);
   const equipe = searchParams.get("equipe") ?? undefined;
+  const tag = searchParams.get("tag") ?? undefined;
 
   if (!tournoi) {
     return (
@@ -26,7 +27,7 @@ function PaiementInterne() {
     );
   }
 
-  return <FluxPaiement tournoi={tournoi} equipe={equipe} />;
+  return <FluxPaiement tournoi={tournoi} equipe={equipe} tag={tag} />;
 }
 
 export default function PaiementPage() {

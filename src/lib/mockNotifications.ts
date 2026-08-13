@@ -12,9 +12,9 @@ const CLE_NOTIFICATIONS = "tourney-notifications";
 const CLE_SUIVIS = "tourney-notifs-suivies";
 
 const NOTIFICATIONS_INITIALES: NotificationApp[] = [
-  { id: "n1", texte: "Ton match commence dans 10 minutes", temps: "Il y a 2 min", horodatage: 3 },
-  { id: "n2", texte: "Nouveau tournoi Free Fire disponible", temps: "Il y a 1 h", horodatage: 2 },
-  { id: "n3", texte: "Ton inscription à Abidjan Cup #12 est confirmée", temps: "Hier", horodatage: 1 },
+  { id: "n1", texte: "Ton match commence dans 10 minutes", temps: "Il y a 2 min", horodatage: 3, tournoiId: "abidjan-cup-12" },
+  { id: "n2", texte: "Nouveau tournoi Free Fire disponible", temps: "Il y a 1 h", horodatage: 2, tournoiId: "freefire-night" },
+  { id: "n3", texte: "Ton inscription à Abidjan Cup #12 est confirmée", temps: "Hier", horodatage: 1, tournoiId: "abidjan-cup-12" },
 ];
 
 function lireBrut<T>(cle: string, defaut: T): T {

@@ -34,9 +34,11 @@ function numeroInitial(): string {
 export function FluxPaiement({
   tournoi,
   equipe,
+  tag,
 }: {
   tournoi: Tournoi;
   equipe?: string;
+  tag?: string;
 }) {
   const router = useRouter();
   const [etape, setEtape] = useState<Etape>("moyen");
@@ -76,7 +78,7 @@ export function FluxPaiement({
     setTimeout(() => {
       const reussi = !telephone.includes("0000");
       if (reussi) {
-        enregistrerInscription(tournoi.id, equipe);
+        enregistrerInscription(tournoi.id, tag, equipe);
         incrementerInscrits(tournoi.id);
       }
       setEtape(reussi ? "succes" : "echec");

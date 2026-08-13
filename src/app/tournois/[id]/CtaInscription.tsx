@@ -12,6 +12,7 @@ import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { estInscrit, inscriptionDe, renommerEquipe, enregistrerInscription } from "@/lib/mockInscriptions";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
 import { incrementerInscrits } from "@/lib/mockTournaments";
+import { lireProfil } from "@/lib/mockProfil";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
 export function CtaInscription({
@@ -25,6 +26,7 @@ export function CtaInscription({
   modeEquipe,
   tournoiCommence = false,
   fermeInscriptions = false,
+  estMonTournoi = false,
 }: {
   tournoiId: string;
   titre: string;
@@ -36,6 +38,7 @@ export function CtaInscription({
   modeEquipe?: ModeEquipe;
   tournoiCommence?: boolean;
   fermeInscriptions?: boolean;
+  estMonTournoi?: boolean;
 }) {
   const router = useRouter();
   const estEquipes = typeCompetition === "equipes";
@@ -50,6 +53,12 @@ export function CtaInscription({
   const [nouveauNomEquipe, setNouveauNomEquipe] = useState("");
   const [confirmationOuverte, setConfirmationOuverte] = useState(false);
   const [equipeEnAttente, setEquipeEnAttente] = useState<string | undefined>(undefined);
+  const [choixTag, setChoixTag] = useState(false);
+  const [monPseudo, setMonPseudo] = useState("");
+  const [utiliserPseudo, setUtiliserPseudo] = useState(true);
+  const [tagPerso, setTagPerso] = useState("");
+  const [tagEnAttente, setTagEnAttente] = useState<string | undefined>(undefined);
+  const [presenceAcceptee, setPresenceAcceptee] = useState(false);
 
   useEffect(() => {
     // Lu depuis le localStorage : état neutre au premier rendu serveur,
@@ -59,32 +68,39 @@ export function CtaInscription({
     setNotifs(notifsActivees(tournoiId));
     setInscrit(estInscrit(tournoiId));
     setEquipeInscrite(inscriptionDe(tournoiId)?.equipe);
+    setMonPseudo(lireProfil().pseudo);
   }, [tournoiId]);
 
-  function allerAuPaiement(equipe?: string) {
-    const url = equipe
-      ? `/paiement/${tournoiId}?equipe=${encodeURIComponent(equipe)}`
-      : `/paiement/${tournoiId}`;
-    router.push(url);
+  function allerAuPaiement(equipe?: string, tag?: string) {
+    const params = new URLSearchParams();
+    if (equipe) params.set("equipe", equipe);
+    if (tag) params.set("tag", tag);
+    const query = params.toString();
+    router.push(`/paiement/${tournoiId}${query ? `?${query}` : ""}`);
   }
 
-  function demarrerInscription(equipe?: string) {
+  function demarrerInscription(equipe?: string, tag?: string) {
+    // Gratuit ou payant : toujours une étape de confirmation récapitulative
+    // (+ avertissement présence obligatoire) avant de finaliser l'inscription
+    // ou d'envoyer la demande de paiement Mobile Money.
+    setEquipeEnAttente(equipe);
+    setTagEnAttente(tag);
+    setPresenceAcceptee(false);
+    setConfirmationOuverte(true);
+  }
+
+  function confirmerInscription() {
+    if (!presenceAcceptee) return;
     if (fraisXof === 0) {
-      // Tournoi gratuit : pas de moyen de paiement, juste une confirmation
-      // récapitulative avant de valider l'inscription.
-      setEquipeEnAttente(equipe);
-      setConfirmationOuverte(true);
+      enregistrerInscription(tournoiId, tagEnAttente, equipeEnAttente);
+      incrementerInscrits(tournoiId);
+      setConfirmationOuverte(false);
+      setInscrit(true);
+      setEquipeInscrite(equipeEnAttente);
       return;
     }
-    allerAuPaiement(equipe);
-  }
-
-  function confirmerInscriptionGratuite() {
-    enregistrerInscription(tournoiId, equipeEnAttente);
-    incrementerInscrits(tournoiId);
     setConfirmationOuverte(false);
-    setInscrit(true);
-    setEquipeInscrite(equipeEnAttente);
+    allerAuPaiement(equipeEnAttente, tagEnAttente);
   }
 
   function onClicInscription() {
@@ -92,7 +108,7 @@ export function CtaInscription({
       setChoixEquipe(true);
       return;
     }
-    demarrerInscription();
+    setChoixTag(true);
   }
 
   function validerEquipe() {
@@ -103,11 +119,45 @@ export function CtaInscription({
     demarrerInscription(nomEquipe.trim());
   }
 
+  function validerTag() {
+    const tag = utiliserPseudo ? monPseudo : tagPerso.trim();
+    if (!tag) {
+      setErreur("Saisis ton TAG pour ce tournoi.");
+      return;
+    }
+    setErreur(null);
+    demarrerInscription(undefined, tag);
+  }
+
   function validerRenommage() {
     if (!nouveauNomEquipe.trim()) return;
     renommerEquipe(tournoiId, nouveauNomEquipe.trim());
     setEquipeInscrite(nouveauNomEquipe.trim());
     setRenommage(false);
+  }
+
+  if (estMonTournoi) {
+    return (
+      <div
+        className="fixed bottom-0 left-0 right-0 px-5 py-4 flex items-center gap-3"
+        style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
+      >
+        <Link
+          href={`/tournois/${tournoiId}/inscrits`}
+          className="flex items-center justify-center w-10 h-10 shrink-0"
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+          aria-label="Voir la liste des inscrits"
+        >
+          <Users size={18} strokeWidth={2} />
+        </Link>
+        <div
+          className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[15px] font-medium"
+          style={{ borderRadius: "var(--ds-radius-btn)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+        >
+          C&apos;est ton tournoi — tu ne peux pas t&apos;y inscrire
+        </div>
+      </div>
+    );
   }
 
   if (inscrit) {
@@ -219,6 +269,28 @@ export function CtaInscription({
         </div>
       )}
 
+      {choixTag && (
+        <div className="flex flex-col gap-2.5">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={utiliserPseudo}
+              onChange={(e) => setUtiliserPseudo(e.target.checked)}
+            />
+            Utiliser mon nom de profil ({monPseudo}) comme TAG
+          </label>
+          {!utiliserPseudo && (
+            <Field
+              label="Ton TAG pour ce tournoi"
+              value={tagPerso}
+              onChange={(e) => setTagPerso(e.target.value)}
+              placeholder="Ex: KingKD"
+            />
+          )}
+          {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+        </div>
+      )}
+
       <div className="flex gap-2.5 items-center">
         <button
           type="button"
@@ -250,9 +322,9 @@ export function CtaInscription({
           variante="primary"
           bloc
           disabled={fermeInscriptions}
-          onClick={choixEquipe ? validerEquipe : onClicInscription}
+          onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : onClicInscription}
         >
-          {fermeInscriptions ? "Inscriptions fermées" : choixEquipe ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}
+          {fermeInscriptions ? "Inscriptions fermées" : choixEquipe || choixTag ? "Continuer" : `S'inscrire · ${formatXof(fraisXof)}`}
         </Button>
       </div>
 
@@ -261,7 +333,23 @@ export function CtaInscription({
           <p><strong>{titre}</strong></p>
           <p>{jeuLabel} · {dateLabel}</p>
           {equipeEnAttente && <p>Équipe : {equipeEnAttente}</p>}
-          <p style={{ color: "var(--ds-accent-300)" }}>Inscription gratuite — aucun paiement requis.</p>
+          {tagEnAttente && <p>TAG : {tagEnAttente}</p>}
+          {fraisXof === 0 ? (
+            <p style={{ color: "var(--ds-accent-300)" }}>Inscription gratuite — aucun paiement requis.</p>
+          ) : (
+            <p style={{ color: "var(--ds-accent-300)" }}>Montant à payer : {formatXof(fraisXof)} (Mobile Money ou TourneyCard, à l&apos;étape suivante).</p>
+          )}
+          <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={presenceAcceptee}
+              onChange={(e) => setPresenceAcceptee(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="text-xs" style={{ color: "var(--ds-text-muted)" }}>
+              Je comprends qu&apos;une fois inscrit, ma place est réservée et ma présence au tournoi est obligatoire — une absence peut entraîner une pénalité.
+            </span>
+          </label>
         </div>
         <div className="flex gap-2 pt-3">
           <button
@@ -274,11 +362,12 @@ export function CtaInscription({
           </button>
           <button
             type="button"
-            onClick={confirmerInscriptionGratuite}
-            className="flex-[2] h-10 text-sm font-medium cursor-pointer"
+            onClick={confirmerInscription}
+            disabled={!presenceAcceptee}
+            className="flex-[2] h-10 text-sm font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
           >
-            Confirmer mon inscription
+            {fraisXof === 0 ? "Confirmer mon inscription" : `Continuer vers le paiement · ${formatXof(fraisXof)}`}
           </button>
         </div>
       </Modal>

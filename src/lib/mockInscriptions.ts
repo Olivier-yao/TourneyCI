@@ -1,6 +1,6 @@
 const CLE_INSCRIPTIONS = "tourney-inscriptions";
 
-export type Inscription = { tournoiId: string; equipe?: string };
+export type Inscription = { tournoiId: string; equipe?: string; tag?: string };
 
 function lireInscriptions(): Inscription[] {
   if (typeof window === "undefined") return [];
@@ -20,13 +20,13 @@ export function inscriptionDe(tournoiId: string): Inscription | undefined {
   return lireInscriptions().find((i) => i.tournoiId === tournoiId);
 }
 
-export function enregistrerInscription(tournoiId: string, equipe?: string) {
+export function enregistrerInscription(tournoiId: string, tag?: string, equipe?: string) {
   if (typeof window === "undefined") return;
   const existantes = lireInscriptions();
   if (existantes.some((i) => i.tournoiId === tournoiId)) return;
   localStorage.setItem(
     CLE_INSCRIPTIONS,
-    JSON.stringify([...existantes, { tournoiId, equipe }]),
+    JSON.stringify([...existantes, { tournoiId, equipe, tag }]),
   );
 }
 
