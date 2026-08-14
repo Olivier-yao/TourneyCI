@@ -4,13 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus } from "lucide-react";
 import { unitesBR, manchesBR, ajouterMancheBR, type SousTypeBR } from "@/lib/mockBattleRoyale";
+import { notifierParticipants } from "@/lib/mockNotifications";
 
 export function GestionManchesBR({
   tournoiId,
+  tournoiTitre,
   sousType,
   onEnregistre,
 }: {
   tournoiId: string;
+  tournoiTitre: string;
   sousType: SousTypeBR;
   onEnregistre: () => void;
 }) {
@@ -34,6 +37,7 @@ export function GestionManchesBR({
       .filter((r) => r.placement > 0 || r.eliminations > 0);
     if (resultats.length === 0) return;
     ajouterMancheBR(tournoiId, resultats);
+    notifierParticipants(tournoiId, tournoiTitre, `Manche ${numeroSuivant} enregistrée — classement mis à jour`);
     setPlacements({});
     setEliminations({});
     onEnregistre();

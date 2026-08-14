@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { mettreAJourScoreMatch, type MatchTournoi } from "@/lib/mockBracket";
+import { notifierParticipants } from "@/lib/mockNotifications";
 
 function nomRound(round: number, totalRounds: number): string {
   if (round === totalRounds) return "Finale";
@@ -11,7 +12,17 @@ function nomRound(round: number, totalRounds: number): string {
   return `Round ${round}`;
 }
 
-function LigneMatch({ tournoiId, match, onEnregistre }: { tournoiId: string; match: MatchTournoi; onEnregistre: () => void }) {
+function LigneMatch({
+  tournoiId,
+  tournoiTitre,
+  match,
+  onEnregistre,
+}: {
+  tournoiId: string;
+  tournoiTitre: string;
+  match: MatchTournoi;
+  onEnregistre: () => void;
+}) {
   const [s1, setS1] = useState(match.score1?.toString() ?? "");
   const [s2, setS2] = useState(match.score2?.toString() ?? "");
   const pretAJouer = Boolean(match.joueur1 && match.joueur2);
@@ -21,6 +32,7 @@ function LigneMatch({ tournoiId, match, onEnregistre }: { tournoiId: string; mat
     const n2 = Number(s2);
     if (!Number.isFinite(n1) || !Number.isFinite(n2) || n1 === n2) return;
     mettreAJourScoreMatch(tournoiId, match.id, n1, n2);
+    notifierParticipants(tournoiId, tournoiTitre, `Score mis à jour : ${match.joueur1} ${n1} - ${n2} ${match.joueur2}`);
     onEnregistre();
   }
 
@@ -79,10 +91,12 @@ function LigneMatch({ tournoiId, match, onEnregistre }: { tournoiId: string; mat
 
 export function GestionMatches({
   tournoiId,
+  tournoiTitre,
   matches,
   onEnregistre,
 }: {
   tournoiId: string;
+  tournoiTitre: string;
   matches: MatchTournoi[];
   onEnregistre: () => void;
 }) {
@@ -115,7 +129,7 @@ export function GestionMatches({
           {matches
             .filter((m) => m.round === round)
             .map((m) => (
-              <LigneMatch key={m.id} tournoiId={tournoiId} match={m} onEnregistre={onEnregistre} />
+              <LigneMatch key={m.id} tournoiId={tournoiId} tournoiTitre={tournoiTitre} match={m} onEnregistre={onEnregistre} />
             ))}
         </div>
       ))}

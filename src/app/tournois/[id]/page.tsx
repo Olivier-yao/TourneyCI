@@ -83,6 +83,23 @@ function BoutonPartager() {
  * a débuté : score/classement en direct + dernières informations de la
  * compétition, visible par tout visiteur (inscrit ou non), dans le même
  * esprit que l'écran Match en direct plutôt que de forcer un clic de plus. */
+function CashPrizeEnTete({ montantXof, badgeTexte }: { montantXof: number; badgeTexte?: string }) {
+  if (montantXof <= 0) return <LiveBadge texte={badgeTexte} />;
+  return (
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          Cash prize
+        </div>
+        <div className="text-xl font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+          {formatXof(montantXof)}
+        </div>
+      </div>
+      <LiveBadge texte={badgeTexte} />
+    </div>
+  );
+}
+
 function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
   if (tournoi.type === "battle_royale") {
     const classement = classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo");
@@ -94,12 +111,10 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
         className="flex flex-col gap-3 p-4"
         style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
       >
-        <div className="flex items-center justify-between">
-          <LiveBadge />
-          <span className="text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-            {manches.length} manche{manches.length > 1 ? "s" : ""}
-          </span>
-        </div>
+        <CashPrizeEnTete montantXof={tournoi.cashPrizeXof} />
+        <span className="text-[10px] -mt-2" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          {manches.length} manche{manches.length > 1 ? "s" : ""}
+        </span>
         {top3.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
             La compétition a débuté, en attente des premiers résultats de manche.
@@ -133,29 +148,35 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
     return (
       <Link
         href={`/tournois/${tournoi.id}/bracket`}
-        className="flex items-center gap-3 p-4"
+        className="flex flex-col gap-3 p-4"
         style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
       >
-        <Swords size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-        <span className="flex-1 text-sm">Compétition en cours — entre deux matchs.</span>
-        <LiveBadge />
+        <CashPrizeEnTete montantXof={tournoi.cashPrizeXof} />
+        <div className="flex items-center gap-3">
+          <Swords size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          <span className="flex-1 text-sm">Compétition en cours — entre deux matchs.</span>
+        </div>
       </Link>
     );
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {matchsEnCours.map((m: MatchTournoi) => (
+      {matchsEnCours.map((m: MatchTournoi, i: number) => (
         <Link
           key={m.id}
           href={`/matches/${m.id}`}
           className="flex flex-col gap-2 p-4"
           style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
         >
-          <div className="flex items-center justify-between">
-            <LiveBadge texte={m.minute !== undefined ? `EN DIRECT · ${m.minute}'` : "EN DIRECT"} />
-            <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
-          </div>
+          {i === 0 ? (
+            <CashPrizeEnTete montantXof={tournoi.cashPrizeXof} badgeTexte={m.minute !== undefined ? `EN DIRECT · ${m.minute}'` : "EN DIRECT"} />
+          ) : (
+            <div className="flex items-center justify-between">
+              <LiveBadge texte={m.minute !== undefined ? `EN DIRECT · ${m.minute}'` : "EN DIRECT"} />
+              <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
+            </div>
+          )}
           <div className="flex items-center justify-between text-sm font-medium">
             <span className="flex-1 truncate">{m.joueur1 ?? "?"}</span>
             <span
@@ -385,15 +406,17 @@ function DetailTournoiInterne() {
           />
         )}
 
-        <div className="grid grid-cols-2 gap-2 mt-1">
-          {tournoi.cashPrizeXof > 0 && <Vignette label="Cash prize" valeur={formatXof(tournoi.cashPrizeXof)} />}
-          {tournoi.fraisXof > 0 && <Vignette label="Frais" valeur={formatXof(tournoi.fraisXof)} />}
-          <Vignette
-            label="Places"
-            valeur={`${tournoi.placesInscrites} / ${tournoi.placesTotal}`}
-          />
-          {tournoi.checkin && <Vignette label="Check-in" valeur={tournoi.checkin} />}
-        </div>
+        {!tournoi.enDirect && (
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {tournoi.cashPrizeXof > 0 && <Vignette label="Cash prize" valeur={formatXof(tournoi.cashPrizeXof)} />}
+            {tournoi.fraisXof > 0 && <Vignette label="Frais" valeur={formatXof(tournoi.fraisXof)} />}
+            <Vignette
+              label="Places"
+              valeur={`${tournoi.placesInscrites} / ${tournoi.placesTotal}`}
+            />
+            {tournoi.checkin && <Vignette label="Check-in" valeur={tournoi.checkin} />}
+          </div>
+        )}
 
         {tournoi.financementCashPrize === "organisateur" && (
           <p className="text-xs" style={{ color: "var(--ds-accent-300)" }}>

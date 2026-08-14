@@ -214,12 +214,14 @@ export default function GestionTournoiPage() {
         {tournoi.type === "battle_royale" ? (
           <GestionManchesBR
             tournoiId={params.id}
+            tournoiTitre={tournoi.titre}
             sousType={tournoi.brSousType ?? "solo"}
             onEnregistre={() => setRafraichir((n) => n + 1)}
           />
         ) : (
           <GestionMatches
             tournoiId={params.id}
+            tournoiTitre={tournoi.titre}
             matches={matchsDuTournoi(params.id)}
             onEnregistre={() => setRafraichir((n) => n + 1)}
           />
