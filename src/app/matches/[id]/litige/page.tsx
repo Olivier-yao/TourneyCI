@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, X, Camera, CheckCircle2, Clock, Circle, TriangleAlert } from "lucide-react";
@@ -62,6 +62,7 @@ export default function LitigePage() {
   const [motifId, setMotifId] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [preuves, setPreuves] = useState<string[]>([]);
+  const fichierRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const existant = litigeDuMatch(params.id);
@@ -85,14 +86,19 @@ export default function LitigePage() {
   const monPseudo = lireProfil().pseudo;
   const adversaire = match.joueur1 === monPseudo ? match.joueur2 : match.joueur1;
 
-  function ajouterPreuve() {
-    const nom = `Capture ${preuves.length + 1}`;
+  function ajouterPreuve(nom: string) {
     if (litige) {
       ajouterPreuveLitige(litige.id, nom);
       setLitige({ ...litige, preuves: [...litige.preuves, nom] });
     } else {
       setPreuves((p) => [...p, nom]);
     }
+  }
+
+  function surFichierChoisi(e: ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0];
+    e.target.value = "";
+    if (fichier) ajouterPreuve(fichier.name);
   }
 
   function envoyerLitige() {
@@ -229,13 +235,14 @@ export default function LitigePage() {
             ))}
             <button
               type="button"
-              onClick={ajouterPreuve}
+              onClick={() => fichierRef.current?.click()}
               className={`flex flex-col items-center justify-center gap-2 ${PRESS}`}
               style={{ aspectRatio: "3 / 4", borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border)", color: "var(--ds-muted)" }}
             >
               <Camera size={20} strokeWidth={2} />
               <span className="text-[10px]" style={{ fontFamily: "var(--ds-font-mono)" }}>AJOUTER</span>
             </button>
+            <input ref={fichierRef} type="file" accept="image/*,video/*" className="hidden" onChange={surFichierChoisi} />
           </div>
 
           <div className="p-3.5 flex flex-col gap-2" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
@@ -311,12 +318,13 @@ export default function LitigePage() {
           </div>
           <button
             type="button"
-            onClick={ajouterPreuve}
+            onClick={() => fichierRef.current?.click()}
             className={`h-10 text-[13px] font-medium ${PRESS}`}
             style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
           >
             Ajouter une preuve
           </button>
+          <input ref={fichierRef} type="file" accept="image/*,video/*" className="hidden" onChange={surFichierChoisi} />
         </div>
 
         {historique.length > 0 && (

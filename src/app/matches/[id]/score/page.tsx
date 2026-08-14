@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Video, X, TriangleAlert } from "lucide-react";
@@ -29,6 +29,8 @@ export default function SignalerScorePage() {
   const [s2, setS2] = useState(match?.score2?.toString() ?? "");
   const [preuves, setPreuves] = useState<string[]>([]);
   const [envoye, setEnvoye] = useState(false);
+  const captureRef = useRef<HTMLInputElement>(null);
+  const clipRef = useRef<HTMLInputElement>(null);
 
   if (!match || !tournoi) {
     return (
@@ -41,8 +43,10 @@ export default function SignalerScorePage() {
 
   const pret = s1 !== "" && s2 !== "" && Number(s1) !== Number(s2);
 
-  function ajouterPreuve(type: "capture" | "clip") {
-    setPreuves((p) => [...p, `${type === "capture" ? "Capture" : "Clip"} ${p.length + 1}`]);
+  function surFichierChoisi(e: ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0];
+    e.target.value = "";
+    if (fichier) setPreuves((p) => [...p, fichier.name]);
   }
 
   function envoyer() {
@@ -139,7 +143,7 @@ export default function SignalerScorePage() {
             ))}
             <button
               type="button"
-              onClick={() => ajouterPreuve("capture")}
+              onClick={() => captureRef.current?.click()}
               className={`flex flex-col items-center justify-center gap-1.5 ${PRESS}`}
               style={{ aspectRatio: "3 / 4", borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border)", color: "var(--ds-muted)" }}
             >
@@ -148,13 +152,15 @@ export default function SignalerScorePage() {
             </button>
             <button
               type="button"
-              onClick={() => ajouterPreuve("clip")}
+              onClick={() => clipRef.current?.click()}
               className={`flex flex-col items-center justify-center gap-1.5 ${PRESS}`}
               style={{ aspectRatio: "3 / 4", borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border)", color: "var(--ds-muted)" }}
             >
               <Video size={17} strokeWidth={2} />
               <span className="text-[9px]" style={{ fontFamily: "var(--ds-font-mono)" }}>CLIP</span>
             </button>
+            <input ref={captureRef} type="file" accept="image/*" className="hidden" onChange={surFichierChoisi} />
+            <input ref={clipRef} type="file" accept="video/*" className="hidden" onChange={surFichierChoisi} />
           </div>
         </div>
 
