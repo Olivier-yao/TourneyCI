@@ -14,8 +14,7 @@ import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
   creerTournoi,
-  decomposerCommission,
-  tauxPlateformeSurCommission,
+  commissionEstimee,
   capaciteLobbyMax,
   repartitionAutomatique,
   COMMISSION_PCT,
@@ -108,7 +107,6 @@ export default function NouveauTournoiPage() {
   const [placesBR, setPlacesBR] = useState("50");
   const [payant, setPayant] = useState(true);
   const [commissionActivee, setCommissionActivee] = useState(true);
-  const [tauxPlateforme, setTauxPlateforme] = useState(0.2);
   const [financeParOrganisateur, setFinanceParOrganisateur] = useState(false);
   const [solde, setSolde] = useState(0);
   const [payantAutorise, setPayantAutorise] = useState(true);
@@ -130,7 +128,6 @@ export default function NouveauTournoiPage() {
     setCertifie(estCert);
     setPayantAutorise(autorise);
     if (!autorise) setPayant(false);
-    setTauxPlateforme(tauxPlateformeSurCommission());
     setOnboardingOk(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -169,13 +166,13 @@ export default function NouveauTournoiPage() {
   const capaciteMax = capaciteLobbyMax(jeuIdFinal);
   const places =
     type === "battle_royale" ? Math.min(Number(placesBR) || 0, capaciteMax) : Number(placesTotal) || 0;
-  const commission = payant && commissionActivee ? decomposerCommission(Number(fraisXof) || 0, places) : { brute: 0, partPlateforme: 0, net: 0 };
+  const commissionXof = payant && commissionActivee ? commissionEstimee(Number(fraisXof) || 0, places) : 0;
   // Cash prize d'un tournoi payant : plus de saisie manuelle (point 84) — la
   // cagnotte est entièrement dérivée des frais d'inscription collectés
   // (frais × places attendues), moins la commission de l'organisateur si
   // elle est activée. Se recalcule en temps réel à chaque changement.
   const poolBrut = payant ? (Number(fraisXof) || 0) * places : 0;
-  const cashPrizeAutoPayant = Math.max(0, poolBrut - commission.brute);
+  const cashPrizeAutoPayant = Math.max(0, poolBrut - commissionXof);
   // Pour un tournoi gratuit financé par l'organisateur, il n'y a pas de
   // cagnotte à dériver de frais inexistants : ce montant reste une saisie
   // manuelle (ce que l'organisateur engage lui-même depuis son solde).
@@ -394,24 +391,10 @@ export default function NouveauTournoiPage() {
 
               {commissionActivee && (
                 <div
-                  className="p-3 flex flex-col gap-1 text-xs"
+                  className="p-3 text-xs font-medium"
                   style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span>Commission brute ({Math.round(COMMISSION_PCT * 100)} %)</span>
-                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.brute)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Part plateforme ({Math.round(tauxPlateforme * 100)} %)</span>
-                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.partPlateforme)}</span>
-                  </div>
-                  <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-accent-600)" }}>
-                    <span>Net perçu (si le tournoi se remplit)</span>
-                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.net)}</span>
-                  </div>
-                  <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
-                    Prélevée sur le cash prize avant répartition entre finalistes — le montant affiché aux joueurs sera déjà net de cette commission.
-                  </p>
+                  Commission organisateur : {Math.round(COMMISSION_PCT * 100)} %
                 </div>
               )}
             </>
@@ -437,7 +420,7 @@ export default function NouveauTournoiPage() {
                       {commissionActivee && (
                         <div className="flex items-center justify-between">
                           <span style={{ color: "var(--ds-muted)" }}>Ta commission ({Math.round(COMMISSION_PCT * 100)} %)</span>
-                          <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.brute)}</span>
+                          <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commissionXof)}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-border)" }}>

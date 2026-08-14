@@ -136,8 +136,10 @@ export function bracketVerrouillee(
  * l'inscription (bloquant, distinct de la commission ci-dessous). */
 export const FRAIS_CREATION_TOURNOI_PAYANT_XOF = 150;
 
-/** Commission de l'organisateur sur les tournois payants (optionnelle,
- * activée tournoi par tournoi), en plus du cash prize. */
+/** Seule commission du système (point 125) : celle de l'organisateur,
+ * optionnelle et activée tournoi par tournoi, prélevée sur les frais
+ * d'inscription collectés — versée intégralement à l'organisateur à la
+ * clôture, sans aucune part plateforme. */
 export const COMMISSION_PCT = 0.2;
 
 export function commissionEstimee(fraisXof: number, placesTotal: number): number {
@@ -158,34 +160,6 @@ export function repartitionAutomatique(montantNetXof: number, nbFinalistes: numb
   const ecart = montantNetXof - montants.reduce((a, b) => a + b, 0);
   montants[montants.length - 1] += ecart;
   return montants.map((montantXof, i) => ({ label: libelle(i), montantXof }));
-}
-
-const CLE_TAUX_PLATEFORME = "tourney-taux-plateforme-commission";
-const TAUX_PLATEFORME_DEFAUT = 0.2;
-
-/** Part que la plateforme prélève sur la commission de l'organisateur
- * (configurable côté administration, pas un forfait fixe). */
-export function tauxPlateformeSurCommission(): number {
-  if (typeof window === "undefined") return TAUX_PLATEFORME_DEFAUT;
-  const val = Number(localStorage.getItem(CLE_TAUX_PLATEFORME));
-  return Number.isFinite(val) && val >= 0 && val <= 1 && localStorage.getItem(CLE_TAUX_PLATEFORME) !== null
-    ? val
-    : TAUX_PLATEFORME_DEFAUT;
-}
-
-export function definirTauxPlateformeSurCommission(taux: number) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_TAUX_PLATEFORME, String(Math.min(1, Math.max(0, taux))));
-}
-
-/** Décompose la commission organisateur : brute (part des frais collectés),
- * part prélevée par la plateforme, net réellement perçu par l'organisateur.
- * Le prélèvement n'a lieu qu'au moment du versement (fin de tournoi), jamais
- * à la création — l'organisateur ne peut donc jamais être en perte. */
-export function decomposerCommission(fraisXof: number, placesTotal: number): { brute: number; partPlateforme: number; net: number } {
-  const brute = commissionEstimee(fraisXof, placesTotal);
-  const partPlateforme = Math.round(brute * tauxPlateformeSurCommission());
-  return { brute, partPlateforme, net: brute - partPlateforme };
 }
 
 /** Cash prize réellement affichable/versable (point 123) : jamais basé sur
@@ -864,8 +838,8 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
   }
 
   if (tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()) {
-    const { net } = decomposerCommission(tournoi.fraisXof, tournoi.placesInscrites);
-    if (net > 0) crediter(net, `Commission · ${tournoi.titre}`, "commission");
+    const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);
+    if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission");
   }
 
   ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);

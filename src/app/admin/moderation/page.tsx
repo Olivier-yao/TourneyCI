@@ -18,8 +18,6 @@ import {
   paiementsEnAttente,
   libererSequestreCashPrize,
   reevaluerPaiementsEnAttente,
-  tauxPlateformeSurCommission,
-  definirTauxPlateformeSurCommission,
   type PaiementEnAttente,
 } from "@/lib/mockTournaments";
 import { tousLesAppelsOuverts, traiterAppel, type Appel } from "@/lib/mockAppel";
@@ -46,7 +44,6 @@ function ModerationAdminContenu() {
   const [liste, setListe] = useState<ReturnType<typeof listeNoire>>([]);
   const [sequestres, setSequestres] = useState<PaiementEnAttente[]>([]);
   const [appelsOuverts, setAppelsOuverts] = useState<Appel[]>([]);
-  const [tauxPlateforme, setTauxPlateforme] = useState("20");
 
   function rafraichir() {
     const nom = nomOrganisateurActuel();
@@ -56,7 +53,6 @@ function ModerationAdminContenu() {
     setListe(listeNoire());
     setSequestres(paiementsEnAttente());
     setAppelsOuverts(tousLesAppelsOuverts());
-    setTauxPlateforme(String(Math.round(tauxPlateformeSurCommission() * 100)));
   }
 
   useEffect(() => {
@@ -116,33 +112,6 @@ function ModerationAdminContenu() {
           </button>
         </div>
       )}
-
-      <div className="flex flex-col gap-2">
-        <div className="text-sm font-medium">Part plateforme sur la commission organisateur</div>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={tauxPlateforme}
-            onChange={(e) => setTauxPlateforme(e.target.value)}
-            className="w-20 h-10 px-2.5 text-sm outline-none"
-            style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
-          />
-          <span className="text-sm" style={{ color: "var(--ds-muted)" }}>%</span>
-          <button
-            type="button"
-            onClick={() => {
-              definirTauxPlateformeSurCommission((Number(tauxPlateforme) || 0) / 100);
-              rafraichir();
-            }}
-            className="text-xs font-medium cursor-pointer px-2.5 py-2"
-            style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
-          >
-            Enregistrer
-          </button>
-        </div>
-      </div>
 
       <div className="flex flex-col gap-2">
         <div className="text-sm font-medium">Appels des résultats en cours</div>
