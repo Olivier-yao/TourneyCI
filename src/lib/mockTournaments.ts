@@ -587,6 +587,31 @@ export function estAnnule(id: string): boolean {
   return lireListe(CLE_TOURNOIS_ANNULES).includes(id);
 }
 
+/** Champs qu'un organisateur peut modifier après création (point 95) : pas
+ * les champs structurels/financiers (type, frais, cash prize, dates) déjà
+ * pris en compte par des inscriptions en cours. */
+export type ParametresModifiablesTournoi = Partial<
+  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations">
+>;
+
+const CLE_PARAMETRES_SUPERPOSES = "tourney-parametres-superposes";
+
+function lireParametresSuperposes(): Record<string, ParametresModifiablesTournoi> {
+  if (typeof window === "undefined") return {};
+  try {
+    const brut = localStorage.getItem(CLE_PARAMETRES_SUPERPOSES);
+    return brut ? (JSON.parse(brut) as Record<string, ParametresModifiablesTournoi>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function modifierTournoi(id: string, patch: ParametresModifiablesTournoi) {
+  if (typeof window === "undefined") return;
+  const tout = lireParametresSuperposes();
+  localStorage.setItem(CLE_PARAMETRES_SUPERPOSES, JSON.stringify({ ...tout, [id]: { ...tout[id], ...patch } }));
+}
+
 /** Annule un tournoi (compte comme un "flop" pour le classement organisateur). */
 /** Annule un tournoi et rembourse automatiquement les frais déjà payés par
  * l'inscrit de cet appareil (mock mono-utilisateur : pas de vrai registre
@@ -603,6 +628,7 @@ function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
   const supplements = lireInscritsSupplementaires();
   const termines = lireListe(CLE_TOURNOIS_TERMINES);
   const annules = lireListe(CLE_TOURNOIS_ANNULES);
+  const parametres = lireParametresSuperposes();
   const profil = lireProfil();
   return tournois.map((t) => {
     const inscrits = t.inscrits;
@@ -610,6 +636,7 @@ function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
     const monNom = inscription ? (inscription.equipe ?? inscription.tag ?? profil.pseudo) : null;
     return {
       ...t,
+      ...parametres[t.id],
       organisateur: t.organisateurDynamique ? nomOrganisateurActuel() : t.organisateur,
       placesInscrites: t.placesInscrites + (supplements[t.id] ?? 0),
       termine: t.termine || termines.includes(t.id),

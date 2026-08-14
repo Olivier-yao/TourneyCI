@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Trophy, CheckCircle2, XCircle } from "lucide-react";
+import { Trophy, CheckCircle2, XCircle, Settings2 } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
@@ -186,14 +186,24 @@ export default function GestionTournoiPage() {
         </div>
       </div>
 
-      <Link
-        href={`/tournois/${params.id}/inscrits`}
-        className="flex items-center gap-2 p-3"
-        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-      >
-        <CheckCircle2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-        <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Check-in des inscrits</span>
-      </Link>
+      <div className="flex flex-col gap-2">
+        <Link
+          href={`/tournois/${params.id}/inscrits`}
+          className="flex items-center gap-2 p-3"
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+        >
+          <CheckCircle2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Check-in des inscrits</span>
+        </Link>
+        <Link
+          href={`/organisateur/${params.id}/parametres`}
+          className="flex items-center gap-2 p-3"
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+        >
+          <Settings2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Paramètres du tournoi</span>
+        </Link>
+      </div>
 
       <div className="flex flex-col gap-3">
         <div className="text-base font-medium flex items-center gap-2">
