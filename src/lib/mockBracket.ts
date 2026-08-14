@@ -5,6 +5,34 @@
 
 export type StatutMatch = "a_venir" | "en_cours" | "termine";
 
+/** Nombre de spectateurs affiché, dérivé de façon déterministe de l'id du
+ * match (pas de vrai compteur temps réel côté mock). Partagé entre la vue
+ * spectateur et le chat spectateurs pour rester cohérent. */
+export function spectateursDerives(matchId: string): number {
+  let h = 0;
+  for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
+  return 40 + (h % 260);
+}
+
+/** Libellé de stade de bracket (finale/demies/quart) à partir du round et du
+ * nombre total de rounds — même logique que BracketV2.tsx, partagée ici pour
+ * les écrans Match en direct qui n'ont pas accès à l'arbre complet. */
+export function libelleRound(round: number, totalRounds: number): string {
+  if (round === totalRounds) return "Finale";
+  if (round === totalRounds - 1) return "Demi-finale";
+  if (round === totalRounds - 2) return "Quart de finale";
+  return `Round ${round}`;
+}
+
+/** Version compacte du libellé de round (ex. "Q3", "D1", "F"), utilisée dans
+ * les listes de matchs et tuiles de stats où l'espace est réduit. */
+export function codeRound(round: number, totalRounds: number): string {
+  if (round === totalRounds) return "F";
+  if (round === totalRounds - 1) return `D${round}`;
+  if (round === totalRounds - 2) return `Q${round}`;
+  return `R${round}`;
+}
+
 export type MatchTournoi = {
   id: string;
   tournoiId: string;

@@ -541,11 +541,14 @@ export function CtaInscription({
         </button>
         {tournoiCommence ? (
           <div
-            className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[13px] font-medium"
-            style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+            className="flex-1 h-[46px] flex items-center justify-center gap-2.5"
+            style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}
           >
-            <Radio size={15} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-            Tournoi en direct · inscriptions closes
+            <Radio size={15} strokeWidth={2} fill="currentColor" style={{ color: "var(--ds-muted)" }} />
+            <div className="text-left">
+              <div className="text-xs font-medium" style={{ color: "var(--ds-text-muted)" }}>Tournoi en direct</div>
+              <div className="text-[8px] tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>INSCRIPTIONS CLOSES</div>
+            </div>
           </div>
         ) : (
           <Button

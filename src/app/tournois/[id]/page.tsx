@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio } from "lucide-react";
+import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, ShieldCheck } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -11,10 +11,11 @@ import { Modal } from "@/components/ds/Modal";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { formatXof } from "@/lib/formatXof";
 import { tournoiParId, inscriptionsFermees, reevaluerPaiementsEnAttente, cashPrizeEnSequestre, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, codeRound, type MatchTournoi } from "@/lib/mockBracket";
 import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleRoyale";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { lireProfil } from "@/lib/mockProfil";
 import { monAvisPourTournoi, compterAvis } from "@/lib/mockAvis";
@@ -79,30 +80,111 @@ function BoutonPartager() {
   );
 }
 
-/** Cadre dédié au stream live de la partie en cours (point 109), à la place
- * de la bannière statique une fois le tournoi en direct. Aucun flux réel
- * dans ce mock (voir point 110, backlog) : juste l'emplacement visuel avec
- * un indicateur "en direct", prêt à recevoir un lecteur vidéo plus tard. */
-function CadreStream({ hauteur }: { hauteur: number }) {
+/** Cadre dédié au stream live de la partie en cours, à la place de la
+ * bannière statique une fois le tournoi en direct, uniquement si
+ * l'organisateur l'a activé pour ce tournoi. Aucun flux réel dans ce mock
+ * (backlog CLAUDE.md) : juste l'emplacement visuel avec un indicateur "en
+ * direct", prêt à recevoir un lecteur vidéo plus tard. Fidèle au design
+ * "Tourney v5 Écrans" (écran J1). */
+function CadreStream({ hauteur, sousTitre }: { hauteur: number; sousTitre: string }) {
   return (
-    <div
-      className="relative w-full flex flex-col items-center justify-center gap-2 overflow-hidden"
-      style={{ height: hauteur, background: "radial-gradient(120% 140% at 50% 20%, var(--ds-accent-900), var(--ds-bg) 75%)", boxShadow: "inset 0 0 0 1px var(--ds-accent-700)" }}
-    >
+    <div className="relative w-full overflow-hidden" style={{ height: hauteur, background: "var(--ds-surface-2)", borderBottom: "1px solid var(--ds-accent-800)" }}>
+      <div className="absolute inset-0" style={{ background: "radial-gradient(90% 110% at 50% 50%, var(--ds-accent-900), var(--ds-surface-2) 72%)" }} />
       <div
-        className="flex items-center justify-center w-11 h-11"
-        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-800)", boxShadow: "0 0 24px color-mix(in srgb, var(--ds-accent) 30%, transparent)" }}
-      >
-        <Radio size={19} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-      </div>
-      <span className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-        Stream en direct de la partie
-      </span>
-      <div
-        className="absolute inset-0"
-        style={{ background: "linear-gradient(transparent 55%, var(--ds-bg))" }}
+        className="absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: "linear-gradient(var(--ds-accent) 1px, transparent 1px), linear-gradient(90deg, var(--ds-accent) 1px, transparent 1px)",
+          backgroundSize: "30px 30px",
+        }}
       />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+        <div
+          className="flex items-center justify-center w-[58px] h-[58px]"
+          style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", boxShadow: "0 0 34px color-mix(in srgb, var(--ds-accent) 28%, transparent)" }}
+        >
+          <Radio size={26} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+        </div>
+        <div className="text-center">
+          <div className="text-sm font-medium">Stream en direct de la partie</div>
+          {sousTitre && (
+            <div className="mt-1 text-[9px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              {sousTitre}
+            </div>
+          )}
+        </div>
+      </div>
+      <div
+        className="absolute left-[18px] bottom-3.5 flex items-center gap-1.5 px-2.5 py-1"
+        style={{ borderRadius: "var(--ds-radius-pill)", background: "color-mix(in srgb, var(--ds-bg) 80%, transparent)", border: "1px solid var(--ds-accent)" }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--ds-accent-300)" }} />
+        <span className="text-[9px] tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>EN DIRECT</span>
+      </div>
+      <div
+        className="absolute right-[18px] bottom-3.5 px-2.5 py-1 text-[9px]"
+        style={{ borderRadius: "var(--ds-radius-pill)", background: "color-mix(in srgb, var(--ds-bg) 80%, transparent)", color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+      >
+        LECTEUR À VENIR
+      </div>
     </div>
+  );
+}
+
+function initiales(nom: string): string {
+  return nom.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase();
+}
+
+function TuileStat({ valeur, label, accent = false }: { valeur: string; label: string; accent?: boolean }) {
+  return (
+    <div className="p-2.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
+      <div className="text-[15px]" style={{ fontFamily: "var(--ds-font-mono)", color: accent ? "var(--ds-accent-300)" : "var(--ds-text)" }}>{valeur}</div>
+      <div className="mt-0.5 text-[11px]" style={{ color: "var(--ds-muted)" }}>{label}</div>
+    </div>
+  );
+}
+
+/** Carte organisateur affichée sur la fiche tournoi en direct — nom, sceau de
+ * certification, note moyenne, réutilise les données réelles du classement
+ * organisateurs plutôt qu'un score inventé. */
+function CarteOrganisateur({ nom }: { nom: string }) {
+  const [info, setInfo] = useState<{ certifie: boolean; note: number } | undefined>(undefined);
+
+  useEffect(() => {
+    const entree = classementOrganisateurs().find((o) => o.nom === nom);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setInfo(entree ? { certifie: entree.certifie, note: entree.note } : undefined);
+  }, [nom]);
+
+  return (
+    <Link
+      href={`/organisateur/profil/${encodeURIComponent(nom)}`}
+      className="flex items-center gap-2.5 p-[11px]"
+      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+    >
+      <div className="relative shrink-0">
+        <div
+          className="flex items-center justify-center w-[34px] h-[34px] text-[11px] font-medium"
+          style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-800)", color: "var(--ds-accent-300)" }}
+        >
+          {initiales(nom)}
+        </div>
+        {info?.certifie && (
+          <div
+            className="absolute -right-[3px] -bottom-[3px] flex items-center justify-center"
+            style={{ width: 15, height: 15, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-700)", border: "1.5px solid var(--ds-surface)" }}
+          >
+            <ShieldCheck size={8} strokeWidth={2} style={{ color: "var(--ds-accent-100, var(--ds-accent-300))" }} />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium truncate">{nom}</div>
+        <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          {info?.certifie ? "CERTIFIÉ · " : ""}NOTE {info ? info.note.toFixed(1) : "–"}
+        </div>
+      </div>
+      <ChevronRight size={14} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+    </Link>
   );
 }
 
@@ -169,58 +251,59 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
     );
   }
 
-  const matchsEnCours = matchsDuTournoi(tournoi.id).filter((m) => m.statut === "en_cours");
+  const tousMatchs = matchsDuTournoi(tournoi.id);
+  const matchsEnCours = tousMatchs.filter((m) => m.statut === "en_cours");
+  const totalRounds = tousMatchs.length > 0 ? Math.max(...tousMatchs.map((m) => m.round)) : 0;
+  const roundActuel = matchsEnCours[0] ? codeRound(matchsEnCours[0].round, totalRounds) : undefined;
 
-  if (matchsEnCours.length === 0) {
-    return (
-      <Link
-        href={`/tournois/${tournoi.id}/bracket`}
-        className="flex flex-col gap-3 p-4"
-        style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
-      >
-        <CashPrizeEnTete montantXof={tournoi.cashPrizeXof} />
-        <div className="flex items-center gap-3">
+  return (
+    <div className="flex flex-col gap-2.5">
+      <CarteOrganisateur nom={tournoi.organisateur} />
+      <div className="grid grid-cols-3 gap-2">
+        <TuileStat valeur={String(tournoi.placesInscrites)} label="joueurs" />
+        <TuileStat valeur={tournoi.cashPrizeXof.toLocaleString("fr-FR")} label="FCFA" accent />
+        <TuileStat valeur={roundActuel ?? "–"} label="en cours" accent />
+      </div>
+      {matchsEnCours.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            Matchs en cours
+          </div>
+          {matchsEnCours.slice(0, 3).map((m: MatchTournoi, i: number) => (
+            <Link
+              key={m.id}
+              href={`/matches/${m.id}`}
+              className="flex items-center gap-2.5 py-2.5 px-2.5"
+              style={{
+                borderRadius: "var(--ds-radius-md)",
+                background: i === 0 ? "var(--ds-surface)" : "transparent",
+                boxShadow: i === 0 ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)",
+              }}
+            >
+              <span className="w-[34px] shrink-0 text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                {codeRound(m.round, totalRounds)}
+              </span>
+              <span className="flex-1 min-w-0 truncate text-[13px]">{m.joueur1 ?? "?"} vs {m.joueur2 ?? "?"}</span>
+              <span className="shrink-0 text-xs" style={{ fontFamily: "var(--ds-font-mono)", color: i === 0 ? "var(--ds-accent-300)" : "var(--ds-muted)" }}>
+                {m.score1 ?? "–"} — {m.score2 ?? "–"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
           <Swords size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
           <span className="flex-1 text-sm">Compétition en cours — entre deux matchs.</span>
         </div>
-      </Link>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {matchsEnCours.map((m: MatchTournoi, i: number) => (
-        <Link
-          key={m.id}
-          href={`/matches/${m.id}`}
-          className="flex flex-col gap-2 p-4"
-          style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
-        >
-          {i === 0 ? (
-            <CashPrizeEnTete montantXof={tournoi.cashPrizeXof} badgeTexte={m.minute !== undefined ? `EN DIRECT · ${m.minute}'` : "EN DIRECT"} />
-          ) : (
-            <div className="flex items-center justify-between">
-              <LiveBadge texte={m.minute !== undefined ? `EN DIRECT · ${m.minute}'` : "EN DIRECT"} />
-              <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
-            </div>
-          )}
-          <div className="flex items-center justify-between text-sm font-medium">
-            <span className="flex-1 truncate">{m.joueur1 ?? "?"}</span>
-            <span
-              className="px-3 text-base font-semibold"
-              style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}
-            >
-              {m.score1 ?? "–"} : {m.score2 ?? "–"}
-            </span>
-            <span className="flex-1 truncate text-right">{m.joueur2 ?? "?"}</span>
+      )}
+      {!tournoi.streamActif && (
+        <div className="flex items-center gap-2.5 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
+          <Radio size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
+          <div className="text-xs leading-relaxed" style={{ color: "color-mix(in srgb, var(--ds-text) 52%, transparent)" }}>
+            L&apos;organisateur n&apos;a pas activé de stream : suis le tournoi par le fil des matchs.
           </div>
-          {m.evenements && m.evenements.length > 0 && (
-            <p className="text-xs truncate" style={{ color: "var(--ds-text-muted)" }}>
-              {m.evenements[0].minute}&apos; · {m.evenements[0].texte}
-            </p>
-          )}
-        </Link>
-      ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -299,6 +382,11 @@ function DetailTournoiInterne() {
     tournoi.type === "battle_royale"
       ? `/tournois/${params.id}/battle-royale`
       : `/tournois/${params.id}/bracket`;
+  const matchVedetteStream =
+    tournoi.enDirect && tournoi.type !== "battle_royale"
+      ? matchsDuTournoi(params.id).find((m) => m.statut === "en_cours")
+      : undefined;
+  const sousTitreStream = matchVedetteStream ? `${matchVedetteStream.joueur1 ?? "?"} VS ${matchVedetteStream.joueur2 ?? "?"}` : "";
 
   return (
     <div
@@ -307,7 +395,7 @@ function DetailTournoiInterne() {
     >
       <div className="relative" style={{ height: tournoi.enDirect && !tournoi.streamActif ? 74 : 210 }}>
         {tournoi.enDirect ? (
-          tournoi.streamActif && <CadreStream hauteur={210} />
+          tournoi.streamActif && <CadreStream hauteur={210} sousTitre={sousTitreStream} />
         ) : tournoi.banniereUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={tournoi.banniereUrl} alt={tournoi.titre} className="w-full object-cover" style={{ height: 210 }} />
@@ -326,10 +414,15 @@ function DetailTournoiInterne() {
         >
           <ArrowLeft size={17} strokeWidth={2} />
         </Link>
+        {tournoi.enDirect && !tournoi.streamActif && (
+          <div className="absolute top-5 left-1/2 -translate-x-1/2">
+            <LiveBadge />
+          </div>
+        )}
         <BoutonPartager />
       </div>
 
-      <div className="px-5 -mt-6 relative flex-1 flex flex-col gap-3 pb-28">
+      <div className={`px-5 relative flex-1 flex flex-col gap-3 pb-28 ${tournoi.enDirect ? "mt-4" : "-mt-6"}`}>
         <div className="flex gap-1.5 flex-wrap">
           <span
             className="px-2.5 py-1 text-[11px]"
