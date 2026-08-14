@@ -33,6 +33,10 @@ export function CarteTournoi({ tournoi: t }: { tournoi: Tournoi }) {
             ) : (
               <ImagePlaceholder label="visuel tournoi" hauteur={100} />
             )}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
+            />
             {t.enDirect && (
               <div className="absolute top-3 left-3">
                 <LiveBadge />

@@ -248,6 +248,10 @@ export default function AccueilV2Page() {
                       ) : (
                         <ImagePlaceholder label="visuel tournoi" hauteur={120} />
                       )}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
+                      />
                       <div className="absolute top-2.5 left-2.5">
                         <LiveBadge />
                       </div>
