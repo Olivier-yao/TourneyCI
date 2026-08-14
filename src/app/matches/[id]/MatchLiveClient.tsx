@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, MessagesSquare, ChevronRight, Camera } from "lucide-react";
+import { ArrowLeft, MessagesSquare, ChevronRight } from "lucide-react";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { Avatar } from "@/components/ds/Avatar";
 import { Button, PRESS } from "@/components/ds/Button";
-import { Field } from "@/components/ds/Input";
 import type { MatchTournoi } from "@/lib/mockBracket";
 
 function initiales(nom: string): string {
@@ -38,9 +37,6 @@ export function MatchLiveClient({
 }) {
   const router = useRouter();
   const [minute, setMinute] = useState(match.minute ?? 0);
-  const [panneau, setPanneau] = useState<"aucun" | "score">("aucun");
-  const [scoreEnvoye, setScoreEnvoye] = useState(false);
-  const [captureNom, setCaptureNom] = useState<string | null>(null);
   const spectateurs = spectateursDerives(match.id);
 
   useEffect(() => {
@@ -140,42 +136,6 @@ export function MatchLiveClient({
           </span>
           <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
         </button>
-
-        {panneau === "score" && (
-          <div
-            className="p-4 flex flex-col gap-3"
-            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-          >
-            {scoreEnvoye ? (
-              <p className="text-sm" style={{ color: "var(--ds-accent-300)" }}>
-                Score signalé, en attente de confirmation de l&apos;adversaire.
-              </p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label={match.joueur1 ?? "Joueur 1"} type="number" defaultValue={match.score1 ?? 0} />
-                  <Field label={match.joueur2 ?? "Joueur 2"} type="number" defaultValue={match.score2 ?? 0} />
-                </div>
-                <label
-                  className="flex items-center gap-2 p-2.5 text-[13px] cursor-pointer"
-                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border-strong)", color: "var(--ds-muted)" }}
-                >
-                  <Camera size={16} />
-                  {captureNom ?? "Ajouter une capture d'écran"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => setCaptureNom(e.target.files?.[0]?.name ?? null)}
-                  />
-                </label>
-                <Button variante="primary" onClick={() => setScoreEnvoye(true)}>
-                  Envoyer
-                </Button>
-              </>
-            )}
-          </div>
-        )}
       </div>
 
       <div
@@ -191,7 +151,7 @@ export function MatchLiveClient({
         <Button
           variante="primary"
           bloc
-          onClick={() => setPanneau(panneau === "score" ? "aucun" : "score")}
+          onClick={() => router.push(`/matches/${match.id}/score`)}
         >
           Signaler le score
         </Button>
