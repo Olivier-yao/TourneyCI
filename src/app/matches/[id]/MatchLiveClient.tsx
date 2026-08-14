@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, MessagesSquare, ChevronRight, Camera } from "lucide-react";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { Avatar } from "@/components/ds/Avatar";
-import { Button } from "@/components/ds/Button";
+import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import type { MatchTournoi } from "@/lib/mockBracket";
 
@@ -17,6 +17,14 @@ function initiales(nom: string): string {
     .map((mot) => mot[0])
     .join("")
     .toUpperCase();
+}
+
+/** Nombre de spectateurs affiché, dérivé de façon déterministe de l'id du
+ * match (pas de vrai compteur temps réel côté mock). */
+function spectateursDerives(matchId: string): number {
+  let h = 0;
+  for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
+  return 40 + (h % 260);
 }
 
 export function MatchLiveClient({
@@ -33,6 +41,7 @@ export function MatchLiveClient({
   const [panneau, setPanneau] = useState<"aucun" | "score">("aucun");
   const [scoreEnvoye, setScoreEnvoye] = useState(false);
   const [captureNom, setCaptureNom] = useState<string | null>(null);
+  const spectateurs = spectateursDerives(match.id);
 
   useEffect(() => {
     const id = setInterval(() => setMinute((m) => Math.min(m + 1, 90)), 4000);
@@ -94,33 +103,40 @@ export function MatchLiveClient({
         >
           Fil du match
         </div>
-        <div className="flex flex-col gap-3">
-          {(match.evenements ?? []).map((ev, i) => (
-            <div key={i} className="flex gap-3 items-start">
-              <div
-                className="w-8 text-xs"
-                style={{ color: i === 0 ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
-              >
-                {ev.minute}&apos;
+        {(match.evenements ?? []).length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            Aucun événement pour l&apos;instant.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {(match.evenements ?? []).map((ev, i) => (
+              <div key={i} className="flex gap-3 items-start">
+                <div
+                  className="w-8 text-xs"
+                  style={{ color: i === 0 ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+                >
+                  {ev.minute}&apos;
+                </div>
+                <div
+                  className="flex-1 text-sm"
+                  style={{ color: i === 0 ? "var(--ds-text)" : "var(--ds-text-muted)" }}
+                >
+                  {ev.texte}
+                </div>
               </div>
-              <div
-                className="flex-1 text-sm"
-                style={{ color: i === 0 ? "var(--ds-text)" : "var(--ds-text-muted)" }}
-              >
-                {ev.texte}
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <button
           type="button"
-          className="flex items-center gap-3 p-3 mt-2 cursor-pointer"
+          onClick={() => router.push(`/matches/${match.id}/chat`)}
+          className={`flex items-center gap-3 p-3 mt-2 ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
         >
           <MessagesSquare size={18} style={{ color: "var(--ds-accent)" }} />
           <span className="flex-1 text-[13px] text-left" style={{ color: "var(--ds-muted)" }}>
-            142 spectateurs discutent
+            {spectateurs} spectateur{spectateurs > 1 ? "s" : ""} discutent
           </span>
           <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
         </button>
