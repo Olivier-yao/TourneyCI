@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, CheckCircle2, XCircle } from "lucide-react";
+import { Trophy, CheckCircle2, XCircle } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { tournoiParId, terminerTournoi, annulerTournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
-import { participantsBR, classementFinalBR } from "@/lib/mockBattleRoyale";
+import { classementFinalBR } from "@/lib/mockBattleRoyale";
 import { attribuerPoints } from "@/lib/mockProfil";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { GestionMatches } from "./GestionMatches";
+import { GestionManchesBR } from "./GestionManchesBR";
 
 function SectionCloture({
   tournoiId,
@@ -201,21 +202,11 @@ export default function GestionTournoiPage() {
         </div>
 
         {tournoi.type === "battle_royale" ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-              {participantsBR(params.id).length > 0
-                ? "Marque les joueurs éliminés au fur et à mesure de la manche."
-                : "Aucun participant chargé pour ce battle royale pour l'instant."}
-            </p>
-            <Link
-              href={`/tournois/${params.id}/battle-royale`}
-              className="flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: "var(--ds-accent-300)" }}
-            >
-              <ArrowLeft size={14} className="rotate-180" />
-              Ouvrir la gestion des éliminations
-            </Link>
-          </div>
+          <GestionManchesBR
+            tournoiId={params.id}
+            sousType={tournoi.brSousType ?? "solo"}
+            onEnregistre={() => setRafraichir((n) => n + 1)}
+          />
         ) : (
           <GestionMatches
             tournoiId={params.id}
