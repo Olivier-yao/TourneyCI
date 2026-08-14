@@ -175,16 +175,29 @@ export default function OrganisateurPage() {
         >
           Organisateur
         </div>
-        {nomOrg && (
-          <Link
-            href={`/organisateur/profil/${encodeURIComponent(nomOrg)}`}
-            className="text-xs mt-0.5 inline-block"
-            style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
-          >
-            {nomOrg} · voir mon profil →
-          </Link>
-        )}
       </div>
+
+      {nomOrg && (
+        <Link
+          href={`/organisateur/profil/${encodeURIComponent(nomOrg)}`}
+          className={`flex items-center justify-between gap-3 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className="flex items-center justify-center shrink-0 w-8 h-8"
+              style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+            >
+              <AtSign size={15} strokeWidth={2} />
+            </span>
+            <span className="text-sm font-medium truncate" style={{ fontFamily: "var(--ds-font-mono)" }}>{nomOrg}</span>
+          </div>
+          <span className="flex items-center gap-1 text-xs font-medium shrink-0" style={{ color: "var(--ds-accent-300)" }}>
+            Voir mon profil
+            <ChevronRight size={15} style={{ color: "var(--ds-accent-300)" }} />
+          </span>
+        </Link>
+      )}
 
       <Link href="/organisateur/nouveau">
         <Button variante="primary" bloc>

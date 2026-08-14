@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, ShieldCheck } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -690,16 +690,6 @@ function DetailTournoiInterne() {
           </Link>
         )}
 
-        {estMonTournoi && (
-          <Link
-            href={`/organisateur/${tournoi.id}/gestion`}
-            className="flex items-center gap-2 p-3 mt-1"
-            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
-          >
-            <Settings2 size={16} strokeWidth={2} />
-            <span className="text-sm font-medium">Gérer ce tournoi en direct</span>
-          </Link>
-        )}
       </div>
 
       <CtaInscription
@@ -707,6 +697,7 @@ function DetailTournoiInterne() {
         titre={tournoi.titre}
         jeuLabel={tournoi.jeuLabel}
         dateLabel={tournoi.dateLabel}
+        enDirect={tournoi.enDirect}
         fraisXof={tournoi.fraisXof}
         typeCompetition={tournoi.type}
         equipes={tournoi.equipes}

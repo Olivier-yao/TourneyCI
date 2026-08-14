@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Crown, Flame, Medal } from "lucide-react";
 import { JEUX } from "@/lib/mockTournaments";
-import { CLASSEMENTS, SAISON, SAISON_FIN_LABEL, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
+import { CLASSEMENTS, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
 import { PAYS, villesDuPays } from "@/lib/mockGeographie";
 import { BadgePalier } from "./Palier";
 import { Avatar } from "./Avatar";
@@ -71,9 +71,10 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
                     width: 20,
                     height: 20,
                     borderRadius: "var(--ds-radius-pill)",
-                    background: or ? "var(--ds-accent-700)" : "var(--ds-surface-2)",
-                    border: `1px solid ${or ? "var(--ds-accent-400, var(--ds-accent))" : "var(--ds-border)"}`,
-                    color: or ? "var(--ds-accent-100, var(--ds-accent-300))" : "var(--ds-muted)",
+                    background: or ? "var(--ds-btn-primary-bg)" : "var(--ds-surface-2)",
+                    border: `1px solid ${or ? "var(--ds-btn-primary-bg)" : "var(--ds-border)"}`,
+                    color: or ? "var(--ds-btn-primary-text)" : "var(--ds-muted)",
+                    boxShadow: or ? "0 0 10px color-mix(in srgb, var(--ds-accent) 55%, transparent)" : undefined,
                   }}
                 >
                   {or ? <Crown size={10} strokeWidth={2} /> : <Medal size={10} strokeWidth={2} />}
@@ -128,7 +129,7 @@ function LigneClassement({ entree, monBadgeActif, monPhotoUrl }: { entree: Class
         <Avatar initiales={entree.initiales} taille={28} photoUrl={entree.moi ? monPhotoUrl : undefined} />
         <div className="flex-1 flex items-center gap-1.5 text-sm min-w-0" style={{ fontWeight: entree.moi ? 600 : 400 }}>
           <span className="truncate">{entree.nom}</span>
-          <BadgePalier palier={palierParPoints(entree.points)} taille="sm" />
+          <BadgePalier palier={palierParPoints(entree.points)} taille="sm" masquerCouronne={entree.position > 3} />
           {entree.moi && monBadgeActif && <Flame size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} aria-label="Membre actif" />}
         </div>
         <div className="text-[13px]" style={{ color: entree.moi ? "var(--ds-accent-300)" : "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}>
@@ -161,13 +162,6 @@ export function Classement() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <div className="text-xs text-right" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          <div>{SAISON}</div>
-          <div>{SAISON_FIN_LABEL}</div>
-        </div>
-      </div>
-
       <div className="flex gap-2">
         <div className="relative flex-1">
           <select

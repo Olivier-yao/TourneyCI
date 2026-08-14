@@ -61,6 +61,9 @@ export type Tournoi = {
   commissionActivee?: boolean;
   repartitionCashPrize?: RepartitionCashPrize[];
   banniereUrl?: string;
+  /** Visuel carré dédié à l'onglet "En direct" (point 132), distinct de la
+   * bannière (format large) — recadré en 1:1 par l'organisateur. */
+  imageCarreeUrl?: string;
   termine?: boolean;
   annule?: boolean;
   /** Horodatage (ms) de début du tournoi. */
@@ -624,7 +627,7 @@ export function estAnnule(id: string): boolean {
  * les champs structurels/financiers (type, frais, cash prize, dates) déjà
  * pris en compte par des inscriptions en cours. */
 export type ParametresModifiablesTournoi = Partial<
-  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations" | "streamActif">
+  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations" | "streamActif" | "imageCarreeUrl">
 >;
 
 const CLE_PARAMETRES_SUPERPOSES = "tourney-parametres-superposes";

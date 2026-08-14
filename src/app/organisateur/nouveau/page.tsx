@@ -8,7 +8,6 @@ import { Field } from "@/components/ds/Input";
 import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
-import { Switch } from "@/components/ds/Switch";
 import { lireSolde, debiter } from "@/lib/mockWallet";
 import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estCertifie } from "@/lib/mockOrganisateur";
 import { formatXof } from "@/lib/formatXof";
@@ -44,32 +43,38 @@ function SegmentedControl<T extends string>({
   options,
   valeur,
   onChange,
+  disabledIds,
 }: {
   options: { id: T; label: string }[];
   valeur: T;
   onChange: (v: T) => void;
+  disabledIds?: T[];
 }) {
   return (
     <div
       className="flex p-[3px] gap-[3px]"
       style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
     >
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          onClick={() => onChange(o.id)}
-          className="flex-1 h-9 text-[13px] font-medium cursor-pointer transition-colors"
-          style={{
-            borderRadius: "var(--ds-radius-sm)",
-            background: valeur === o.id ? "var(--ds-accent-900)" : "transparent",
-            color: valeur === o.id ? "var(--ds-accent-300)" : "var(--ds-muted)",
-            fontFamily: "var(--ds-font-body)",
-          }}
-        >
-          {o.label}
-        </button>
-      ))}
+      {options.map((o) => {
+        const desactive = disabledIds?.includes(o.id) ?? false;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onChange(o.id)}
+            className="flex-1 h-9 text-[13px] font-medium cursor-pointer transition-colors disabled:cursor-not-allowed"
+            disabled={desactive && valeur !== o.id}
+            style={{
+              borderRadius: "var(--ds-radius-sm)",
+              background: valeur === o.id ? "var(--ds-accent-900)" : "transparent",
+              color: valeur === o.id ? "var(--ds-accent-300)" : desactive ? "color-mix(in srgb, var(--ds-muted) 55%, transparent)" : "var(--ds-muted)",
+              fontFamily: "var(--ds-font-body)",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -89,6 +94,7 @@ export default function NouveauTournoiPage() {
   const router = useRouter();
 
   const [banniereUrl, setBanniereUrl] = useState<string | undefined>(undefined);
+  const [imageCarreeUrl, setImageCarreeUrl] = useState<string | undefined>(undefined);
   const [jeuId, setJeuId] = useState(JEUX[0].id);
   const [jeuPersonnalise, setJeuPersonnalise] = useState("");
   const [titre, setTitre] = useState("");
@@ -261,6 +267,7 @@ export default function NouveauTournoiPage() {
       informations: informations.trim() || undefined,
       inscrits: [],
       banniereUrl,
+      imageCarreeUrl,
       debutTournoiTs,
       debutInscriptionsTs,
       finInscriptionsTs,
@@ -313,31 +320,26 @@ export default function NouveauTournoiPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium">Tournoi payant</div>
-              <div className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                Frais d&apos;inscription par joueur, cash prize automatique
-              </div>
-            </div>
-            <Switch
-              actif={payant}
-              disabled={!payantAutorise}
-              label="Tournoi payant"
-              onChange={(v) => {
-                if (v && !payantAutorise) {
-                  setErreur(
-                    !certifie
-                      ? "Certifie ton identité pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
-                      : "Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.",
-                  );
-                  return;
-                }
-                setErreur(null);
-                setPayant(v);
-              }}
-            />
-          </div>
+          <SegmentedControl
+            options={[
+              { id: "gratuit", label: "Gratuit" },
+              { id: "payant", label: "Payant" },
+            ]}
+            valeur={payant ? "payant" : "gratuit"}
+            disabledIds={payantAutorise ? [] : ["payant"]}
+            onChange={(v) => {
+              if (v === "payant" && !payantAutorise) {
+                setErreur(
+                  !certifie
+                    ? "Certifie ton identité pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
+                    : "Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.",
+                );
+                return;
+              }
+              setErreur(null);
+              setPayant(v === "payant");
+            }}
+          />
           <p className="text-xs leading-relaxed" style={{ color: "var(--ds-muted)" }}>
             Activé par défaut : chaque inscrit paie les frais que tu fixes ci-dessous, et la cagnotte devient
             automatiquement le cash prize. Ce n&apos;est pas obligatoire — désactive pour un tournoi gratuit à
@@ -494,6 +496,24 @@ export default function NouveauTournoiPage() {
             Bannière
           </div>
           <BannerCropper banniereActuelle={banniereUrl} onValider={setBanniereUrl} />
+        </div>
+
+        <div>
+          <div
+            className="text-xs uppercase tracking-wide mb-2"
+            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+          >
+            Visuel carré (onglet En direct)
+          </div>
+          <BannerCropper
+            banniereActuelle={imageCarreeUrl}
+            onValider={setImageCarreeUrl}
+            apercuLargeur={220}
+            apercuHauteur={220}
+            sortieLargeur={440}
+            sortieHauteur={440}
+            texteVide="Ajouter un visuel carré"
+          />
         </div>
 
         <div>

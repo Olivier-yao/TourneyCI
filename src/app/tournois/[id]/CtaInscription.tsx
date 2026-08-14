@@ -45,6 +45,7 @@ export function CtaInscription({
   tournoiCommence = false,
   fermeInscriptions = false,
   estMonTournoi = false,
+  enDirect = false,
 }: {
   tournoiId: string;
   titre: string;
@@ -60,6 +61,7 @@ export function CtaInscription({
   tournoiCommence?: boolean;
   fermeInscriptions?: boolean;
   estMonTournoi?: boolean;
+  enDirect?: boolean;
 }) {
   const router = useRouter();
   const estEquipes = typeCompetition === "equipes";
@@ -295,10 +297,18 @@ export function CtaInscription({
         >
           <Users size={18} strokeWidth={2} />
         </Link>
-        <Link href={`/organisateur/${tournoiId}/gestion`} className="flex-1">
+        <Link href={`/organisateur/${tournoiId}/gestion`} className="flex-1 relative">
           <Button variante="primary" bloc>
             Gérer le tournoi
           </Button>
+          {enDirect && (
+            <span
+              className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 animate-pulse"
+              style={{ borderRadius: "50%", background: "var(--ds-danger)", boxShadow: "0 0 0 2px var(--ds-bg)" }}
+              aria-label="Tournoi en direct — attention requise"
+              title="Tournoi en direct — attention requise"
+            />
+          )}
         </Link>
       </div>
     );

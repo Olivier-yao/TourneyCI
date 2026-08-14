@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Check, ImageOff, Radio } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
-import { Button, PRESS } from "@/components/ds/Button";
+import { Button } from "@/components/ds/Button";
+import { BannerCropper } from "@/components/ds/BannerCropper";
 import { tournoiParId, modifierTournoi } from "@/lib/mockTournaments";
 import { estOrganisateur } from "@/lib/mockAuth";
 
+/** Édition des infos générales du tournoi (titre, règlement...) — la gestion
+ * du stream a été déplacée vers un écran dédié (point 130). */
 export default function ParametresTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -23,7 +25,7 @@ export default function ParametresTournoiPage() {
   const [checkin, setCheckin] = useState(tournoi?.checkin ?? "");
   const [reglement, setReglement] = useState(tournoi?.reglement ?? "");
   const [informations, setInformations] = useState(tournoi?.informations ?? "");
-  const [streamActif, setStreamActif] = useState(tournoi?.streamActif ?? false);
+  const [imageCarreeUrl, setImageCarreeUrl] = useState(tournoi?.imageCarreeUrl);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -55,7 +57,7 @@ export default function ParametresTournoiPage() {
       checkin: checkin.trim(),
       reglement: reglement.trim(),
       informations: informations.trim() || undefined,
-      streamActif,
+      imageCarreeUrl,
     });
     setEnregistre(true);
     setTimeout(() => setEnregistre(false), 2000);
@@ -63,44 +65,7 @@ export default function ParametresTournoiPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5 pb-10" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Paramètres du tournoi" onRetour={() => router.push(`/organisateur/${params.id}/gestion`)} />
-
-      <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Diffusion</div>
-      <button
-        type="button"
-        onClick={() => setStreamActif((v) => !v)}
-        className={`flex gap-3 p-3.5 text-left ${PRESS}`}
-        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: streamActif ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)" }}
-      >
-        <span
-          className="mt-0.5 flex items-center justify-center shrink-0"
-          style={{ width: 20, height: 20, borderRadius: "var(--ds-radius-sm)", border: `1px solid ${streamActif ? "var(--ds-accent)" : "var(--ds-border-strong)"}`, background: streamActif ? "var(--ds-accent-800)" : "transparent" }}
-        >
-          {streamActif && <Check size={11} strokeWidth={2.5} style={{ color: "var(--ds-accent-300)" }} />}
-        </span>
-        <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-medium">Activer le stream live de la partie en cours</span>
-          <span className="block mt-1 text-xs leading-relaxed" style={{ color: "color-mix(in srgb, var(--ds-text) 52%, transparent)" }}>
-            Une fois le tournoi en direct, remplace la bannière par un cadre de stream visible des spectateurs.
-          </span>
-        </span>
-      </button>
-      <div className="flex items-center gap-2.5 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}>
-        {streamActif ? (
-          <Radio size={15} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0" />
-        ) : (
-          <ImageOff size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
-        )}
-        <div className="text-xs leading-relaxed" style={{ color: "color-mix(in srgb, var(--ds-text) 55%, transparent)" }}>
-          {streamActif
-            ? "Cadre de stream affiché à la place de la bannière dès le passage en direct."
-            : "La fiche gardera une simple bande d'en-tête : ni bannière, ni cadre vide."}
-        </div>
-      </div>
-
-      <div className="h-px" style={{ background: "linear-gradient(to right, transparent, var(--ds-border) 48px, var(--ds-border) calc(100% - 48px), transparent)" }} />
-
-      <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Déroulé</div>
+      <AppBar retour titre="Infos du tournoi" onRetour={() => router.push(`/organisateur/${params.id}/gestion`)} />
 
       <Field label="Titre" value={titre} onChange={(e) => setTitre(e.target.value)} />
       <Field label="Ville / lieu" value={ville} onChange={(e) => setVille(e.target.value)} />
@@ -125,6 +90,19 @@ export default function ParametresTournoiPage() {
           rows={4}
           className="px-3 py-2.5 text-sm outline-none resize-none"
           style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Visuel carré (onglet En direct)</label>
+        <BannerCropper
+          banniereActuelle={imageCarreeUrl}
+          onValider={setImageCarreeUrl}
+          apercuLargeur={220}
+          apercuHauteur={220}
+          sortieLargeur={440}
+          sortieHauteur={440}
+          texteVide="Ajouter un visuel carré"
         />
       </div>
 

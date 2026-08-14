@@ -4,28 +4,35 @@ import { useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
 import { Button } from "./Button";
 
-const APERCU_LARGEUR = 320;
-const APERCU_HAUTEUR = 160;
-const SORTIE_LARGEUR = 800;
-const SORTIE_HAUTEUR = 400;
-
 type Position = { x: number; y: number };
 
-function clamper(pos: Position, echelle: number, natW: number, natH: number): Position {
-  const minX = Math.min(0, APERCU_LARGEUR - natW * echelle);
-  const minY = Math.min(0, APERCU_HAUTEUR - natH * echelle);
+function clamper(pos: Position, echelle: number, natW: number, natH: number, apercuLargeur: number, apercuHauteur: number): Position {
+  const minX = Math.min(0, apercuLargeur - natW * echelle);
+  const minY = Math.min(0, apercuHauteur - natH * echelle);
   return {
     x: Math.min(0, Math.max(pos.x, minX)),
     y: Math.min(0, Math.max(pos.y, minY)),
   };
 }
 
+/** Recadreur d'image générique (bannière 2:1 par défaut, ou tout autre ratio
+ * — ex: carré 1:1 pour le visuel de l'onglet En direct, point 132). */
 export function BannerCropper({
   banniereActuelle,
   onValider,
+  apercuLargeur = 320,
+  apercuHauteur = 160,
+  sortieLargeur = 800,
+  sortieHauteur = 400,
+  texteVide = "Ajouter une image",
 }: {
   banniereActuelle?: string;
   onValider: (dataUrl: string) => void;
+  apercuLargeur?: number;
+  apercuHauteur?: number;
+  sortieLargeur?: number;
+  sortieHauteur?: number;
+  texteVide?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -38,7 +45,7 @@ export function BannerCropper({
   });
 
   function baseEchelle(img: HTMLImageElement) {
-    return Math.max(APERCU_LARGEUR / img.naturalWidth, APERCU_HAUTEUR / img.naturalHeight);
+    return Math.max(apercuLargeur / img.naturalWidth, apercuHauteur / img.naturalHeight);
   }
 
   function ouvrirFichier(fichier: File) {
@@ -50,8 +57,8 @@ export function BannerCropper({
         setImage(img);
         setZoom(1);
         setPos({
-          x: (APERCU_LARGEUR - img.naturalWidth * base) / 2,
-          y: (APERCU_HAUTEUR - img.naturalHeight * base) / 2,
+          x: (apercuLargeur - img.naturalWidth * base) / 2,
+          y: (apercuHauteur - img.naturalHeight * base) / 2,
         });
       };
       img.src = lecteur.result as string;
@@ -72,7 +79,7 @@ export function BannerCropper({
       x: glissement.current.posDepart.x + dx,
       y: glissement.current.posDepart.y + dy,
     };
-    setPos(clamper(nouvelle, echelle, image.naturalWidth, image.naturalHeight));
+    setPos(clamper(nouvelle, echelle, image.naturalWidth, image.naturalHeight, apercuLargeur, apercuHauteur));
   }
 
   function arreterGlissement() {
@@ -83,23 +90,23 @@ export function BannerCropper({
     if (!image) return;
     const echelle = baseEchelle(image) * valeur;
     setZoom(valeur);
-    setPos((p) => clamper(p, echelle, image.naturalWidth, image.naturalHeight));
+    setPos((p) => clamper(p, echelle, image.naturalWidth, image.naturalHeight, apercuLargeur, apercuHauteur));
   }
 
   function valider() {
     if (!image) return;
     const echelle = baseEchelle(image) * zoom;
     const canvas = document.createElement("canvas");
-    canvas.width = SORTIE_LARGEUR;
-    canvas.height = SORTIE_HAUTEUR;
+    canvas.width = sortieLargeur;
+    canvas.height = sortieHauteur;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const facteur = SORTIE_LARGEUR / APERCU_LARGEUR;
+    const facteur = sortieLargeur / apercuLargeur;
     const sx = -pos.x / echelle;
     const sy = -pos.y / echelle;
-    const sLargeur = APERCU_LARGEUR / echelle;
-    const sHauteur = APERCU_HAUTEUR / echelle;
-    ctx.drawImage(image, sx, sy, sLargeur, sHauteur, 0, 0, APERCU_LARGEUR * facteur, APERCU_HAUTEUR * facteur);
+    const sLargeur = apercuLargeur / echelle;
+    const sHauteur = apercuHauteur / echelle;
+    ctx.drawImage(image, sx, sy, sLargeur, sHauteur, 0, 0, apercuLargeur * facteur, apercuHauteur * facteur);
     onValider(canvas.toDataURL("image/jpeg", 0.9));
     setImage(null);
   }
@@ -131,7 +138,7 @@ export function BannerCropper({
           ) : (
             <>
               <ImagePlus size={20} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
-              <span className="text-xs" style={{ color: "var(--ds-muted)" }}>Ajouter une image</span>
+              <span className="text-xs" style={{ color: "var(--ds-muted)" }}>{texteVide}</span>
             </>
           )}
         </button>
@@ -142,8 +149,8 @@ export function BannerCropper({
           <div
             className="relative overflow-hidden touch-none select-none mx-auto"
             style={{
-              width: APERCU_LARGEUR,
-              height: APERCU_HAUTEUR,
+              width: apercuLargeur,
+              height: apercuHauteur,
               borderRadius: "var(--ds-radius-md)",
               border: "1px solid var(--ds-border)",
               background: "var(--ds-surface)",

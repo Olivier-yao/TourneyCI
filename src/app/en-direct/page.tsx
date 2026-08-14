@@ -114,9 +114,9 @@ export default function EnDirectPage() {
                     style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
                   >
                     <div className="relative shrink-0 w-11 h-11 overflow-hidden" style={{ borderRadius: "var(--ds-radius-sm)" }}>
-                      {t.banniereUrl ? (
+                      {t.imageCarreeUrl || t.banniereUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={t.banniereUrl} alt={t.titre} className="w-full h-full object-cover" />
+                        <img src={t.imageCarreeUrl ?? t.banniereUrl} alt={t.titre} className="w-full h-full object-cover" />
                       ) : (
                         <ImagePlaceholder label="" hauteur={44} />
                       )}

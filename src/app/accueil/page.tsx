@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, Bell, ChevronRight, X, SlidersHorizontal } from "lucide-react";
+import { Search, Bell, ChevronRight, X, SlidersHorizontal, Play, Radio } from "lucide-react";
 import { Card, CardKicker, CardTitle } from "@/components/ds/Card";
 import { Avatar } from "@/components/ds/Avatar";
 import { LiveBadge } from "@/components/ds/LiveBadge";
@@ -44,6 +44,7 @@ export default function AccueilV2Page() {
   const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
   const [utilisateur, setUtilisateur] = useState({ nom: "Joueur", initiales: "JO", photoUrl: undefined as string | undefined });
   const [tournois, setTournois] = useState<Tournoi[]>([]);
+  const [streamOuvert, setStreamOuvert] = useState<Tournoi | null>(null);
 
   useEffect(() => {
     // État dépendant du localStorage (tournois créés localement) : liste
@@ -93,7 +94,6 @@ export default function AccueilV2Page() {
 
   const resultats = tousFiltres(filtres);
   const enDirect = resultats.filter((t) => t.enDirect);
-  const vedette = enDirect[0];
   const prochains = resultats.filter((t) => !t.enDirect);
   const nbFiltresActifs = compterFiltresActifs(filtres);
 
@@ -247,54 +247,74 @@ export default function AccueilV2Page() {
         </div>
 
         <div className="flex-1 px-[20px] pt-4 flex flex-col gap-3 pb-24">
-          {vedette && (
+          {enDirect.length > 0 && (
             <>
               <motion.div variants={elementVariants} className="flex items-center justify-between text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
                 <span>En direct maintenant</span>
                 {enDirect.length > 1 && (
-                  <Link href="/en-direct" style={{ color: "var(--ds-accent-300)" }}>
-                    +{enDirect.length - 1} autre{enDirect.length > 2 ? "s" : ""}
-                  </Link>
+                  <span style={{ color: "var(--ds-accent-300)" }}>
+                    {enDirect.length} tournois
+                  </span>
                 )}
               </motion.div>
-              <motion.div variants={elementVariants}>
-                <Link href={`/tournois/${vedette.id}`}>
-                  <Card>
-                    <div className="relative">
-                      {vedette.banniereUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={vedette.banniereUrl} alt={vedette.titre} className="w-full object-cover" style={{ height: 120 }} />
-                      ) : (
-                        <ImagePlaceholder label="visuel tournoi" hauteur={120} />
-                      )}
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
-                      />
-                      <div className="absolute top-2.5 left-2.5">
-                        <LiveBadge />
-                      </div>
-                    </div>
-                    <div className="p-3.5 flex flex-col gap-1.5">
-                      <CardTitle>{vedette.titre}</CardTitle>
-                      <CardKicker>{vedette.jeuLabel} · {vedette.format}</CardKicker>
-                      <div className="flex items-end justify-between mt-1">
-                        <div>
-                          <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
-                          <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                            {formatXof(cashPrizeAffiche(vedette))}
-                          </div>
+              <motion.div
+                variants={elementVariants}
+                className="flex gap-3 overflow-x-auto pb-1 -mx-[20px] px-[20px] snap-x snap-mandatory"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {enDirect.map((t) => (
+                  <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0 snap-start" style={{ width: "85%" }}>
+                    <Card>
+                      <div className="relative">
+                        {t.banniereUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={t.banniereUrl} alt={t.titre} className="w-full object-cover" style={{ height: 120 }} />
+                        ) : (
+                          <ImagePlaceholder label="visuel tournoi" hauteur={120} />
+                        )}
+                        <div
+                          className="absolute inset-0 pointer-events-none"
+                          style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
+                        />
+                        <div className="absolute top-2.5 left-2.5">
+                          <LiveBadge />
                         </div>
-                        <span
-                          className="h-8 px-3 flex items-center text-xs font-semibold"
-                          style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", border: "var(--ds-btn-primary-border, 1px solid transparent)", color: "var(--ds-btn-primary-text)" }}
-                        >
-                          Suivre
-                        </span>
+                        {t.streamActif && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setStreamOuvert(t);
+                            }}
+                            aria-label="Regarder le stream"
+                            className="absolute bottom-2.5 right-2.5 flex items-center justify-center w-9 h-9 cursor-pointer"
+                            style={{ borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "1px solid rgba(255,255,255,.35)", color: "#fff" }}
+                          >
+                            <Play size={15} strokeWidth={2} fill="currentColor" />
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  </Card>
-                </Link>
+                      <div className="p-3.5 flex flex-col gap-1.5">
+                        <CardTitle>{t.titre}</CardTitle>
+                        <CardKicker>{t.jeuLabel} · {t.format}</CardKicker>
+                        <div className="flex items-end justify-between mt-1">
+                          <div>
+                            <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
+                            <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                              {formatXof(cashPrizeAffiche(t))}
+                            </div>
+                          </div>
+                          <span
+                            className="h-8 px-3 flex items-center text-xs font-semibold"
+                            style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", border: "var(--ds-btn-primary-border, 1px solid transparent)", color: "var(--ds-btn-primary-text)" }}
+                          >
+                            Suivre
+                          </span>
+                        </div>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
               </motion.div>
             </>
           )}
@@ -363,6 +383,43 @@ export default function AccueilV2Page() {
           <div className="flex flex-col gap-2" style={{ whiteSpace: "normal" }}>
             <p>{notifDetail.texte}</p>
             <p style={{ color: "var(--ds-muted)" }}>{notifDetail.temps}</p>
+          </div>
+        )}
+      </Modal>
+
+      {/* Aperçu du stream sans quitter l'accueil (point 131) — même
+          emplacement visuel que le cadre de la fiche tournoi (backlog stream
+          réel, CLAUDE.md point 110). */}
+      <Modal ouvert={streamOuvert !== null} titre={streamOuvert?.titre ?? "Stream"} onFermer={() => setStreamOuvert(null)}>
+        {streamOuvert && (
+          <div className="flex flex-col gap-3" style={{ whiteSpace: "normal" }}>
+            <div
+              className="relative w-full overflow-hidden flex flex-col items-center justify-center gap-2"
+              style={{ height: 160, borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-accent-800)" }}
+            >
+              <div
+                className="flex items-center justify-center w-11 h-11"
+                style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)" }}
+              >
+                <Radio size={20} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+              </div>
+              <span className="text-sm font-medium" style={{ color: "var(--ds-text)" }}>Stream en direct de la partie</span>
+              <span
+                className="absolute left-3 bottom-3 flex items-center gap-1.5 px-2.5 py-1 text-[9px] tracking-wide"
+                style={{ borderRadius: "var(--ds-radius-pill)", background: "color-mix(in srgb, var(--ds-bg) 80%, transparent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--ds-accent-300)" }} />
+                EN DIRECT
+              </span>
+            </div>
+            <Link
+              href={`/tournois/${streamOuvert.id}`}
+              onClick={() => setStreamOuvert(null)}
+              className="text-sm font-medium text-center"
+              style={{ color: "var(--ds-accent-300)" }}
+            >
+              Voir la fiche du tournoi →
+            </Link>
           </div>
         )}
       </Modal>

@@ -7,7 +7,7 @@ import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
-import { lireSolde, fraisRetrait, retirer } from "@/lib/mockWallet";
+import { lireSolde, fraisRetrait, montantNetRetrait, retirer } from "@/lib/mockWallet";
 import { estCertifie } from "@/lib/mockOrganisateur";
 
 const DESTINATIONS = [
@@ -34,7 +34,7 @@ export default function RetirerPage() {
 
   const montant = Number(montantSaisi) || 0;
   const frais = fraisRetrait(montant);
-  const total = montant + frais;
+  const net = montantNetRetrait(montant);
 
   function confirmer() {
     const libelle = DESTINATIONS.find((d) => d.id === destination)?.label ?? destination;
@@ -73,7 +73,7 @@ export default function RetirerPage() {
         <CheckCircle2 size={36} style={{ color: "var(--ds-accent-300)" }} />
         <p className="text-base font-medium">Retrait en vérification</p>
         <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-          {montant.toLocaleString("fr-FR")} F sont en cours de vérification (5 minutes) avant traitement définitif, puis arrivent sur ton compte.
+          {net.toLocaleString("fr-FR")} F sont en cours de vérification (5 minutes) avant traitement définitif, puis arrivent sur ton compte.
         </p>
       </div>
     );
@@ -128,16 +128,16 @@ export default function RetirerPage() {
       {montant > 0 && (
         <div className="p-3 flex flex-col gap-1.5 text-sm" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
           <div className="flex justify-between">
-            <span style={{ color: "var(--ds-muted)" }}>Montant</span>
+            <span style={{ color: "var(--ds-muted)" }}>Montant demandé (débité de ton solde)</span>
             <span style={{ fontFamily: "var(--ds-font-mono)" }}>{montant.toLocaleString("fr-FR")} F</span>
           </div>
           <div className="flex justify-between">
-            <span style={{ color: "var(--ds-muted)" }}>Frais de retrait (1 %)</span>
-            <span style={{ fontFamily: "var(--ds-font-mono)" }}>{frais.toLocaleString("fr-FR")} F</span>
+            <span style={{ color: "var(--ds-muted)" }}>Frais de retrait déduits (1 %)</span>
+            <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {frais.toLocaleString("fr-FR")} F</span>
           </div>
           <div className="flex justify-between font-medium pt-1.5" style={{ borderTop: "1px solid var(--ds-border)" }}>
-            <span>Débité de ton solde</span>
-            <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{total.toLocaleString("fr-FR")} F</span>
+            <span>Montant net reçu</span>
+            <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{net.toLocaleString("fr-FR")} F</span>
           </div>
         </div>
       )}

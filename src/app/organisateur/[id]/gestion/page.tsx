@@ -3,19 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Trophy, CheckCircle2, XCircle, Settings2, Users, ListChecks, Flag, Zap, Clock, Radio, KeyRound } from "lucide-react";
+import { CheckCircle2, XCircle, Settings2, Users, ListChecks, Flag, Zap, Clock, Radio, KeyRound, Info } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
-import { Field } from "@/components/ds/Input";
-import { Button, PRESS } from "@/components/ds/Button";
+import { PRESS } from "@/components/ds/Button";
 import { Modal } from "@/components/ds/Modal";
-import { tournoiParId, terminerTournoi, inscriptionsFermees } from "@/lib/mockTournaments";
+import { tournoiParId, inscriptionsFermees, terminerTournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
 import { classementFinalBR, manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
-import { attribuerPoints } from "@/lib/mockProfil";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { creerDemandeAnnulation, demandeAnnulationPourTournoi, type DemandeAnnulation } from "@/lib/mockDemandesAnnulation";
-import { GestionMatches } from "./GestionMatches";
-import { GestionManchesBR } from "./GestionManchesBR";
 
 /** La clôture n'est plus déclenchée manuellement (point 119) : dès que le
  * classement final est calculable (dernier match/manche validé), le tournoi
@@ -160,56 +156,6 @@ function SectionCloture({
   );
 }
 
-function SectionPoints({ jeuId, jeuLabel, villeParDefaut }: { jeuId: string; jeuLabel: string; villeParDefaut: string }) {
-  const [nom, setNom] = useState("");
-  const [points, setPoints] = useState("");
-  const [ville, setVille] = useState(villeParDefaut);
-  const [historique, setHistorique] = useState<{ nom: string; points: number }[]>([]);
-
-  function attribuer() {
-    const n = Number(points);
-    if (!nom.trim() || !Number.isFinite(n) || n === 0) return;
-    attribuerPoints(jeuId, nom.trim(), n, ville.trim() || villeParDefaut);
-    setHistorique((h) => [{ nom: nom.trim(), points: n }, ...h]);
-    setNom("");
-    setPoints("");
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-        Ajoute des points au classement {jeuLabel} pour un participant (qualification, palier atteint,
-        victoire finale...).
-      </p>
-      <div className="flex flex-col gap-2.5">
-        <Field label="Participant" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Kader B." />
-        <div className="grid grid-cols-2 gap-2.5">
-          <Field
-            label="Points"
-            value={points}
-            onChange={(e) => setPoints(e.target.value.replace(/[^0-9-]/g, ""))}
-            placeholder="100"
-          />
-          <Field label="Ville" value={ville} onChange={(e) => setVille(e.target.value)} placeholder={villeParDefaut} />
-        </div>
-        <Button variante="secondary" onClick={attribuer} disabled={!nom.trim() || !points}>
-          Attribuer les points
-        </Button>
-      </div>
-      {historique.length > 0 && (
-        <div className="flex flex-col gap-1.5 mt-1">
-          {historique.map((h, i) => (
-            <div key={i} className="flex items-center justify-between text-xs" style={{ color: "var(--ds-muted)" }}>
-              <span>{h.nom}</span>
-              <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>+{h.points} pts</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function CarteActionRequise({
   tournoi,
 }: {
@@ -222,8 +168,8 @@ function CarteActionRequise({
     const unites = unitesBR(tournoi.id, tournoi.brSousType ?? "solo");
     if (unites.length === 0) return null;
     return (
-      <a
-        href="#saisie"
+      <Link
+        href={`/organisateur/${tournoi.id}/qualification`}
         className="flex flex-col gap-1 p-3.5"
         style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent)" }}
       >
@@ -237,7 +183,7 @@ function CarteActionRequise({
         <div className="text-xs mt-0.5" style={{ color: "var(--ds-text-muted)" }}>
           {unites.length} équipe{unites.length > 1 ? "s" : ""} en jeu.
         </div>
-      </a>
+      </Link>
     );
   }
 
@@ -245,8 +191,8 @@ function CarteActionRequise({
   const enAttente = matches.filter((m) => m.statut !== "termine" && m.joueur1 && m.joueur2).length;
   if (enAttente === 0) return null;
   return (
-    <a
-      href="#saisie"
+    <Link
+      href={`/organisateur/${tournoi.id}/qualification`}
       className="flex flex-col gap-1 p-3.5"
       style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent)" }}
     >
@@ -262,7 +208,7 @@ function CarteActionRequise({
       <div className="text-xs mt-0.5" style={{ color: "var(--ds-text-muted)" }}>
         Valide les scores pour faire avancer le bracket.
       </div>
-    </a>
+    </Link>
   );
 }
 
@@ -329,8 +275,8 @@ export default function GestionTournoiPage() {
             </div>
           </div>
         </Link>
-        <a
-          href="#saisie"
+        <Link
+          href={`/organisateur/${params.id}/qualification`}
           className={`flex flex-col gap-2 p-3 ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
         >
@@ -341,9 +287,22 @@ export default function GestionTournoiPage() {
               {tournoi.type === "battle_royale" ? `${manchesBR(tournoi.id).length} jouée(s)` : "Saisir un résultat"}
             </div>
           </div>
-        </a>
+        </Link>
         <Link
           href={`/organisateur/${params.id}/parametres`}
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+        >
+          <Info size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">Infos du tournoi</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Titre, règlement...
+            </div>
+          </div>
+        </Link>
+        <Link
+          href={`/organisateur/${params.id}/stream`}
           className={`flex flex-col gap-2 p-3 ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
         >
@@ -351,7 +310,7 @@ export default function GestionTournoiPage() {
           <div>
             <div className="text-[13px] font-medium">Paramètres</div>
             <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              Titre, règlement...
+              Stream / diffusion
             </div>
           </div>
         </Link>
@@ -385,30 +344,7 @@ export default function GestionTournoiPage() {
         )}
       </div>
 
-      <div id="saisie" className="flex flex-col gap-3 scroll-mt-4">
-        <div className="text-base font-medium flex items-center gap-2">
-          <Trophy size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-          {tournoi.type === "battle_royale" ? "Éliminations" : "Qualifications"}
-        </div>
-
-        {tournoi.type === "battle_royale" ? (
-          <GestionManchesBR
-            tournoiId={params.id}
-            tournoiTitre={tournoi.titre}
-            sousType={tournoi.brSousType ?? "solo"}
-            onEnregistre={() => setRafraichir((n) => n + 1)}
-          />
-        ) : (
-          <GestionMatches
-            tournoiId={params.id}
-            tournoiTitre={tournoi.titre}
-            matches={matchsDuTournoi(params.id)}
-            onEnregistre={() => setRafraichir((n) => n + 1)}
-          />
-        )}
-      </div>
-
-      <div id="cloture" className="flex flex-col gap-3 scroll-mt-4">
+      <div id="cloture" className="flex flex-col gap-3 scroll-mt-4 pb-6">
         <div className="text-base font-medium flex items-center gap-2">
           <CheckCircle2 size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
           Clôture du tournoi
@@ -422,11 +358,6 @@ export default function GestionTournoiPage() {
           termine={Boolean(tournoi.termine)}
           onTermine={() => setRafraichir((n) => n + 1)}
         />
-      </div>
-
-      <div className="flex flex-col gap-3 pb-6">
-        <div className="text-base font-medium">Ajustement manuel des points (optionnel)</div>
-        <SectionPoints jeuId={tournoi.jeuId} jeuLabel={tournoi.jeuLabel} villeParDefaut={tournoi.ville} />
       </div>
     </div>
   );

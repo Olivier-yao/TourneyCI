@@ -73,16 +73,21 @@ export function recharger(montantXof: number, moyen: string) {
   crediter(montantXof, `Recharge ${moyen}`, "recharge");
 }
 
-/** Frais de retrait : 1 %, plancher et plafond pour rester indolore quel que
- * soit le montant (pas de quoi faire râler les joueurs sur de petits retraits,
- * pas non plus de manque à gagner disproportionné sur les gros). */
+/** Frais de retrait : 1 % du montant retiré, plafonné pour rester indolore
+ * sur les gros retraits — déduits du montant lui-même (point 138), jamais
+ * ajoutés en plus : le joueur saisit ce qu'il retire de son solde, pas ce
+ * qu'il doit débourser en plus pour compenser les frais. */
 const FRAIS_RETRAIT_PCT = 0.01;
-const FRAIS_RETRAIT_MIN = 100;
 const FRAIS_RETRAIT_MAX = 1000;
 
 export function fraisRetrait(montantXof: number): number {
   if (montantXof <= 0) return 0;
-  return Math.min(FRAIS_RETRAIT_MAX, Math.max(FRAIS_RETRAIT_MIN, Math.round(montantXof * FRAIS_RETRAIT_PCT)));
+  return Math.min(FRAIS_RETRAIT_MAX, Math.round(montantXof * FRAIS_RETRAIT_PCT));
+}
+
+/** Montant net réellement envoyé vers le moyen de paiement, frais déduits. */
+export function montantNetRetrait(montantXof: number): number {
+  return Math.max(0, montantXof - fraisRetrait(montantXof));
 }
 
 export function retirer(montantXof: number, moyen: string): { ok: boolean; erreur?: string } {
@@ -90,13 +95,11 @@ export function retirer(montantXof: number, moyen: string): { ok: boolean; erreu
     return { ok: false, erreur: "Vérifie ton identité avant de pouvoir retirer tes gains." };
   }
   if (montantXof < 1000) return { ok: false, erreur: "Le retrait minimum est de 1 000 F." };
-  const frais = fraisRetrait(montantXof);
-  const total = montantXof + frais;
-  if (lireSolde() < total) return { ok: false, erreur: "Solde insuffisant pour ce retrait (frais inclus)." };
+  if (lireSolde() < montantXof) return { ok: false, erreur: "Solde insuffisant pour ce retrait." };
   enregistrerMouvement({
     type: "retrait",
     libelle: `Retrait ${moyen}`,
-    montantXof: -total,
+    montantXof: -montantXof,
     dateLabel: AUJOURD_HUI(),
   });
   return { ok: true };

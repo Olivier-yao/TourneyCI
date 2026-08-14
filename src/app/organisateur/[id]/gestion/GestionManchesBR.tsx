@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, Info } from "lucide-react";
 import { unitesBR, manchesBR, ajouterMancheBR, type SousTypeBR } from "@/lib/mockBattleRoyale";
 import { notifierParticipants } from "@/lib/mockNotifications";
+import { Modal } from "@/components/ds/Modal";
+import { PRESS } from "@/components/ds/Button";
 
 export function GestionManchesBR({
   tournoiId,
@@ -22,24 +24,27 @@ export function GestionManchesBR({
   const numeroSuivant = manches.length + 1;
   const [placements, setPlacements] = useState<Record<string, string>>({});
   const [eliminations, setEliminations] = useState<Record<string, number>>({});
+  const [confirmationOuverte, setConfirmationOuverte] = useState(false);
 
   function stepper(id: string, delta: number) {
     setEliminations((e) => ({ ...e, [id]: Math.max(0, (e[id] ?? 0) + delta) }));
   }
 
-  function valider() {
-    const resultats = participants
-      .map((p) => ({
-        participantId: p.id,
-        placement: Number(placements[p.id]) || 0,
-        eliminations: eliminations[p.id] ?? 0,
-      }))
-      .filter((r) => r.placement > 0 || r.eliminations > 0);
-    if (resultats.length === 0) return;
-    ajouterMancheBR(tournoiId, resultats);
+  const resultatsPrets = participants
+    .map((p) => ({
+      participantId: p.id,
+      placement: Number(placements[p.id]) || 0,
+      eliminations: eliminations[p.id] ?? 0,
+    }))
+    .filter((r) => r.placement > 0 || r.eliminations > 0);
+
+  function cloturer() {
+    if (resultatsPrets.length === 0) return;
+    ajouterMancheBR(tournoiId, resultatsPrets);
     notifierParticipants(tournoiId, tournoiTitre, `Manche ${numeroSuivant} enregistrée — classement mis à jour`);
     setPlacements({});
     setEliminations({});
+    setConfirmationOuverte(false);
     onEnregistre();
   }
 
@@ -109,11 +114,12 @@ export function GestionManchesBR({
         </div>
         <button
           type="button"
-          onClick={valider}
-          className="h-9 text-sm font-medium cursor-pointer"
+          onClick={() => setConfirmationOuverte(true)}
+          disabled={resultatsPrets.length === 0}
+          className="h-9 text-sm font-medium cursor-pointer disabled:opacity-40"
           style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
         >
-          Valider la manche
+          Clôturer la manche
         </button>
       </div>
       <Link
@@ -123,6 +129,41 @@ export function GestionManchesBR({
       >
         Voir le classement en direct →
       </Link>
+
+      <Modal ouvert={confirmationOuverte} titre={`Clôturer la manche ${numeroSuivant}`} onFermer={() => setConfirmationOuverte(false)}>
+        <div className="flex flex-col gap-2.5 not-italic" style={{ whiteSpace: "normal" }}>
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            {resultatsPrets.length} résultat{resultatsPrets.length > 1 ? "s" : ""} vont être enregistrés. Le classement de la manche
+            {" "}{numeroSuivant} sera figé et communiqué aux participants — vérifie les placements et éliminations avant de continuer.
+          </p>
+          <div className="flex items-start gap-2 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+            <Info size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0 mt-0.5" />
+            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+              En cas d&apos;erreur ou d&apos;incident nécessitant l&apos;annulation du tournoi, cette clôture de manche ne l&apos;empêche
+              pas : utilise la demande d&apos;annulation motivée depuis la section Clôture du tournoi, elle sera examinée par
+              l&apos;administration.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 pt-3">
+          <button
+            type="button"
+            onClick={() => setConfirmationOuverte(false)}
+            className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={cloturer}
+            className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+          >
+            Confirmer la clôture
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

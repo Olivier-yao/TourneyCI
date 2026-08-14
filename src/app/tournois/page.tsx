@@ -2,46 +2,69 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { ChevronDown, Search, X } from "lucide-react";
+import { Search, X, SlidersHorizontal } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
-import { CarteTournoi, elementVariants, LABEL_TYPE } from "@/components/ds/CarteTournoi";
-import { JEUX, tousLesTournois, type TypeCompetition, type Tournoi } from "@/lib/mockTournaments";
-import type { SousTypeBR } from "@/lib/mockBattleRoyale";
+import { CarteTournoi, elementVariants } from "@/components/ds/CarteTournoi";
+import { genreDuJeu, modeDuTournoi, tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
+import { mesInscriptions } from "@/lib/mockInscriptions";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
-
-const TYPES_COMPETITION: TypeCompetition[] = ["1v1", "equipes", "battle_royale"];
-const SOUS_TYPES_BR: SousTypeBR[] = ["solo", "duo", "squad"];
-const LABEL_SOUS_TYPE_BR: Record<SousTypeBR, string> = { solo: "Solo", duo: "Duo", squad: "Squad" };
+import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
 
 const conteneurVariants = {
   cache: {},
   visible: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
 };
 
+type Onglet = "tous" | "inscriptions";
+
 export default function TournoisPage() {
   const connecte = useExigerConnexion();
-  const [jeuActif, setJeuActif] = useState<string | null>(null);
-  const [typeActif, setTypeActif] = useState<TypeCompetition | null>(null);
-  const [sousTypeActif, setSousTypeActif] = useState<SousTypeBR | null>(null);
+  const [onglet, setOnglet] = useState<Onglet>("tous");
+  const [filtresOuverts, setFiltresOuverts] = useState(false);
+  const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
   const [requete, setRequete] = useState("");
   const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
+  const [idsInscrits, setIdsInscrits] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTousLesTournoisState(tousLesTournois());
+    setIdsInscrits(new Set(mesInscriptions().map((i) => i.tournoiId)));
   }, []);
 
-  const tournois = tousLesTournoisState.filter(
-    (t) =>
-      (!jeuActif || t.jeuId === jeuActif) &&
-      (!typeActif || t.type === typeActif) &&
-      (!sousTypeActif || t.brSousType === sousTypeActif) &&
-      (!requete ||
-        t.titre.toLowerCase().includes(requete.toLowerCase()) ||
-        (t.code ?? "").toLowerCase() === requete.trim().toLowerCase()),
-  );
+  function correspond(t: Tournoi, f: FiltresValeur) {
+    const jeuLibreActif = Boolean(f.jeuLibre?.trim());
+    if (f.jeux.length > 0 || jeuLibreActif) {
+      const matchCatalogue = f.jeux.includes(t.jeuId);
+      const matchLibre = jeuLibreActif && t.jeuLabel.toLowerCase().includes(f.jeuLibre!.trim().toLowerCase());
+      if (!matchCatalogue && !matchLibre) return false;
+    }
+    if (f.genres.length > 0) {
+      const genre = genreDuJeu(t.jeuId);
+      if (!genre || !f.genres.includes(genre)) return false;
+    }
+    if (f.modes.length > 0) {
+      const mode = modeDuTournoi(t);
+      if (!mode || !f.modes.includes(mode)) return false;
+    }
+    return true;
+  }
+
+  const base = onglet === "inscriptions" ? tousLesTournoisState.filter((t) => idsInscrits.has(t.id)) : tousLesTournoisState;
+
+  const tousFiltres = (f: FiltresValeur) =>
+    base.filter(
+      (t) =>
+        correspond(t, f) &&
+        (!requete ||
+          t.titre.toLowerCase().includes(requete.toLowerCase()) ||
+          (t.code ?? "").toLowerCase() === requete.trim().toLowerCase()),
+    );
+
+  const tournois = tousFiltres(filtres);
+  const nbFiltresActifs = compterFiltresActifs(filtres);
 
   if (!connecte) return null;
 
@@ -68,6 +91,37 @@ export default function TournoisPage() {
           Tournois
         </motion.h1>
 
+        <motion.div
+          variants={elementVariants}
+          className="flex p-[3px] gap-[3px]"
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
+        >
+          <button
+            type="button"
+            onClick={() => setOnglet("tous")}
+            className="flex-1 h-8 text-[13px] font-semibold cursor-pointer"
+            style={{
+              borderRadius: "var(--ds-radius-sm)",
+              background: onglet === "tous" ? "var(--ds-accent-900)" : "transparent",
+              color: onglet === "tous" ? "var(--ds-accent-300)" : "var(--ds-muted)",
+            }}
+          >
+            Tous les tournois
+          </button>
+          <button
+            type="button"
+            onClick={() => setOnglet("inscriptions")}
+            className="flex-1 h-8 text-[13px] font-semibold cursor-pointer"
+            style={{
+              borderRadius: "var(--ds-radius-sm)",
+              background: onglet === "inscriptions" ? "var(--ds-accent-900)" : "transparent",
+              color: onglet === "inscriptions" ? "var(--ds-accent-300)" : "var(--ds-muted)",
+            }}
+          >
+            Mes inscriptions
+          </button>
+        </motion.div>
+
         <motion.div variants={elementVariants} className="flex items-center gap-2">
           <div
             className="relative flex-1 flex items-center"
@@ -88,97 +142,28 @@ export default function TournoisPage() {
             )}
           </div>
 
-          <div className="relative w-[150px] shrink-0">
-            <select
-              value={jeuActif ?? ""}
-              onChange={(e) => setJeuActif(e.target.value || null)}
-              className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
-              style={{
-                borderRadius: "var(--ds-radius-md)",
-                background: "var(--ds-surface)",
-                border: "1px solid var(--ds-border)",
-                color: "var(--ds-text)",
-                fontFamily: "var(--ds-font-body)",
-              }}
-            >
-              <option value="">Tous les jeux</option>
-              {JEUX.map((jeu) => (
-                <option key={jeu.id} value={jeu.id}>
-                  {jeu.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={16}
-              strokeWidth={2}
-              className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "var(--ds-muted)" }}
-            />
-          </div>
-        </motion.div>
-
-        <motion.div variants={elementVariants} className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <select
-              value={typeActif ?? ""}
-              onChange={(e) => {
-                const v = (e.target.value || null) as TypeCompetition | null;
-                setTypeActif(v);
-                if (v !== "battle_royale") setSousTypeActif(null);
-              }}
-              className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
-              style={{
-                borderRadius: "var(--ds-radius-md)",
-                background: "var(--ds-surface)",
-                border: "1px solid var(--ds-border)",
-                color: "var(--ds-text)",
-                fontFamily: "var(--ds-font-body)",
-              }}
-            >
-              <option value="">Tous les types</option>
-              {TYPES_COMPETITION.map((type) => (
-                <option key={type} value={type}>
-                  {LABEL_TYPE[type]}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={16}
-              strokeWidth={2}
-              className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "var(--ds-muted)" }}
-            />
-          </div>
-
-          {typeActif === "battle_royale" && (
-            <div className="relative flex-1">
-              <select
-                value={sousTypeActif ?? ""}
-                onChange={(e) => setSousTypeActif((e.target.value || null) as SousTypeBR | null)}
-                className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
-                style={{
-                  borderRadius: "var(--ds-radius-md)",
-                  background: "var(--ds-surface)",
-                  border: "1px solid var(--ds-border)",
-                  color: "var(--ds-text)",
-                  fontFamily: "var(--ds-font-body)",
-                }}
+          <button
+            type="button"
+            onClick={() => setFiltresOuverts(true)}
+            className="flex items-center gap-1.5 h-11 px-3.5 text-[13px] font-semibold cursor-pointer shrink-0"
+            style={{
+              borderRadius: "var(--ds-radius-btn)",
+              background: nbFiltresActifs > 0 ? "var(--ds-accent-900)" : "var(--ds-surface)",
+              border: `1px solid ${nbFiltresActifs > 0 ? "var(--ds-accent)" : "var(--ds-border)"}`,
+              color: nbFiltresActifs > 0 ? "var(--ds-accent-300)" : "var(--ds-muted)",
+            }}
+          >
+            <SlidersHorizontal size={14} strokeWidth={2} />
+            Filtre
+            {nbFiltresActifs > 0 && (
+              <span
+                className="min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px]"
+                style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent)", color: "var(--ds-bg)", fontFamily: "var(--ds-font-mono)" }}
               >
-                <option value="">Tous les styles</option>
-                {SOUS_TYPES_BR.map((sousType) => (
-                  <option key={sousType} value={sousType}>
-                    {LABEL_SOUS_TYPE_BR[sousType]}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={16}
-                strokeWidth={2}
-                className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "var(--ds-muted)" }}
-              />
-            </div>
-          )}
+                {nbFiltresActifs}
+              </span>
+            )}
+          </button>
         </motion.div>
       </div>
 
@@ -189,12 +174,20 @@ export default function TournoisPage() {
 
         {tournois.length === 0 && (
           <motion.p variants={elementVariants} className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            Aucun tournoi ne correspond à ta recherche.
+            {onglet === "inscriptions" ? "Tu n'es inscrit à aucun tournoi pour l'instant." : "Aucun tournoi ne correspond à ta recherche."}
           </motion.p>
         )}
       </div>
 
       <TabBar />
+
+      <FiltresTournois
+        ouvert={filtresOuverts}
+        valeur={filtres}
+        resultatsCount={(brouillon) => base.filter((t) => correspond(t, brouillon)).length}
+        onFermer={() => setFiltresOuverts(false)}
+        onAppliquer={setFiltres}
+      />
     </motion.div>
   );
 }

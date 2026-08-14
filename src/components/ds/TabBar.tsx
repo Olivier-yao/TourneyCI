@@ -8,7 +8,7 @@ const ONGLETS = [
   { id: "accueil", label: "Accueil", href: "/accueil", Icone: Home },
   { id: "tournois", label: "Tournois", href: "/tournois", Icone: Trophy },
   { id: "organisateur", label: "Organisateur", href: "/organisateur", Icone: Megaphone },
-  { id: "classement", label: "Classement", href: "/classement", Icone: BarChart3 },
+  { id: "classement", label: "Ladder", href: "/classement", Icone: BarChart3 },
   { id: "profil", label: "Profil", href: "/profil", Icone: User },
 ] as const;
 

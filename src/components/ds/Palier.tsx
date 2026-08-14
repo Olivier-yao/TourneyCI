@@ -48,9 +48,21 @@ const TAILLES = {
   lg: { largeur: 56, hauteur: 62, icone: 24 },
 } as const;
 
-export function BadgePalier({ palier, taille = "md" }: { palier: DefinitionPalier; taille?: keyof typeof TAILLES }) {
+export function BadgePalier({
+  palier,
+  taille = "md",
+  masquerCouronne = false,
+}: {
+  palier: DefinitionPalier;
+  taille?: keyof typeof TAILLES;
+  /** N'affiche jamais l'icône couronne (palier Légende) — réservée aux 3
+   * premières positions d'un classement (point 137), pour ne pas laisser
+   * penser qu'un joueur plus loin dans la liste serait 1er. */
+  masquerCouronne?: boolean;
+}) {
   const skin = skinPalier(palier.id);
-  const Icone = ICONES_PALIER[palier.id] ?? Shield;
+  const iconeIndex = masquerCouronne ? Math.min(palier.id, ICONES_PALIER.length - 2) : palier.id;
+  const Icone = ICONES_PALIER[iconeIndex] ?? Shield;
   const dims = TAILLES[taille];
   return (
     <div
