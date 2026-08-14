@@ -4,9 +4,14 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { ChevronDown, Search, X } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
-import { CarteTournoi, elementVariants } from "@/components/ds/CarteTournoi";
-import { JEUX, tousLesTournois } from "@/lib/mockTournaments";
+import { CarteTournoi, elementVariants, LABEL_TYPE } from "@/components/ds/CarteTournoi";
+import { JEUX, tousLesTournois, type TypeCompetition } from "@/lib/mockTournaments";
+import type { SousTypeBR } from "@/lib/mockBattleRoyale";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+
+const TYPES_COMPETITION: TypeCompetition[] = ["1v1", "equipes", "battle_royale"];
+const SOUS_TYPES_BR: SousTypeBR[] = ["solo", "duo", "squad"];
+const LABEL_SOUS_TYPE_BR: Record<SousTypeBR, string> = { solo: "Solo", duo: "Duo", squad: "Squad" };
 
 const conteneurVariants = {
   cache: {},
@@ -16,11 +21,15 @@ const conteneurVariants = {
 export default function TournoisPage() {
   const connecte = useExigerConnexion();
   const [jeuActif, setJeuActif] = useState<string | null>(null);
+  const [typeActif, setTypeActif] = useState<TypeCompetition | null>(null);
+  const [sousTypeActif, setSousTypeActif] = useState<SousTypeBR | null>(null);
   const [requete, setRequete] = useState("");
 
   const tournois = tousLesTournois().filter(
     (t) =>
       (!jeuActif || t.jeuId === jeuActif) &&
+      (!typeActif || t.type === typeActif) &&
+      (!sousTypeActif || t.brSousType === sousTypeActif) &&
       (!requete ||
         t.titre.toLowerCase().includes(requete.toLowerCase()) ||
         (t.code ?? "").toLowerCase() === requete.trim().toLowerCase()),
@@ -98,6 +107,70 @@ export default function TournoisPage() {
               style={{ color: "var(--ds-muted)" }}
             />
           </div>
+        </motion.div>
+
+        <motion.div variants={elementVariants} className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <select
+              value={typeActif ?? ""}
+              onChange={(e) => {
+                const v = (e.target.value || null) as TypeCompetition | null;
+                setTypeActif(v);
+                if (v !== "battle_royale") setSousTypeActif(null);
+              }}
+              className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
+              style={{
+                borderRadius: "var(--ds-radius-md)",
+                background: "var(--ds-surface)",
+                border: "1px solid var(--ds-border)",
+                color: "var(--ds-text)",
+                fontFamily: "var(--ds-font-body)",
+              }}
+            >
+              <option value="">Tous les types</option>
+              {TYPES_COMPETITION.map((type) => (
+                <option key={type} value={type}>
+                  {LABEL_TYPE[type]}
+                </option>
+              ))}
+            </select>
+            <ChevronDown
+              size={16}
+              strokeWidth={2}
+              className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "var(--ds-muted)" }}
+            />
+          </div>
+
+          {typeActif === "battle_royale" && (
+            <div className="relative flex-1">
+              <select
+                value={sousTypeActif ?? ""}
+                onChange={(e) => setSousTypeActif((e.target.value || null) as SousTypeBR | null)}
+                className="w-full h-11 pl-3.5 pr-9 text-sm appearance-none cursor-pointer"
+                style={{
+                  borderRadius: "var(--ds-radius-md)",
+                  background: "var(--ds-surface)",
+                  border: "1px solid var(--ds-border)",
+                  color: "var(--ds-text)",
+                  fontFamily: "var(--ds-font-body)",
+                }}
+              >
+                <option value="">Tous les styles</option>
+                {SOUS_TYPES_BR.map((sousType) => (
+                  <option key={sousType} value={sousType}>
+                    {LABEL_SOUS_TYPE_BR[sousType]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
+                className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: "var(--ds-muted)" }}
+              />
+            </div>
+          )}
         </motion.div>
       </div>
 
