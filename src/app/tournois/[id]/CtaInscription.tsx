@@ -203,6 +203,7 @@ export function CtaInscription({
     if (!brSousType || brSousType === "solo") return;
     setErreur(null);
     const equipe = creerEquipeBR(tournoiId, nomEquipeBR.trim(), monPseudo, false);
+    setMonEquipeChef(equipe);
     const taille = TAILLE_EQUIPE_BR[brSousType];
     const montant = payerPourEquipe ? fraisXof * taille : fraisXof;
     setEtapeBR(null);
@@ -438,6 +439,22 @@ export function CtaInscription({
             </button>
           )}
         </div>
+      )}
+
+      {monEquipeChef && !tournoiCommence && (
+        <Link
+          href={`/tournois/${tournoiId}/equipe/${monEquipeChef.id}`}
+          className={`flex items-center gap-2.5 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-accent)" }}
+        >
+          <Crown size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+          <div className="flex-1 text-sm">
+            Équipe <strong>{monEquipeChef.nom}</strong> · {monEquipeChef.membres.length} membre{monEquipeChef.membres.length > 1 ? "s" : ""}
+          </div>
+          <span className="text-xs font-semibold shrink-0" style={{ color: "var(--ds-accent-300)" }}>
+            Gérer
+          </span>
+        </Link>
       )}
 
       {choixEquipe && (
