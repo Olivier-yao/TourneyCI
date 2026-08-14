@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack } from "lucide-react";
+import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
 import { Modal } from "@/components/ds/Modal";
+import { LiveBadge } from "@/components/ds/LiveBadge";
 import { formatXof } from "@/lib/formatXof";
-import { tournoiParId, inscriptionsFermees, reevaluerPaiementsEnAttente, cashPrizeEnSequestre } from "@/lib/mockTournaments";
-import { matchsDuTournoi } from "@/lib/mockBracket";
-import { participantsBR } from "@/lib/mockBattleRoyale";
+import { tournoiParId, inscriptionsFermees, reevaluerPaiementsEnAttente, cashPrizeEnSequestre, type Tournoi } from "@/lib/mockTournaments";
+import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
+import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleRoyale";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { estInscrit } from "@/lib/mockInscriptions";
@@ -75,6 +76,104 @@ function BoutonPartager() {
     >
       {copie ? <Check size={16} strokeWidth={2} /> : <Share2 size={16} strokeWidth={2} />}
     </button>
+  );
+}
+
+/** Vue "en cours" affichée directement sur la fiche du tournoi une fois qu'il
+ * a débuté : score/classement en direct + dernières informations de la
+ * compétition, visible par tout visiteur (inscrit ou non), dans le même
+ * esprit que l'écran Match en direct plutôt que de forcer un clic de plus. */
+function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
+  if (tournoi.type === "battle_royale") {
+    const classement = classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo");
+    const manches = manchesBR(tournoi.id);
+    const top3 = classement.slice(0, 3);
+    return (
+      <Link
+        href={`/tournois/${tournoi.id}/battle-royale`}
+        className="flex flex-col gap-3 p-4"
+        style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+      >
+        <div className="flex items-center justify-between">
+          <LiveBadge />
+          <span className="text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            {manches.length} manche{manches.length > 1 ? "s" : ""}
+          </span>
+        </div>
+        {top3.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            La compétition a débuté, en attente des premiers résultats de manche.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            {top3.map((l, i) => (
+              <div key={l.participantId} className="flex items-center gap-2.5 text-sm">
+                <span className="w-5 text-center text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                  #{i + 1}
+                </span>
+                <span className="flex-1 truncate">{l.nom}</span>
+                <span className="font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                  {l.points} pt
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <span className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--ds-accent-300)" }}>
+          Voir le classement complet
+          <ChevronRight size={13} strokeWidth={2} />
+        </span>
+      </Link>
+    );
+  }
+
+  const matchsEnCours = matchsDuTournoi(tournoi.id).filter((m) => m.statut === "en_cours");
+
+  if (matchsEnCours.length === 0) {
+    return (
+      <Link
+        href={`/tournois/${tournoi.id}/bracket`}
+        className="flex items-center gap-3 p-4"
+        style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+      >
+        <Swords size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+        <span className="flex-1 text-sm">Compétition en cours — entre deux matchs.</span>
+        <LiveBadge />
+      </Link>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {matchsEnCours.map((m: MatchTournoi) => (
+        <Link
+          key={m.id}
+          href={`/matches/${m.id}`}
+          className="flex flex-col gap-2 p-4"
+          style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+        >
+          <div className="flex items-center justify-between">
+            <LiveBadge texte={m.minute !== undefined ? `EN DIRECT · ${m.minute}'` : "EN DIRECT"} />
+            <ChevronRight size={15} style={{ color: "var(--ds-muted)" }} />
+          </div>
+          <div className="flex items-center justify-between text-sm font-medium">
+            <span className="flex-1 truncate">{m.joueur1 ?? "?"}</span>
+            <span
+              className="px-3 text-base font-semibold"
+              style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}
+            >
+              {m.score1 ?? "–"} : {m.score2 ?? "–"}
+            </span>
+            <span className="flex-1 truncate text-right">{m.joueur2 ?? "?"}</span>
+          </div>
+          {m.evenements && m.evenements.length > 0 && (
+            <p className="text-xs truncate" style={{ color: "var(--ds-text-muted)" }}>
+              {m.evenements[0].minute}&apos; · {m.evenements[0].texte}
+            </p>
+          )}
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -270,6 +369,8 @@ function DetailTournoiInterne() {
           · {tournoi.dateLabel}
         </p>
 
+        {tournoi.enDirect && <EnDirectBloc tournoi={tournoi} />}
+
         {peutContester && (
           <AppelResultats
             tournoiId={tournoi.id}
@@ -394,7 +495,7 @@ function DetailTournoiInterne() {
           />
         )}
 
-        {aUnBracket && (
+        {aUnBracket && !tournoi.enDirect && (
           <Link
             href={lienBracket}
             className="text-sm font-medium mt-1"
