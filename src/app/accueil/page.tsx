@@ -58,7 +58,12 @@ export default function AccueilV2Page() {
   if (!connecte) return null;
 
   function correspond(t: ReturnType<typeof tousLesTournois>[number], f: FiltresValeur) {
-    if (f.jeux.length > 0 && !f.jeux.includes(t.jeuId)) return false;
+    const jeuLibreActif = Boolean(f.jeuLibre?.trim());
+    if (f.jeux.length > 0 || jeuLibreActif) {
+      const matchCatalogue = f.jeux.includes(t.jeuId);
+      const matchLibre = jeuLibreActif && t.jeuLabel.toLowerCase().includes(f.jeuLibre!.trim().toLowerCase());
+      if (!matchCatalogue && !matchLibre) return false;
+    }
     if (f.genres.length > 0) {
       const genre = genreDuJeu(t.jeuId);
       if (!genre || !f.genres.includes(genre)) return false;

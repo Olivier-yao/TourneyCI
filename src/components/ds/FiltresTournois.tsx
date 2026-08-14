@@ -8,12 +8,15 @@ export type FiltresValeur = {
   jeux: string[];
   genres: GenreJeu[];
   modes: ModeJeu[];
+  /** Jeu saisi librement (bouton "Autre") quand il n'apparaît pas dans la
+   * liste proposée — comparé au libellé du jeu, pas à son id. */
+  jeuLibre?: string;
 };
 
-export const FILTRES_VIDES: FiltresValeur = { jeux: [], genres: [], modes: [] };
+export const FILTRES_VIDES: FiltresValeur = { jeux: [], genres: [], modes: [], jeuLibre: undefined };
 
 export function compterFiltresActifs(f: FiltresValeur): number {
-  return f.jeux.length + f.genres.length + f.modes.length;
+  return f.jeux.length + f.genres.length + f.modes.length + (f.jeuLibre?.trim() ? 1 : 0);
 }
 
 function bascule<T>(liste: T[], valeur: T): T[] {
@@ -111,7 +114,23 @@ export function FiltresTournois({
                     {j.label}
                   </Chip>
                 ))}
+                <Chip
+                  actif={brouillon.jeuLibre !== undefined}
+                  onClick={() => setBrouillon((b) => ({ ...b, jeuLibre: b.jeuLibre === undefined ? "" : undefined }))}
+                >
+                  Autre
+                </Chip>
               </div>
+              {brouillon.jeuLibre !== undefined && (
+                <input
+                  autoFocus
+                  value={brouillon.jeuLibre}
+                  onChange={(e) => setBrouillon((b) => ({ ...b, jeuLibre: e.target.value }))}
+                  placeholder="Nom du jeu recherché"
+                  className="h-10 px-3 text-sm outline-none"
+                  style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+                />
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
