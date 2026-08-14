@@ -10,6 +10,7 @@ export type NotificationApp = {
 
 const CLE_NOTIFICATIONS = "tourney-notifications";
 const CLE_SUIVIS = "tourney-notifs-suivies";
+const CLE_LUES = "tourney-notifs-lues";
 
 const NOTIFICATIONS_INITIALES: NotificationApp[] = [
   { id: "n1", texte: "Ton match commence dans 10 minutes", temps: "Il y a 2 min", horodatage: 3, tournoiId: "abidjan-cup-12" },
@@ -68,4 +69,24 @@ export function basculerNotifsTournoi(tournoiId: string): boolean {
 export function notifierParticipants(tournoiId: string, titre: string, message: string) {
   if (!estInscrit(tournoiId) && !notifsActivees(tournoiId)) return;
   ajouterNotification(`${titre} — ${message}`, tournoiId);
+}
+
+export function estLue(id: string): boolean {
+  return lireBrut<string[]>(CLE_LUES, []).includes(id);
+}
+
+export function marquerLue(id: string) {
+  if (typeof window === "undefined") return;
+  const lues = lireBrut<string[]>(CLE_LUES, []);
+  if (!lues.includes(id)) localStorage.setItem(CLE_LUES, JSON.stringify([...lues, id]));
+}
+
+export function toutMarquerLu() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_LUES, JSON.stringify(mesNotifications().map((n) => n.id)));
+}
+
+export function nombreNonLues(): number {
+  const lues = new Set(lireBrut<string[]>(CLE_LUES, []));
+  return mesNotifications().filter((n) => !lues.has(n.id)).length;
 }

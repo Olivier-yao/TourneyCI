@@ -3,7 +3,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Video, X, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Camera, Video, X, Users, Minus, Plus, Trophy } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { Avatar } from "@/components/ds/Avatar";
 import { matchParId, mettreAJourScoreMatch } from "@/lib/mockBracket";
@@ -78,7 +78,7 @@ export default function SignalerScorePage() {
         >
           <ArrowLeft size={15} strokeWidth={2} />
         </button>
-        <div className="text-[15px] font-medium">Signaler le score</div>
+        <div className="text-[15px] font-medium">Déclarer le score</div>
       </div>
 
       <div className="px-5 pt-4 flex-1 flex flex-col gap-3.5">
@@ -91,32 +91,74 @@ export default function SignalerScorePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-4" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
-          <div className="flex flex-col items-center gap-2">
-            <Avatar initiales={initiales(match.joueur1 ?? "?")} taille={44} />
-            <div className="text-[12px] font-medium text-center truncate w-full">{match.joueur1}</div>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={s1}
-              onChange={(e) => setS1(e.target.value.replace(/[^0-9]/g, ""))}
-              className="w-14 h-11 text-center text-lg font-semibold"
-              style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-bg)", border: "1px solid var(--ds-border)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
-            />
+        <div className="p-4" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)" }}>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="flex flex-col items-center gap-2">
+              <Avatar initiales={initiales(match.joueur1 ?? "?")} taille={40} />
+              <div className="text-[12px] font-medium text-center truncate w-full">Toi</div>
+              <div
+                className="w-14 h-[54px] flex items-center justify-center text-2xl"
+                style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+              >
+                {s1 || "0"}
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setS1((v) => String(Math.max(0, (Number(v) || 0) - 1)))}
+                  className={`flex items-center justify-center w-[26px] h-[26px] ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  <Minus size={11} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setS1((v) => String((Number(v) || 0) + 1))}
+                  className={`flex items-center justify-center w-[26px] h-[26px] ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  <Plus size={11} strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+            <div className="text-[13px]" style={{ color: "var(--ds-border-strong)", fontFamily: "var(--ds-font-mono)" }}>—</div>
+            <div className="flex flex-col items-center gap-2">
+              <Avatar initiales={initiales(match.joueur2 ?? "?")} taille={40} />
+              <div className="text-[12px] font-medium text-center truncate w-full">{match.joueur2}</div>
+              <div
+                className="w-14 h-[54px] flex items-center justify-center text-2xl"
+                style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
+              >
+                {s2 || "0"}
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setS2((v) => String(Math.max(0, (Number(v) || 0) - 1)))}
+                  className={`flex items-center justify-center w-[26px] h-[26px] ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  <Minus size={11} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setS2((v) => String((Number(v) || 0) + 1))}
+                  className={`flex items-center justify-center w-[26px] h-[26px] ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  <Plus size={11} strokeWidth={2} />
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="text-sm" style={{ color: "var(--ds-muted)" }}>:</div>
-          <div className="flex flex-col items-center gap-2">
-            <Avatar initiales={initiales(match.joueur2 ?? "?")} taille={44} />
-            <div className="text-[12px] font-medium text-center truncate w-full">{match.joueur2}</div>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={s2}
-              onChange={(e) => setS2(e.target.value.replace(/[^0-9]/g, ""))}
-              className="w-14 h-11 text-center text-lg font-semibold"
-              style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-bg)", border: "1px solid var(--ds-border)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
-            />
-          </div>
+          {pret && (
+            <div className="flex items-center gap-2.5 mt-3.5 pt-3" style={{ borderTop: "1px solid var(--ds-border)" }}>
+              <Trophy size={15} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+              <span className="flex-1 text-[13px]">
+                {Number(s1) > Number(s2) ? "Tu déclares ta victoire" : "Tu déclares ta défaite"}
+              </span>
+            </div>
+          )}
         </div>
 
         <div>
@@ -164,18 +206,31 @@ export default function SignalerScorePage() {
           </div>
         </div>
 
-        <div className="flex items-start gap-2.5 text-xs" style={{ color: "var(--ds-muted)" }}>
-          <TriangleAlert size={15} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent)" }} />
-          <span>En cas de score contesté, l&apos;adversaire peut ouvrir un litige avec sa propre preuve.</span>
+        <div className="flex flex-col gap-2 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
+          <div className="flex items-center gap-2.5">
+            <Users size={15} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+            <span className="flex-1 text-[13px]">{match.joueur2} doit confirmer</span>
+            <span className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>SOUS 30 MIN</span>
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+            Sans confirmation, l&apos;organisateur tranche avec les preuves. En cas de désaccord, un litige s&apos;ouvre automatiquement.
+          </p>
         </div>
       </div>
 
-      <div className="px-5 py-4" style={{ borderTop: "1px solid var(--ds-border)" }}>
+      <div className="px-5 py-4 flex gap-2.5" style={{ borderTop: "1px solid var(--ds-border)" }}>
+        <Link
+          href={`/matches/${match.id}/litige`}
+          className={`flex-1 h-[46px] flex items-center justify-center text-sm font-medium ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+        >
+          Litige
+        </Link>
         <button
           type="button"
           disabled={!pret}
           onClick={envoyer}
-          className={`w-full h-[46px] text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+          className={`flex-[2] h-[46px] text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
         >
           Envoyer le score

@@ -58,17 +58,42 @@ export default function CoupDeCoeurPage() {
         {organisateurs.length === 0 ? (
           <EmptyState titre="Pas encore de coup de cœur" description="Reviens après la fin de quelques tournois notés." />
         ) : (
-          organisateurs.map((org) => (
+          organisateurs.map((org, i) => (
             <div key={org.nom} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">{org.nom}</span>
-                  <span className="flex items-center gap-1 text-xs" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                    <Heart size={12} strokeWidth={2} fill="currentColor" />
-                    {org.coeurs}
+              {i === 0 ? (
+                <Link
+                  href={`/organisateur/profil/${encodeURIComponent(org.nom)}`}
+                  className="relative overflow-hidden flex flex-col gap-1.5 p-4"
+                  style={{ borderRadius: "var(--ds-radius-lg)", background: "radial-gradient(120% 150% at 30% 0%, var(--ds-accent-900), var(--ds-bg) 75%)", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+                >
+                  <span
+                    className="w-fit flex items-center gap-1.5 px-2.5 py-1 text-[10px]"
+                    style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+                  >
+                    <Heart size={11} strokeWidth={2} fill="currentColor" />
+                    COUP DE CŒUR DE LA COMMUNAUTÉ
                   </span>
+                  <span
+                    className="text-xl leading-tight mt-1"
+                    style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}
+                  >
+                    {org.nom}
+                  </span>
+                  <span className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    CHOISI PAR {org.coeurs} JOUEUR{org.coeurs > 1 ? "S" : ""}{org.coeursBrises > 0 ? ` · ${org.coeursBrises} AVIS MOINS POSITIFS` : ""}
+                  </span>
+                </Link>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{org.nom}</span>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                      <Heart size={12} strokeWidth={2} fill="currentColor" />
+                      {org.coeurs}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 {org.tournois.slice(0, 3).map((t) => (
                   <Link key={t.id} href={`/tournois/${t.id}`}>

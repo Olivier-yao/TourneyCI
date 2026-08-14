@@ -16,7 +16,7 @@ import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, genreDuJeu, modeDuTournoi } from "@/lib/mockTournaments";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
-import { mesNotifications, type NotificationApp } from "@/lib/mockNotifications";
+import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
 import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
 import { Modal } from "@/components/ds/Modal";
@@ -38,6 +38,7 @@ export default function AccueilV2Page() {
   const [notifOuvertes, setNotifOuvertes] = useState(false);
   const [notifDetail, setNotifDetail] = useState<NotificationApp | null>(null);
   const [notifications, setNotifications] = useState<NotificationApp[]>([]);
+  const [nonLues, setNonLues] = useState(0);
   const [transitionCube, setTransitionCube] = useState(false);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
@@ -46,6 +47,7 @@ export default function AccueilV2Page() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotifications(mesNotifications());
+    setNonLues(nombreNonLues());
     setTransitionCube(consommerTransitionEntree());
     const profil = lireProfil();
     setUtilisateur({
@@ -122,7 +124,7 @@ export default function AccueilV2Page() {
                 style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
               >
                 <Bell size={16} strokeWidth={2} />
-                {notifications.length > 0 && (
+                {nonLues > 0 && (
                   <span className="absolute top-[7px] right-[7px] w-1.5 h-1.5 rounded-full" style={{ background: "var(--ds-accent)" }} />
                 )}
               </button>
@@ -139,22 +141,34 @@ export default function AccueilV2Page() {
                     {notifications.length === 0 ? (
                       <p className="text-xs p-2" style={{ color: "var(--ds-muted)" }}>Aucune notification.</p>
                     ) : (
-                      notifications.map((n) => (
-                        <button
-                          key={n.id}
-                          type="button"
-                          onClick={() => {
-                            setNotifOuvertes(false);
-                            if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
-                            else setNotifDetail(n);
-                          }}
-                          className="w-full text-left p-2.5 cursor-pointer"
-                          style={{ borderBottom: "1px solid var(--ds-border)" }}
+                      <>
+                        {notifications.slice(0, 5).map((n) => (
+                          <button
+                            key={n.id}
+                            type="button"
+                            onClick={() => {
+                              marquerLue(n.id);
+                              setNonLues(nombreNonLues());
+                              setNotifOuvertes(false);
+                              if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
+                              else setNotifDetail(n);
+                            }}
+                            className="w-full text-left p-2.5 cursor-pointer"
+                            style={{ borderBottom: "1px solid var(--ds-border)" }}
+                          >
+                            <div className="text-[13px]">{n.texte}</div>
+                            <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
+                          </button>
+                        ))}
+                        <Link
+                          href="/notifications"
+                          onClick={() => setNotifOuvertes(false)}
+                          className="block text-center text-xs font-medium p-2.5"
+                          style={{ color: "var(--ds-accent-300)" }}
                         >
-                          <div className="text-[13px]">{n.texte}</div>
-                          <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
-                        </button>
-                      ))
+                          Voir tout →
+                        </Link>
+                      </>
                     )}
                   </motion.div>
                 )}

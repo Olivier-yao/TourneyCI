@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Trophy, CheckCircle2, XCircle, Settings2 } from "lucide-react";
+import { Trophy, CheckCircle2, XCircle, Settings2, Users, ListChecks, Flag, Zap } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
-import { Button } from "@/components/ds/Button";
+import { Button, PRESS } from "@/components/ds/Button";
 import { tournoiParId, terminerTournoi, annulerTournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
-import { classementFinalBR } from "@/lib/mockBattleRoyale";
+import { classementFinalBR, manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
 import { attribuerPoints } from "@/lib/mockProfil";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { GestionMatches } from "./GestionMatches";
@@ -139,6 +139,62 @@ function SectionPoints({ jeuId, jeuLabel, villeParDefaut }: { jeuId: string; jeu
   );
 }
 
+function CarteActionRequise({
+  tournoi,
+}: {
+  tournoi: NonNullable<ReturnType<typeof tournoiParId>>;
+}) {
+  if (tournoi.termine || tournoi.annule) return null;
+
+  if (tournoi.type === "battle_royale") {
+    const manches = manchesBR(tournoi.id);
+    const unites = unitesBR(tournoi.id, tournoi.brSousType ?? "solo");
+    if (unites.length === 0) return null;
+    return (
+      <a
+        href="#saisie"
+        className="flex flex-col gap-1 p-3.5"
+        style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent)" }}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+            Action requise
+          </span>
+          <Zap size={13} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+        </div>
+        <div className="text-[15px] font-medium mt-0.5">Saisir les points de la manche {manches.length + 1}</div>
+        <div className="text-xs mt-0.5" style={{ color: "var(--ds-text-muted)" }}>
+          {unites.length} équipe{unites.length > 1 ? "s" : ""} en jeu.
+        </div>
+      </a>
+    );
+  }
+
+  const matches = matchsDuTournoi(tournoi.id);
+  const enAttente = matches.filter((m) => m.statut !== "termine" && m.joueur1 && m.joueur2).length;
+  if (enAttente === 0) return null;
+  return (
+    <a
+      href="#saisie"
+      className="flex flex-col gap-1 p-3.5"
+      style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent)" }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+          Action requise
+        </span>
+        <Zap size={13} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+      </div>
+      <div className="text-[15px] font-medium mt-0.5">
+        {enAttente} match{enAttente > 1 ? "s" : ""} en attente de score
+      </div>
+      <div className="text-xs mt-0.5" style={{ color: "var(--ds-text-muted)" }}>
+        Valide les scores pour faire avancer le bracket.
+      </div>
+    </a>
+  );
+}
+
 export default function GestionTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -186,26 +242,64 @@ export default function GestionTournoiPage() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <CarteActionRequise tournoi={tournoi} />
+
+      <div className="grid grid-cols-2 gap-2.5">
         <Link
           href={`/tournois/${params.id}/inscrits`}
-          className="flex items-center gap-2 p-3"
-          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
         >
-          <CheckCircle2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-          <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Check-in des inscrits</span>
+          <Users size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">Check-in</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              {tournoi.placesInscrites} inscrits
+            </div>
+          </div>
         </Link>
+        <a
+          href="#saisie"
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+        >
+          <ListChecks size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">{tournoi.type === "battle_royale" ? "Manches" : "Scores"}</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              {tournoi.type === "battle_royale" ? `${manchesBR(tournoi.id).length} jouée(s)` : "Saisir un résultat"}
+            </div>
+          </div>
+        </a>
         <Link
           href={`/organisateur/${params.id}/parametres`}
-          className="flex items-center gap-2 p-3"
-          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
         >
-          <Settings2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-          <span className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Paramètres du tournoi</span>
+          <Settings2 size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">Paramètres</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Titre, règlement...
+            </div>
+          </div>
         </Link>
+        <a
+          href="#cloture"
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+        >
+          <Flag size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">Clôture</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              {tournoi.termine ? "Terminé" : "En cours"}
+            </div>
+          </div>
+        </a>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div id="saisie" className="flex flex-col gap-3 scroll-mt-4">
         <div className="text-base font-medium flex items-center gap-2">
           <Trophy size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
           {tournoi.type === "battle_royale" ? "Éliminations" : "Qualifications"}
@@ -228,7 +322,7 @@ export default function GestionTournoiPage() {
         )}
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div id="cloture" className="flex flex-col gap-3 scroll-mt-4">
         <div className="text-base font-medium flex items-center gap-2">
           <CheckCircle2 size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
           Clôture du tournoi

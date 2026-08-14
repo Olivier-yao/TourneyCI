@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2, CheckCircle2, XCircle, CreditCard } from "lucide-react";
-import { AppBar } from "@/components/ds/AppBar";
+import { ShieldCheck, Loader2, CheckCircle2, XCircle, CreditCard, ArrowLeft, LockKeyhole } from "lucide-react";
 import { Field } from "@/components/ds/Input";
-import { Button } from "@/components/ds/Button";
+import { Button, PRESS } from "@/components/ds/Button";
 import { identifiantConnexion } from "@/lib/mockAuth";
 import { formatXof } from "@/lib/formatXof";
 import { incrementerInscrits } from "@/lib/mockTournaments";
@@ -150,34 +149,50 @@ export function FluxPaiement({
       className="min-h-screen flex flex-col px-6 py-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar
-        retour
-        titre="Paiement de l'inscription"
-        onRetour={() => router.push(`/tournois/${tournoi.id}`)}
-      />
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={() => router.push(`/tournois/${tournoi.id}`)}
+          className={`flex items-center justify-center w-8 h-8 shrink-0 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+        >
+          <ArrowLeft size={15} strokeWidth={2} />
+        </button>
+        <div>
+          <div className="text-[15px] font-medium">Paiement</div>
+          <div className="text-[9px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            Étape 2 sur 3 · sécurisé
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={payer} className="flex flex-col gap-5 mt-4 max-w-sm">
         <div
           className="p-4"
           style={{
             borderRadius: "var(--ds-radius-lg)",
-            background: "var(--ds-accent-900)",
+            background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))",
+            boxShadow: "0 0 0 1px var(--ds-accent-700)",
           }}
         >
           <div
             className="text-[11px] uppercase tracking-wide"
-            style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+            style={{ color: "var(--ds-accent-400)", fontFamily: "var(--ds-font-mono)" }}
           >
-            Montant à payer
+            Total à payer
           </div>
-          <div className="mt-1.5 text-3xl font-semibold" style={{ fontFamily: "var(--ds-font-mono)" }}>
-            {formatXof(montantDu)}
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-3xl font-semibold" style={{ fontFamily: "var(--ds-font-mono)" }}>
+              {montantDu.toLocaleString("fr-FR")}
+            </span>
+            <span className="text-sm" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>FCFA</span>
           </div>
-          <div className="mt-1 text-[13px]" style={{ color: "var(--ds-muted)" }}>
-            {tournoi.titre} · frais inclus
+          <div className="mt-2.5 pt-2.5 flex items-center justify-between text-[12px]" style={{ borderTop: "1px solid var(--ds-border)" }}>
+            <span style={{ color: "var(--ds-muted)" }}>{tournoi.titre} · frais inclus</span>
+            <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(montantDu)}</span>
           </div>
           {equipe && (
-            <div className="mt-1 text-[13px]" style={{ color: "var(--ds-accent-300)" }}>
+            <div className="mt-1.5 text-[13px]" style={{ color: "var(--ds-accent-300)" }}>
               Équipe : {equipe}
               {equipeId ? " (paiement pour toute l'équipe)" : ""}
             </div>
@@ -268,14 +283,20 @@ export function FluxPaiement({
           <ShieldCheck size={15} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent)" }} />
           <span>
             {moyen === "tourneycard"
-              ? "Paiement instantané depuis ton solde. Remboursement si le tournoi est annulé."
-              : "Tu recevras un code USSD pour valider. Remboursement si le tournoi est annulé."}
+              ? "Paiement instantané depuis ton solde."
+              : "Tu recevras un code USSD pour valider."}
           </span>
         </div>
 
-        <Button variante="primary" bloc type="submit">
-          Payer {formatXof(montantDu)}
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button variante="primary" bloc type="submit">
+            Payer {formatXof(montantDu)}
+          </Button>
+          <p className="flex items-center justify-center gap-1.5 text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            <LockKeyhole size={11} strokeWidth={2} />
+            REMBOURSÉ SI LE TOURNOI EST ANNULÉ
+          </p>
+        </div>
       </form>
     </div>
   );
