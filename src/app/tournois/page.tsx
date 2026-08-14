@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { ChevronDown, Search, X } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { CarteTournoi, elementVariants, LABEL_TYPE } from "@/components/ds/CarteTournoi";
-import { JEUX, tousLesTournois, type TypeCompetition } from "@/lib/mockTournaments";
+import { JEUX, tousLesTournois, type TypeCompetition, type Tournoi } from "@/lib/mockTournaments";
 import type { SousTypeBR } from "@/lib/mockBattleRoyale";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
@@ -24,8 +24,16 @@ export default function TournoisPage() {
   const [typeActif, setTypeActif] = useState<TypeCompetition | null>(null);
   const [sousTypeActif, setSousTypeActif] = useState<SousTypeBR | null>(null);
   const [requete, setRequete] = useState("");
+  const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
 
-  const tournois = tousLesTournois().filter(
+  useEffect(() => {
+    // État dépendant du localStorage : liste vide au premier rendu serveur,
+    // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTousLesTournoisState(tousLesTournois());
+  }, []);
+
+  const tournois = tousLesTournoisState.filter(
     (t) =>
       (!jeuActif || t.jeuId === jeuActif) &&
       (!typeActif || t.type === typeActif) &&

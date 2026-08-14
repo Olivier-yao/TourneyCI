@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronRight, Users, Radio, Heart } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
@@ -53,13 +53,21 @@ function infosDirect(tournoi: Tournoi): { score: string; phase: string } {
 export default function EnDirectPage() {
   const connecte = useExigerConnexion();
   const [tri, setTri] = useState<Tri>("cashprize");
+  const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
+
+  useEffect(() => {
+    // État dépendant du localStorage : liste vide au premier rendu serveur,
+    // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTousLesTournoisState(tousLesTournois());
+  }, []);
 
   const enDirect = useMemo(() => {
-    const liste = tousLesTournois().filter((t) => t.enDirect);
+    const liste = tousLesTournoisState.filter((t) => t.enDirect);
     if (tri === "cashprize") return [...liste].sort((a, b) => b.cashPrizeXof - a.cashPrizeXof);
     if (tri === "participants") return [...liste].sort((a, b) => b.placesInscrites - a.placesInscrites);
     return [...liste].reverse();
-  }, [tri]);
+  }, [tri, tousLesTournoisState]);
 
   if (!connecte) return null;
 

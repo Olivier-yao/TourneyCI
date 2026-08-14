@@ -14,7 +14,7 @@ import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { consommerTransitionEntree } from "@/lib/mockAuth";
 import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, genreDuJeu, modeDuTournoi } from "@/lib/mockTournaments";
+import { tousLesTournois, genreDuJeu, modeDuTournoi, type Tournoi } from "@/lib/mockTournaments";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
@@ -43,12 +43,17 @@ export default function AccueilV2Page() {
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
   const [utilisateur, setUtilisateur] = useState({ nom: "Joueur", initiales: "JO", photoUrl: undefined as string | undefined });
+  const [tournois, setTournois] = useState<Tournoi[]>([]);
 
   useEffect(() => {
+    // État dépendant du localStorage (tournois créés localement) : liste
+    // vide au premier rendu serveur, synchronisée côté client une fois
+    // montée, pour éviter un mismatch d'hydratation.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNotifications(mesNotifications());
     setNonLues(nombreNonLues());
     setTransitionCube(consommerTransitionEntree());
+    setTournois(tousLesTournois());
     const profil = lireProfil();
     setUtilisateur({
       nom: profil.pseudo,
@@ -59,7 +64,7 @@ export default function AccueilV2Page() {
 
   if (!connecte) return null;
 
-  function correspond(t: ReturnType<typeof tousLesTournois>[number], f: FiltresValeur) {
+  function correspond(t: Tournoi, f: FiltresValeur) {
     const jeuLibreActif = Boolean(f.jeuLibre?.trim());
     if (f.jeux.length > 0 || jeuLibreActif) {
       const matchCatalogue = f.jeux.includes(t.jeuId);
@@ -78,7 +83,7 @@ export default function AccueilV2Page() {
   }
 
   const tousFiltres = (f: FiltresValeur) =>
-    tousLesTournois().filter(
+    tournois.filter(
       (t) =>
         correspond(t, f) &&
         (!requete ||

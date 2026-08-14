@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, estAnnule } from "@/lib/mockTournaments";
+import { tousLesTournois, estAnnule, type Tournoi } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
 import { Modal } from "@/components/ds/Modal";
 import { Avatar } from "@/components/ds/Avatar";
@@ -76,8 +76,7 @@ export default function ProfilOrganisateurPage() {
   const [editionBio, setEditionBio] = useState(false);
   const [brouillonTag, setBrouillonTag] = useState("");
   const [brouillonBio, setBrouillonBio] = useState("");
-
-  const tournois = useMemo(() => tousLesTournois().filter((t) => t.organisateur === nom), [nom]);
+  const [tournois, setTournois] = useState<Tournoi[]>([]);
 
   const affluence = useMemo(() => {
     if (tournois.length === 0) return 0;
@@ -92,6 +91,7 @@ export default function ProfilOrganisateurPage() {
   }, [tournois]);
 
   function rafraichir() {
+    setTournois(tousLesTournois().filter((t) => t.organisateur === nom));
     setStats(statistiquesReputation(nom));
     setMonAvis(monAvisPourOrganisateur(nom)?.type ?? null);
     setSuivi(suisOrganisateur(nom));
