@@ -644,6 +644,9 @@ export function CtaInscription({
                       <EcussonEquipe initiales={e.nom.slice(0, 2).toUpperCase()} style={e.paiementCouvert ? "accent" : "neutre"} largeur={40} hauteur={46} />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{e.nom}</div>
+                        <div className="text-[11px] truncate" style={{ color: "var(--ds-muted)" }}>
+                          Chef · {e.chef}
+                        </div>
                         <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
                           {e.membres.length}/{taille}{e.paiementCouvert ? " · frais déjà payés" : ""}
                         </div>
