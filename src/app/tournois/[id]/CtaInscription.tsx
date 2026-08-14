@@ -295,12 +295,11 @@ export function CtaInscription({
         >
           <Users size={18} strokeWidth={2} />
         </Link>
-        <div
-          className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[15px] font-medium"
-          style={{ borderRadius: "var(--ds-radius-btn)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
-        >
-          C&apos;est ton tournoi — tu ne peux pas t&apos;y inscrire
-        </div>
+        <Link href={`/organisateur/${tournoiId}/gestion`} className="flex-1">
+          <Button variante="primary" bloc>
+            Gérer le tournoi
+          </Button>
+        </Link>
       </div>
     );
   }
