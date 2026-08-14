@@ -135,7 +135,7 @@ export const FRAIS_CREATION_TOURNOI_PAYANT_XOF = 150;
 
 /** Commission de l'organisateur sur les tournois payants (optionnelle,
  * activée tournoi par tournoi), en plus du cash prize. */
-export const COMMISSION_PCT = 0.15;
+export const COMMISSION_PCT = 0.2;
 
 export function commissionEstimee(fraisXof: number, placesTotal: number): number {
   return Math.round(fraisXof * placesTotal * COMMISSION_PCT);
@@ -183,6 +183,31 @@ export function decomposerCommission(fraisXof: number, placesTotal: number): { b
   const brute = commissionEstimee(fraisXof, placesTotal);
   const partPlateforme = Math.round(brute * tauxPlateformeSurCommission());
   return { brute, partPlateforme, net: brute - partPlateforme };
+}
+
+/** Cash prize réellement affichable/versable (point 123) : jamais basé sur
+ * la capacité maximale théorique fixée à la création, toujours recalculé
+ * depuis le nombre réel d'inscrits (et donc de frais réellement collectés),
+ * commission déduite. Les tournois gratuits financés par l'organisateur
+ * gardent leur montant fixe, engagé dès la création — ce n'est pas une
+ * cagnotte qui dépend des inscriptions. */
+export function cashPrizeAffiche(
+  tournoi: Pick<Tournoi, "fraisXof" | "placesInscrites" | "financementCashPrize" | "commissionActivee" | "cashPrizeXof">,
+): number {
+  if (tournoi.financementCashPrize === "organisateur" || tournoi.fraisXof <= 0) return tournoi.cashPrizeXof;
+  const poolBrut = tournoi.fraisXof * tournoi.placesInscrites;
+  const commissionBrute = tournoi.commissionActivee ? Math.round(poolBrut * COMMISSION_PCT) : 0;
+  return Math.max(0, poolBrut - commissionBrute);
+}
+
+/** Vrai tant que la cagnotte peut encore grossir (inscriptions non closes) —
+ * sert à afficher "cash prize estimé" plutôt qu'un montant présenté comme
+ * définitif (point 123). */
+export function cashPrizeEstEstime(
+  tournoi: Pick<Tournoi, "fraisXof" | "financementCashPrize" | "finInscriptionsTs" | "debutTournoiTs" | "placesInscrites" | "placesTotal" | "enDirect">,
+): boolean {
+  if (tournoi.financementCashPrize === "organisateur" || tournoi.fraisXof <= 0) return false;
+  return !inscriptionsFermees(tournoi);
 }
 
 export type GenreJeu = "FPS" | "TPS" | "Combat" | "Sport" | "Battle Royale";
@@ -817,14 +842,20 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
 
   let gainCredite = 0;
   const profil = lireProfil();
-  if (tournoi.repartitionCashPrize) {
-    for (let i = 0; i < tournoi.repartitionCashPrize.length; i++) {
+  // Le cash prize versé se recalcule ici sur les inscriptions réelles
+  // (point 123) — jamais sur la capacité maximale théorique figée à la
+  // création. Seul le nombre de finalistes choisi par l'organisateur est
+  // repris de la répartition d'origine, pas les montants.
+  const nbFinalistes = tournoi.repartitionCashPrize?.length ?? 0;
+  const repartitionReelle = nbFinalistes > 0 ? repartitionAutomatique(cashPrizeAffiche(tournoi), nbFinalistes) : undefined;
+  if (repartitionReelle) {
+    for (let i = 0; i < repartitionReelle.length; i++) {
       if (classement[i] && classement[i] === profil.pseudo) {
         // Le gain part en attente (séquestre potentiel, cf. point 24) plutôt
         // que d'être crédité directement : reevaluerPaiementsEnAttente() le
         // libère aussitôt s'il n'y a pas assez de cœurs brisés signalés.
-        ajouterPaiementAttente(tournoiId, tournoi.titre, tournoi.repartitionCashPrize[i].montantXof);
-        gainCredite += tournoi.repartitionCashPrize[i].montantXof;
+        ajouterPaiementAttente(tournoiId, tournoi.titre, repartitionReelle[i].montantXof);
+        gainCredite += repartitionReelle[i].montantXof;
       }
     }
   }

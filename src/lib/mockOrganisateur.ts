@@ -49,9 +49,11 @@ export function soumettreCertification(ageConfirme: boolean, documentNom: string
 }
 
 /**
- * Nom d'organisateur (distinct du pseudo joueur). Ne peut être choisi
- * qu'une fois la vérification d'identité complétée (cf. point 41/49) : la
- * saisie du nom n'est débloquée qu'après estCertifie().
+ * Nom d'organisateur (distinct du pseudo joueur). Choisissable dès la
+ * première session, sans attendre la certification (point 117) : la
+ * vérification d'identité ne conditionne que les tournois payants, pas le
+ * droit d'organiser tout court (point 41/49 couvrait le choix du nom, pas
+ * l'accès à l'organisation gratuite).
  */
 const CLE_NOM_ORGANISATEUR = "tourney-nom-organisateur";
 
@@ -61,7 +63,7 @@ export function nomOrganisateur(): string | undefined {
 }
 
 export function definirNomOrganisateur(nom: string) {
-  if (typeof window === "undefined" || !nom.trim() || !estCertifie()) return;
+  if (typeof window === "undefined" || !nom.trim()) return;
   localStorage.setItem(CLE_NOM_ORGANISATEUR, nom.trim());
 }
 
@@ -73,7 +75,14 @@ export function nomOrganisateurActuel(): string {
 }
 
 export function onboardingOrganisateurComplet(): boolean {
-  return estCertifie() && Boolean(nomOrganisateur());
+  return Boolean(nomOrganisateur());
+}
+
+/** Un organisateur non certifié ne peut créer que des tournois gratuits à
+ * l'inscription (point 117) — la certification reste requise pour les
+ * tournois payants et la commission qui va avec. */
+export function peutCreerTournoiPayantSelonCertification(): boolean {
+  return estCertifie();
 }
 
 /**

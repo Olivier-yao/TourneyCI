@@ -10,7 +10,16 @@ import { AvatarPile } from "@/components/ds/Avatar";
 import { Modal } from "@/components/ds/Modal";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { formatXof } from "@/lib/formatXof";
-import { tournoiParId, inscriptionsFermees, reevaluerPaiementsEnAttente, cashPrizeEnSequestre, type Tournoi } from "@/lib/mockTournaments";
+import {
+  tournoiParId,
+  inscriptionsFermees,
+  reevaluerPaiementsEnAttente,
+  cashPrizeEnSequestre,
+  cashPrizeAffiche,
+  cashPrizeEstEstime,
+  repartitionAutomatique,
+  type Tournoi,
+} from "@/lib/mockTournaments";
 import { matchsDuTournoi, codeRound, type MatchTournoi } from "@/lib/mockBracket";
 import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleRoyale";
 import { estOrganisateur } from "@/lib/mockAuth";
@@ -220,7 +229,7 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
         className="flex flex-col gap-3 p-4"
         style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
       >
-        <CashPrizeEnTete montantXof={tournoi.cashPrizeXof} />
+        <CashPrizeEnTete montantXof={cashPrizeAffiche(tournoi)} />
         <span className="text-[10px] -mt-2" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
           {manches.length} manche{manches.length > 1 ? "s" : ""}
         </span>
@@ -261,7 +270,7 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
       <CarteOrganisateur nom={tournoi.organisateur} />
       <div className="grid grid-cols-3 gap-2">
         <TuileStat valeur={String(tournoi.placesInscrites)} label="joueurs" />
-        <TuileStat valeur={tournoi.cashPrizeXof.toLocaleString("fr-FR")} label="FCFA" accent />
+        <TuileStat valeur={cashPrizeAffiche(tournoi).toLocaleString("fr-FR")} label="FCFA" accent />
         <TuileStat valeur={roundActuel ?? "–"} label="en cours" accent />
       </div>
       {matchsEnCours.length > 0 ? (
@@ -533,7 +542,9 @@ function DetailTournoiInterne() {
 
         {!tournoi.enDirect && (
           <div className="grid grid-cols-2 gap-2 mt-1">
-            {tournoi.cashPrizeXof > 0 && <Vignette label="Cash prize" valeur={formatXof(tournoi.cashPrizeXof)} />}
+            {cashPrizeAffiche(tournoi) > 0 && (
+              <Vignette label={cashPrizeEstEstime(tournoi) ? "Cash prize (estimé)" : "Cash prize"} valeur={formatXof(cashPrizeAffiche(tournoi))} />
+            )}
             {tournoi.fraisXof > 0 && <Vignette label="Frais" valeur={formatXof(tournoi.fraisXof)} />}
             <Vignette
               label="Places"
@@ -541,6 +552,11 @@ function DetailTournoiInterne() {
             />
             {tournoi.checkin && <Vignette label="Check-in" valeur={tournoi.checkin} />}
           </div>
+        )}
+        {cashPrizeEstEstime(tournoi) && cashPrizeAffiche(tournoi) > 0 && (
+          <p className="text-xs -mt-1" style={{ color: "var(--ds-muted)" }}>
+            Cash prize estimé, basé sur les inscriptions actuelles — il évolue avec chaque nouvel inscrit jusqu&apos;à la clôture.
+          </p>
         )}
 
         {tournoi.financementCashPrize === "organisateur" && (
@@ -576,7 +592,7 @@ function DetailTournoiInterne() {
             >
               Répartition du cash prize
             </div>
-            {tournoi.repartitionCashPrize.map((r) => (
+            {repartitionAutomatique(cashPrizeAffiche(tournoi), tournoi.repartitionCashPrize.length).map((r) => (
               <div key={r.label} className="flex items-center justify-between text-sm">
                 <span style={{ color: "var(--ds-text)" }}>{r.label}</span>
                 <span style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>

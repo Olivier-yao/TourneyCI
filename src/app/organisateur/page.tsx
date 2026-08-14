@@ -14,7 +14,7 @@ import { estCertifie } from "@/lib/mockOrganisateur";
 import { nomOrganisateur, definirNomOrganisateur } from "@/lib/mockOrganisateur";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
-type EtapeOnboarding = "verification" | "nom" | "complet";
+type EtapeOnboarding = "nom" | "complet";
 
 function LigneEtape({ n, titre, meta, actuelle, faite }: { n: number; titre: string; meta: string; actuelle: boolean; faite: boolean }) {
   return (
@@ -43,7 +43,7 @@ function LigneEtape({ n, titre, meta, actuelle, faite }: { n: number; titre: str
   );
 }
 
-function OnboardingOrganisateur({ etape, onVerifier, onValideNom }: { etape: "verification" | "nom"; onVerifier: () => void; onValideNom: (nom: string) => void }) {
+function OnboardingOrganisateur({ certifie, onVerifier, onValideNom }: { certifie: boolean; onVerifier: () => void; onValideNom: (nom: string) => void }) {
   const router = useRouter();
   const [nom, setNom] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -78,24 +78,24 @@ function OnboardingOrganisateur({ etape, onVerifier, onValideNom }: { etape: "ve
 
         <div>
           <div className="text-2xl leading-tight" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
-            Deviens organisateur certifié
+            Deviens organisateur
           </div>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-            Deux étapes avant ton premier tournoi. La certification débloque les tournois payants et le versement de ta commission de {Math.round(COMMISSION_PCT * 100)} %.
+            Choisis ton nom public pour commencer — la certification (CNI + selfie) reste optionnelle pour l&apos;instant, elle ne débloque que les tournois payants et ta commission de {Math.round(COMMISSION_PCT * 100)} %.
           </p>
         </div>
 
         <div className="flex flex-col gap-2 mt-1">
-          <LigneEtape n={1} titre="Vérification d'identité" meta="CNI RECTO/VERSO + SELFIE" actuelle={etape === "verification"} faite={etape === "nom"} />
-          <LigneEtape n={2} titre="Choix du nom d'organisateur" meta="NOM PUBLIC · MODIFIABLE UNE FOIS" actuelle={etape === "nom"} faite={false} />
+          <button type="button" onClick={onVerifier} className={`block w-full text-left ${PRESS}`} disabled={certifie}>
+            <LigneEtape n={1} titre="Vérification d'identité" meta="CNI RECTO/VERSO + SELFIE · FACULTATIF" actuelle={false} faite={certifie} />
+          </button>
+          <LigneEtape n={2} titre="Choix du nom d'organisateur" meta="NOM PUBLIC · MODIFIABLE UNE FOIS" actuelle={true} faite={false} />
         </div>
 
-        {etape === "nom" && (
-          <div className="flex flex-col gap-2.5 mt-1">
-            <Field label="Nom d'organisateur" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex: Abidjan Battle Royale" />
-            {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
-          </div>
-        )}
+        <div className="flex flex-col gap-2.5 mt-1">
+          <Field label="Nom d'organisateur" value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Ex: Abidjan Battle Royale" />
+          {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+        </div>
 
         <div className="mt-auto p-3.5 flex items-start gap-2.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}>
           <Lock size={17} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent-400, var(--ds-accent))" }} />
@@ -119,11 +119,11 @@ function OnboardingOrganisateur({ etape, onVerifier, onValideNom }: { etape: "ve
         </button>
         <button
           type="button"
-          onClick={etape === "verification" ? onVerifier : valider}
+          onClick={valider}
           className={`flex-[2] h-[46px] text-sm font-medium ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
         >
-          {etape === "verification" ? "Vérifier mon identité" : "Valider et continuer"}
+          Valider et continuer
         </button>
       </div>
     </div>
@@ -136,24 +136,26 @@ export default function OrganisateurPage() {
   const [tournoisOrganises, setTournoisOrganises] = useState<Tournoi[]>([]);
   const [etape, setEtape] = useState<EtapeOnboarding>("complet");
   const [nomOrg, setNomOrg] = useState<string | undefined>(undefined);
+  const [certifie, setCertifie] = useState(false);
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
-    const certifie = estCertifie();
+    const estCert = estCertifie();
     const nom = nomOrganisateur();
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCertifie(estCert);
     setNomOrg(nom);
-    setEtape(!certifie ? "verification" : !nom ? "nom" : "complet");
+    setEtape(!nom ? "nom" : "complet");
     setTournoisOrganises(mesTournoisOrganises());
   }, []);
 
   if (!connecte) return null;
 
-  if (etape === "verification" || etape === "nom") {
+  if (etape === "nom") {
     return (
       <OnboardingOrganisateur
-        etape={etape}
+        certifie={certifie}
         onVerifier={() => router.push("/verification-identite")}
         onValideNom={(nom) => {
           definirNomOrganisateur(nom);

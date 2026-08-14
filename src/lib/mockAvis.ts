@@ -102,16 +102,20 @@ export function monAvisPourOrganisateur(organisateur: string): AvisOrganisateur 
   return lireToutOrganisateur().find((a) => a.organisateur === organisateur);
 }
 
+/** Pose un avis sur l'organisateur, en remplaçant l'avis précédent s'il en
+ * existait un (point 112/113 : toggle direct sur l'icône, avec bascule d'un
+ * type à l'autre) — l'unicité du point 51 reste garantie (un seul avis actif
+ * à la fois par utilisateur et par organisateur). */
 export function laisserAvisOrganisateur(organisateur: string, type: TypeAvis) {
   if (typeof window === "undefined") return;
-  if (monAvisPourOrganisateur(organisateur)) return;
+  const sansAncien = lireToutOrganisateur().filter((a) => a.organisateur !== organisateur);
   const avis: AvisOrganisateur = {
     id: `avisorg-${Date.now().toString(36)}`,
     organisateur,
     type,
     horodatage: Date.now(),
   };
-  localStorage.setItem(CLE_AVIS_ORGANISATEUR, JSON.stringify([...lireToutOrganisateur(), avis]));
+  localStorage.setItem(CLE_AVIS_ORGANISATEUR, JSON.stringify([...sansAncien, avis]));
 }
 
 /** Retire l'avis (cœur ou cœur brisé) laissé sur cet organisateur — l'unicité

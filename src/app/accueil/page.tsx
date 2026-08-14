@@ -14,7 +14,7 @@ import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { consommerTransitionEntree } from "@/lib/mockAuth";
 import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, genreDuJeu, modeDuTournoi, type Tournoi } from "@/lib/mockTournaments";
+import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
@@ -112,7 +112,7 @@ export default function AccueilV2Page() {
           style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}
         >
           <motion.div variants={elementVariants} className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
+            <Link href="/profil" className="flex items-center gap-2.5">
               <Avatar initiales={utilisateur.initiales} photoUrl={utilisateur.photoUrl} taille={40} />
               <div>
                 <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
@@ -120,7 +120,7 @@ export default function AccueilV2Page() {
                 </div>
                 <div className="text-[15px] font-semibold capitalize">{utilisateur.nom}</div>
               </div>
-            </div>
+            </Link>
             <div className="relative">
               <button
                 type="button"
@@ -282,7 +282,7 @@ export default function AccueilV2Page() {
                         <div>
                           <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
                           <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                            {formatXof(vedette.cashPrizeXof)}
+                            {formatXof(cashPrizeAffiche(vedette))}
                           </div>
                         </div>
                         <span

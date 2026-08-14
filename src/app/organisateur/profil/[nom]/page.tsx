@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, estAnnule, type Tournoi } from "@/lib/mockTournaments";
+import { tousLesTournois, estAnnule, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
 import { Modal } from "@/components/ds/Modal";
 import { Avatar } from "@/components/ds/Avatar";
@@ -61,6 +61,7 @@ export default function ProfilOrganisateurPage() {
 
   const [stats, setStats] = useState({ coeurs: 0, coeursBrises: 0 });
   const [monAvis, setMonAvis] = useState<TypeAvis | null>(null);
+  const [switchEnAttente, setSwitchEnAttente] = useState<TypeAvis | null>(null);
   const [cestMoi, setCestMoi] = useState(false);
   const [certifie, setCertifie] = useState(false);
   const [rang, setRang] = useState(0);
@@ -128,6 +129,26 @@ export default function ProfilOrganisateurPage() {
   function retirerAvis() {
     retirerAvisOrganisateur(nom);
     rafraichir();
+  }
+
+  /** Clic direct sur l'icône (point 112) : toggle si c'est déjà mon avis
+   * actuel, vote immédiat si je n'ai encore rien laissé, confirmation avant
+   * remplacement si je bascule d'un type à l'autre (point 113). */
+  function clicAvis(type: TypeAvis) {
+    if (monAvis === type) {
+      retirerAvis();
+      return;
+    }
+    if (monAvis) {
+      setSwitchEnAttente(type);
+      return;
+    }
+    voter(type);
+  }
+
+  function confirmerSwitch() {
+    if (switchEnAttente) voter(switchEnAttente);
+    setSwitchEnAttente(null);
   }
 
   function validerTag() {
@@ -367,39 +388,65 @@ export default function ProfilOrganisateurPage() {
 
         {!cestMoi && (
           <div className="flex flex-col gap-2">
-            {monAvis ? (
-              <div className="flex items-center gap-2.5 text-xs" style={{ color: "var(--ds-muted)" }}>
-                <span className="flex-1">
-                  Tu as déjà donné ton avis sur cet organisateur ({monAvis === "coeur" ? "positif" : "négatif"}).
-                </span>
-                <button type="button" onClick={retirerAvis} className={`font-medium shrink-0 ${PRESS}`} style={{ color: "var(--ds-accent-300)" }}>
-                  Retirer
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => voter("coeur")}
-                  aria-label="Avis positif"
-                  className={`flex-1 flex flex-col items-center py-3 ${PRESS}`}
-                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
-                >
-                  <Heart size={19} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => voter("coeur_brise")}
-                  aria-label="Avis négatif"
-                  className={`flex-1 flex flex-col items-center py-3 ${PRESS}`}
-                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
-                >
-                  <HeartCrack size={19} strokeWidth={2} style={{ color: "var(--ds-danger)" }} />
-                </button>
-              </div>
+            {monAvis && (
+              <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                Ton avis actuel : {monAvis === "coeur" ? "positif" : "négatif"} — clique de nouveau dessus pour le retirer.
+              </p>
             )}
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => clicAvis("coeur")}
+                aria-label="Avis positif"
+                className={`flex-1 flex flex-col items-center py-3 ${PRESS}`}
+                style={{
+                  borderRadius: "var(--ds-radius-md)",
+                  border: `1px solid ${monAvis === "coeur" ? "var(--ds-accent)" : "var(--ds-border)"}`,
+                  background: monAvis === "coeur" ? "var(--ds-accent-900)" : "transparent",
+                }}
+              >
+                <Heart size={19} strokeWidth={2} fill={monAvis === "coeur" ? "currentColor" : "none"} style={{ color: "var(--ds-accent-300)" }} />
+              </button>
+              <button
+                type="button"
+                onClick={() => clicAvis("coeur_brise")}
+                aria-label="Avis négatif"
+                className={`flex-1 flex flex-col items-center py-3 ${PRESS}`}
+                style={{
+                  borderRadius: "var(--ds-radius-md)",
+                  border: `1px solid ${monAvis === "coeur_brise" ? "var(--ds-danger)" : "var(--ds-border)"}`,
+                  background: monAvis === "coeur_brise" ? "color-mix(in srgb, var(--ds-danger) 14%, transparent)" : "transparent",
+                }}
+              >
+                <HeartCrack size={19} strokeWidth={2} fill={monAvis === "coeur_brise" ? "currentColor" : "none"} style={{ color: "var(--ds-danger)" }} />
+              </button>
+            </div>
           </div>
         )}
+
+        <Modal ouvert={switchEnAttente !== null} titre="Changer ton avis ?" onFermer={() => setSwitchEnAttente(null)}>
+          <p className="not-italic" style={{ whiteSpace: "normal" }}>
+            Tu as déjà laissé un avis {monAvis === "coeur" ? "positif" : "négatif"} sur cet organisateur. Le remplacer par un avis {switchEnAttente === "coeur" ? "positif" : "négatif"} ?
+          </p>
+          <div className="flex gap-2 pt-3">
+            <button
+              type="button"
+              onClick={() => setSwitchEnAttente(null)}
+              className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={confirmerSwitch}
+              className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+            >
+              Confirmer
+            </button>
+          </div>
+        </Modal>
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
@@ -420,7 +467,7 @@ export default function ProfilOrganisateurPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{t.titre}</div>
                         <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                          {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal} · {formatXof(t.cashPrizeXof)}
+                          {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal} · {formatXof(cashPrizeAffiche(t))}
                         </div>
                       </div>
                       {(avisT.coeurs > 0 || avisT.coeursBrises > 0) && (

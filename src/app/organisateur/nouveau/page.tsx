@@ -10,7 +10,7 @@ import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
 import { Switch } from "@/components/ds/Switch";
 import { lireSolde, debiter } from "@/lib/mockWallet";
-import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet } from "@/lib/mockOrganisateur";
+import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estCertifie } from "@/lib/mockOrganisateur";
 import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
@@ -101,11 +101,12 @@ export default function NouveauTournoiPage() {
   const [placesTotal, setPlacesTotal] = useState("16");
   const [placesBR, setPlacesBR] = useState("50");
   const [payant, setPayant] = useState(true);
-  const [commissionActivee, setCommissionActivee] = useState(false);
+  const [commissionActivee, setCommissionActivee] = useState(true);
   const [tauxPlateforme, setTauxPlateforme] = useState(0.2);
   const [financeParOrganisateur, setFinanceParOrganisateur] = useState(false);
   const [solde, setSolde] = useState(0);
   const [payantAutorise, setPayantAutorise] = useState(true);
+  const [certifie, setCertifie] = useState(false);
   const [onboardingOk, setOnboardingOk] = useState(false);
 
   useEffect(() => {
@@ -115,7 +116,12 @@ export default function NouveauTournoiPage() {
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
-    const autorise = peutCreerTournoiPayant(nomOrganisateurActuel());
+    // Un tournoi payant demande à la fois un compte en règle (anti-triche)
+    // et une identité vérifiée (point 117) — sans certification, seuls les
+    // tournois gratuits (avec cash prize auto-financé possible) sont permis.
+    const estCert = estCertifie();
+    const autorise = estCert && peutCreerTournoiPayant(nomOrganisateurActuel());
+    setCertifie(estCert);
     setPayantAutorise(autorise);
     if (!autorise) setPayant(false);
     setTauxPlateforme(tauxPlateformeSurCommission());
@@ -201,7 +207,11 @@ export default function NouveauTournoiPage() {
       return;
     }
     if (payant && !payantAutorise) {
-      setErreur("Compte suspendu pour les tournois payants (vérification anti-triche en cours).");
+      setErreur(
+        !certifie
+          ? "Certifie ton identité pour pouvoir créer un tournoi payant."
+          : "Compte suspendu pour les tournois payants (vérification anti-triche en cours).",
+      );
       return;
     }
     setErreur(null);
@@ -293,6 +303,189 @@ export default function NouveauTournoiPage() {
       <AppBar retour titre="Créer un tournoi" onRetour={() => router.push("/accueil")} />
 
       <form onSubmit={creer} className="flex flex-col gap-5 mt-4 max-w-sm pb-10">
+        <div>
+          <div
+            className="text-xs uppercase tracking-wide mb-2"
+            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+          >
+            Première décision : payant ou gratuit ?
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium">Tournoi payant</div>
+              <div className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                Frais d&apos;inscription par joueur, cash prize automatique
+              </div>
+            </div>
+            <Switch
+              actif={payant}
+              disabled={!payantAutorise}
+              label="Tournoi payant"
+              onChange={(v) => {
+                if (v && !payantAutorise) {
+                  setErreur(
+                    !certifie
+                      ? "Certifie ton identité pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
+                      : "Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.",
+                  );
+                  return;
+                }
+                setErreur(null);
+                setPayant(v);
+              }}
+            />
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--ds-muted)" }}>
+            Activé par défaut : chaque inscrit paie les frais que tu fixes ci-dessous, et la cagnotte devient
+            automatiquement le cash prize. Ce n&apos;est pas obligatoire — désactive pour un tournoi gratuit à
+            l&apos;inscription (voir « Financer un cash prize depuis mon solde » ci-dessous si tu veux quand même
+            offrir un gain).
+          </p>
+          {!payantAutorise && (
+            <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
+              {!certifie
+                ? "Organisateur non certifié : tournois gratuits uniquement pour l'instant (certifie ton identité pour débloquer les tournois payants et ta commission)."
+                : "Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits."}
+            </p>
+          )}
+
+          {!payant && (
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={financeParOrganisateur}
+                  onChange={(e) => setFinanceParOrganisateur(e.target.checked)}
+                />
+                Financer un cash prize depuis mon solde TourneyCard
+              </label>
+              {financeParOrganisateur && (
+                <>
+                  <Field label="Cash prize à engager (F)" type="number" min={0} value={cashPrizeXof} onChange={(e) => setCashPrizeXof(e.target.value)} />
+                  <p className="text-xs" style={{ color: cashPrizeNum > solde ? "var(--ds-danger)" : "var(--ds-muted)" }}>
+                    Solde disponible : {formatXof(solde)}. Ce montant est débité immédiatement à la création et devient le cash prize, inscription gratuite pour les participants.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {payant && (
+            <>
+              <Field label="Frais d'inscription (F)" type="number" min={0} value={fraisXof} onChange={(e) => setFraisXof(e.target.value)} />
+              {Number(fraisXof) > 0 && (
+                <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                  Des frais de création de {formatXof(FRAIS_CREATION_TOURNOI_PAYANT_XOF)} te seront demandés avant la publication (tournoi payant à l&apos;inscription).
+                </p>
+              )}
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={commissionActivee}
+                  onChange={(e) => setCommissionActivee(e.target.checked)}
+                />
+                Activer ma commission ({Math.round(COMMISSION_PCT * 100)} % des frais collectés)
+              </label>
+
+              {commissionActivee && (
+                <div
+                  className="p-3 flex flex-col gap-1 text-xs"
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Commission brute ({Math.round(COMMISSION_PCT * 100)} %)</span>
+                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.brute)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Part plateforme ({Math.round(tauxPlateforme * 100)} %)</span>
+                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.partPlateforme)}</span>
+                  </div>
+                  <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-accent-600)" }}>
+                    <span>Net perçu (si le tournoi se remplit)</span>
+                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.net)}</span>
+                  </div>
+                  <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
+                    Prélevée sur le cash prize avant répartition entre finalistes — le montant affiché aux joueurs sera déjà net de cette commission.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {((payant && Number(fraisXof) > 0 && places > 0) || (financeParOrganisateur && cashPrizeNum > 0)) && (
+                <div className="flex flex-col gap-2">
+                  <div
+                    className="text-xs uppercase tracking-wide"
+                    style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+                  >
+                    Répartition du cash prize
+                  </div>
+                  {payant && (
+                    <div
+                      className="p-3 flex flex-col gap-1 text-xs"
+                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span style={{ color: "var(--ds-muted)" }}>Cagnotte maximale si {places} places sont prises ({formatXof(Number(fraisXof) || 0)}/joueur)</span>
+                        <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(poolBrut)}</span>
+                      </div>
+                      {commissionActivee && (
+                        <div className="flex items-center justify-between">
+                          <span style={{ color: "var(--ds-muted)" }}>Ta commission ({Math.round(COMMISSION_PCT * 100)} %)</span>
+                          <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.brute)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-border)" }}>
+                        <span>Cash prize maximal (pour les finalistes)</span>
+                        <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{formatXof(cashPrizeEffectif)}</span>
+                      </div>
+                      <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
+                        Ce montant n&apos;est pas garanti : le cash prize réel se calcule sur les inscriptions effectivement reçues à la
+                        clôture, pas sur cette capacité maximale — il sera affiché comme « estimé » sur la fiche du tournoi jusque-là.
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                    Choisis combien de finalistes se partagent le cash prize — la répartition entre eux est calculée automatiquement (barème dégressif).
+                  </p>
+                  <SegmentedControl
+                    options={[
+                      { id: "1" as ModeFinalistes, label: "Vainqueur" },
+                      { id: "3" as ModeFinalistes, label: "Top 3" },
+                      { id: "perso" as ModeFinalistes, label: "Personnalisé" },
+                    ]}
+                    valeur={modeFinalistes}
+                    onChange={setModeFinalistes}
+                  />
+
+                  {modeFinalistes === "perso" && (
+                    <Field
+                      label="Nombre de finalistes"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={nbFinalistesPerso}
+                      onChange={(e) => setNbFinalistesPerso(e.target.value)}
+                    />
+                  )}
+
+                  <div className="flex flex-col gap-1.5">
+                    {repartitionCalculee.map((r) => (
+                      <div key={r.label} className="flex items-center justify-between text-sm">
+                        <span style={{ color: "var(--ds-muted)" }}>{r.label}</span>
+                        <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(r.montantXof)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+          )}
+        </div>
+
+        <div className="h-px" style={{ background: "linear-gradient(to right, transparent, var(--ds-border) 24px, var(--ds-border) calc(100% - 24px), transparent)" }} />
+
         <div>
           <div
             className="text-xs uppercase tracking-wide mb-2"
@@ -455,171 +648,6 @@ export default function NouveauTournoiPage() {
             <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
               Non renseigné : les inscriptions se fermeront automatiquement 10 à 15 minutes avant le début du tournoi.
             </p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium">Tournoi payant</div>
-              <div className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                Frais d&apos;inscription par joueur, cash prize automatique
-              </div>
-            </div>
-            <Switch
-              actif={payant}
-              disabled={!payantAutorise}
-              label="Tournoi payant"
-              onChange={(v) => {
-                if (v && !payantAutorise) {
-                  setErreur("Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.");
-                  return;
-                }
-                setErreur(null);
-                setPayant(v);
-              }}
-            />
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: "var(--ds-muted)" }}>
-            Activé par défaut : chaque inscrit paie les frais que tu fixes ci-dessous, et la cagnotte devient
-            automatiquement le cash prize. Ce n&apos;est pas obligatoire — désactive pour un tournoi gratuit à
-            l&apos;inscription (voir « Financer un cash prize depuis mon solde » ci-dessous si tu veux quand même
-            offrir un gain).
-          </p>
-          {!payantAutorise && (
-            <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
-              Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits.
-            </p>
-          )}
-
-          {!payant && (
-            <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={financeParOrganisateur}
-                  onChange={(e) => setFinanceParOrganisateur(e.target.checked)}
-                />
-                Financer un cash prize depuis mon solde TourneyCard
-              </label>
-              {financeParOrganisateur && (
-                <>
-                  <Field label="Cash prize à engager (F)" type="number" min={0} value={cashPrizeXof} onChange={(e) => setCashPrizeXof(e.target.value)} />
-                  <p className="text-xs" style={{ color: cashPrizeNum > solde ? "var(--ds-danger)" : "var(--ds-muted)" }}>
-                    Solde disponible : {formatXof(solde)}. Ce montant est débité immédiatement à la création et devient le cash prize, inscription gratuite pour les participants.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
-
-          {payant && (
-            <>
-              <Field label="Frais d'inscription (F)" type="number" min={0} value={fraisXof} onChange={(e) => setFraisXof(e.target.value)} />
-              {Number(fraisXof) > 0 && (
-                <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                  Des frais de création de {formatXof(FRAIS_CREATION_TOURNOI_PAYANT_XOF)} te seront demandés avant la publication (tournoi payant à l&apos;inscription).
-                </p>
-              )}
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={commissionActivee}
-                  onChange={(e) => setCommissionActivee(e.target.checked)}
-                />
-                Activer ma commission ({Math.round(COMMISSION_PCT * 100)} % des frais collectés)
-              </label>
-
-              {commissionActivee && (
-                <div
-                  className="p-3 flex flex-col gap-1 text-xs"
-                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span>Commission brute ({Math.round(COMMISSION_PCT * 100)} %)</span>
-                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.brute)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Part plateforme ({Math.round(tauxPlateforme * 100)} %)</span>
-                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.partPlateforme)}</span>
-                  </div>
-                  <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-accent-600)" }}>
-                    <span>Net perçu (si le tournoi se remplit)</span>
-                    <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(commission.net)}</span>
-                  </div>
-                  <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
-                    Prélevée sur le cash prize avant répartition entre finalistes — le montant affiché aux joueurs sera déjà net de cette commission.
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-
-          {((payant && Number(fraisXof) > 0 && places > 0) || (financeParOrganisateur && cashPrizeNum > 0)) && (
-                <div className="flex flex-col gap-2">
-                  <div
-                    className="text-xs uppercase tracking-wide"
-                    style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
-                  >
-                    Répartition du cash prize
-                  </div>
-                  {payant && (
-                    <div
-                      className="p-3 flex flex-col gap-1 text-xs"
-                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span style={{ color: "var(--ds-muted)" }}>Cagnotte attendue ({places} places × {formatXof(Number(fraisXof) || 0)})</span>
-                        <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(poolBrut)}</span>
-                      </div>
-                      {commissionActivee && (
-                        <div className="flex items-center justify-between">
-                          <span style={{ color: "var(--ds-muted)" }}>Ta commission ({Math.round(COMMISSION_PCT * 100)} %)</span>
-                          <span style={{ fontFamily: "var(--ds-font-mono)" }}>- {formatXof(commission.brute)}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between font-semibold pt-1" style={{ borderTop: "1px solid var(--ds-border)" }}>
-                        <span>Cash prize (pour les finalistes)</span>
-                        <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{formatXof(cashPrizeEffectif)}</span>
-                      </div>
-                      <p className="mt-1" style={{ color: "var(--ds-muted)" }}>
-                        Recalculé automatiquement si tu changes les frais, le nombre de places ou la commission.
-                      </p>
-                    </div>
-                  )}
-                  <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-                    Choisis combien de finalistes se partagent le cash prize — la répartition entre eux est calculée automatiquement (barème dégressif).
-                  </p>
-                  <SegmentedControl
-                    options={[
-                      { id: "1" as ModeFinalistes, label: "Vainqueur" },
-                      { id: "3" as ModeFinalistes, label: "Top 3" },
-                      { id: "perso" as ModeFinalistes, label: "Personnalisé" },
-                    ]}
-                    valeur={modeFinalistes}
-                    onChange={setModeFinalistes}
-                  />
-
-                  {modeFinalistes === "perso" && (
-                    <Field
-                      label="Nombre de finalistes"
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={nbFinalistesPerso}
-                      onChange={(e) => setNbFinalistesPerso(e.target.value)}
-                    />
-                  )}
-
-                  <div className="flex flex-col gap-1.5">
-                    {repartitionCalculee.map((r) => (
-                      <div key={r.label} className="flex items-center justify-between text-sm">
-                        <span style={{ color: "var(--ds-muted)" }}>{r.label}</span>
-                        <span style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(r.montantXof)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
           )}
         </div>
 

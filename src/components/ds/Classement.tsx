@@ -161,8 +161,7 @@ export function Classement() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="text-base font-medium">Classement</div>
+      <div className="flex items-center justify-end">
         <div className="text-xs text-right" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
           <div>{SAISON}</div>
           <div>{SAISON_FIN_LABEL}</div>

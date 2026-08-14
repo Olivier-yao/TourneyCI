@@ -7,7 +7,7 @@ import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
+import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { manchesBR } from "@/lib/mockBattleRoyale";
 import { compterAvis } from "@/lib/mockAvis";
@@ -64,7 +64,7 @@ export default function EnDirectPage() {
 
   const enDirect = useMemo(() => {
     const liste = tousLesTournoisState.filter((t) => t.enDirect);
-    if (tri === "cashprize") return [...liste].sort((a, b) => b.cashPrizeXof - a.cashPrizeXof);
+    if (tri === "cashprize") return [...liste].sort((a, b) => cashPrizeAffiche(b) - cashPrizeAffiche(a));
     if (tri === "participants") return [...liste].sort((a, b) => b.placesInscrites - a.placesInscrites);
     return [...liste].reverse();
   }, [tri, tousLesTournoisState]);
@@ -149,7 +149,7 @@ export default function EnDirectPage() {
                         {score}
                       </span>
                       <span className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                        {formatXof(t.cashPrizeXof)}
+                        {formatXof(cashPrizeAffiche(t))}
                       </span>
                     </div>
                     <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />

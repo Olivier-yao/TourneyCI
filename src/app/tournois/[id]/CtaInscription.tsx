@@ -78,7 +78,6 @@ export function CtaInscription({
   const [equipeIdEnAttente, setEquipeIdEnAttente] = useState<string | undefined>(undefined);
   const [choixTag, setChoixTag] = useState(false);
   const [monPseudo, setMonPseudo] = useState("");
-  const [utiliserPseudo, setUtiliserPseudo] = useState(true);
   const [tagPerso, setTagPerso] = useState("");
   const [tagEnAttente, setTagEnAttente] = useState<string | undefined>(undefined);
   const [presenceAcceptee, setPresenceAcceptee] = useState(false);
@@ -186,7 +185,7 @@ export function CtaInscription({
   }
 
   function validerTag() {
-    const tag = utiliserPseudo ? monPseudo : tagPerso.trim();
+    const tag = tagPerso.trim();
     if (!tag) {
       setErreur("Saisis ton TAG pour ce tournoi.");
       return;
@@ -491,22 +490,16 @@ export function CtaInscription({
 
       {choixTag && (
         <div className="flex flex-col gap-2.5">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={utiliserPseudo}
-              onChange={(e) => setUtiliserPseudo(e.target.checked)}
-            />
-            Utiliser mon nom de profil ({monPseudo}) comme TAG
-          </label>
-          {!utiliserPseudo && (
-            <Field
-              label="Ton TAG pour ce tournoi"
-              value={tagPerso}
-              onChange={(e) => setTagPerso(e.target.value)}
-              placeholder="Ex: KingKD"
-            />
-          )}
+          <p className="text-xs leading-relaxed" style={{ color: "var(--ds-muted)" }}>
+            Indique le TAG exact que tu utilises sur {jeuLabel} — c&apos;est ce qui permettra à l&apos;organisateur de
+            t&apos;identifier pendant le tournoi. Obligatoire à chaque inscription, même si tu as déjà joué ici.
+          </p>
+          <Field
+            label="Ton TAG sur ce jeu"
+            value={tagPerso}
+            onChange={(e) => setTagPerso(e.target.value)}
+            placeholder="Ex: KingKD"
+          />
           {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
         </div>
       )}
