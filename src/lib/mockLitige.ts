@@ -76,3 +76,12 @@ export function ajouterPreuveLitige(litigeId: string, nomFichier: string) {
   const maj = tout.map((l) => (l.id === litigeId ? { ...l, preuves: [...l.preuves, nomFichier] } : l));
   localStorage.setItem(CLE_LITIGES, JSON.stringify(maj));
 }
+
+/** Tranche un litige côté organisateur : "resolu_faveur" donne raison au
+ * joueur qui a signalé, "rejete" maintient le score déjà enregistré. */
+export function resoudreLitige(litigeId: string, statut: "resolu_faveur" | "rejete") {
+  if (typeof window === "undefined") return;
+  const tout = lireTout();
+  const maj = tout.map((l) => (l.id === litigeId ? { ...l, statut } : l));
+  localStorage.setItem(CLE_LITIGES, JSON.stringify(maj));
+}
