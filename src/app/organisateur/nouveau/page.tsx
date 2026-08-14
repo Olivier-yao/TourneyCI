@@ -8,6 +8,7 @@ import { Field } from "@/components/ds/Input";
 import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
+import { Switch } from "@/components/ds/Switch";
 import { lireSolde, debiter } from "@/lib/mockWallet";
 import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet } from "@/lib/mockOrganisateur";
 import { formatXof } from "@/lib/formatXof";
@@ -99,7 +100,7 @@ export default function NouveauTournoiPage() {
   const [nomsEquipes, setNomsEquipes] = useState("");
   const [placesTotal, setPlacesTotal] = useState("16");
   const [placesBR, setPlacesBR] = useState("50");
-  const [payant, setPayant] = useState(false);
+  const [payant, setPayant] = useState(true);
   const [commissionActivee, setCommissionActivee] = useState(false);
   const [tauxPlateforme, setTauxPlateforme] = useState(0.2);
   const [financeParOrganisateur, setFinanceParOrganisateur] = useState(false);
@@ -114,7 +115,9 @@ export default function NouveauTournoiPage() {
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
-    setPayantAutorise(peutCreerTournoiPayant(nomOrganisateurActuel()));
+    const autorise = peutCreerTournoiPayant(nomOrganisateurActuel());
+    setPayantAutorise(autorise);
+    if (!autorise) setPayant(false);
     setTauxPlateforme(tauxPlateformeSurCommission());
     setOnboardingOk(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -456,21 +459,33 @@ export default function NouveauTournoiPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <SegmentedControl
-            options={[
-              { id: "gratuit", label: "Gratuit" },
-              { id: "payant", label: "Payant" },
-            ]}
-            valeur={payant ? "payant" : "gratuit"}
-            onChange={(v) => {
-              if (v === "payant" && !payantAutorise) {
-                setErreur("Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.");
-                return;
-              }
-              setErreur(null);
-              setPayant(v === "payant");
-            }}
-          />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium">Tournoi payant</div>
+              <div className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                Frais d&apos;inscription par joueur, cash prize automatique
+              </div>
+            </div>
+            <Switch
+              actif={payant}
+              disabled={!payantAutorise}
+              label="Tournoi payant"
+              onChange={(v) => {
+                if (v && !payantAutorise) {
+                  setErreur("Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.");
+                  return;
+                }
+                setErreur(null);
+                setPayant(v);
+              }}
+            />
+          </div>
+          <p className="text-xs leading-relaxed" style={{ color: "var(--ds-muted)" }}>
+            Activé par défaut : chaque inscrit paie les frais que tu fixes ci-dessous, et la cagnotte devient
+            automatiquement le cash prize. Ce n&apos;est pas obligatoire — désactive pour un tournoi gratuit à
+            l&apos;inscription (voir « Financer un cash prize depuis mon solde » ci-dessous si tu veux quand même
+            offrir un gain).
+          </p>
           {!payantAutorise && (
             <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
               Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits.
