@@ -86,6 +86,18 @@ avant de passer à la suivante, comme pour le plan V1. Le site V1 actuel
 fonctionner en parallèle sans être affecté par ce chantier tant que la
 bascule (phase 8) n'est pas décidée.
 
+## Backlog (fonctionnalités futures, non implémentées)
+
+- **Stream PC compagnon** (point 110) : un organisateur de tournoi à
+  distance (non présentiel) pourra streamer en direct l'écran de son PC
+  vers l'app, via une application compagnon PC connectée à l'app
+  mobile/web Tourney. Les spectateurs verront alors la partie en cours
+  dans le cadre de stream de la fiche tournoi (état "en direct", point
+  109). Ne concerne pas les tournois présentiels, où les spectateurs
+  suivent l'événement physiquement sur place. Ni l'application PC
+  compagnon ni l'intégration du flux ne sont construites tant que cette
+  étape n'est pas explicitement planifiée (cf. règle ci-dessous).
+
 ## Règle
 Ne jamais anticiper une étape future, même si ça semble plus rapide.
 Terminer et faire confirmer l'étape en cours avant de passer à la suivante.

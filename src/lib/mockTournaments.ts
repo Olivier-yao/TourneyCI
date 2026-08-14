@@ -73,6 +73,10 @@ export type Tournoi = {
    * toujours celui de l'appareil courant plutôt qu'un nom figé, pour que
    * n'importe quel testeur retrouve ces tournois dans sa propre gestion. */
   organisateurDynamique?: boolean;
+  /** Stream live de la partie en cours activé par l'organisateur (point 109) :
+   * remplace la bannière statique par un cadre de stream une fois le tournoi
+   * en direct. Pas de flux réel dans ce mock (voir point 110). */
+  streamActif?: boolean;
 };
 
 const DELAI_VERROU_BRACKET_MS = 10 * 60 * 1000;
@@ -97,9 +101,13 @@ export function tournoiComplet(tournoi: Pick<Tournoi, "placesInscrites" | "place
   return tournoi.placesTotal > 0 && tournoi.placesInscrites >= tournoi.placesTotal;
 }
 
+/** Une fois le tournoi en direct, les inscriptions sont closes
+ * définitivement — même si la capacité maximale n'a jamais été atteinte
+ * (point 108) : on ne rejoint pas une compétition déjà commencée. */
 export function inscriptionsFermees(
-  tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs" | "placesInscrites" | "placesTotal">,
+  tournoi: Pick<Tournoi, "finInscriptionsTs" | "debutTournoiTs" | "placesInscrites" | "placesTotal" | "enDirect">,
 ): boolean {
+  if (tournoi.enDirect) return true;
   if (tournoiComplet(tournoi)) return true;
   const cloture = clotureEffectiveInscriptions(tournoi);
   return cloture !== undefined && Date.now() >= cloture;
@@ -591,7 +599,7 @@ export function estAnnule(id: string): boolean {
  * les champs structurels/financiers (type, frais, cash prize, dates) déjà
  * pris en compte par des inscriptions en cours. */
 export type ParametresModifiablesTournoi = Partial<
-  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations">
+  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations" | "streamActif">
 >;
 
 const CLE_PARAMETRES_SUPERPOSES = "tourney-parametres-superposes";
@@ -687,7 +695,12 @@ export function creerTournoi(donnees: Omit<Tournoi, "id" | "code" | "placesInscr
 }
 
 export function mesTournoisOrganises(): Tournoi[] {
-  return avecEtatsSuperposes(lireTournoisCrees());
+  // Les démos "en cours" (organisateurDynamique) sont attribuées à
+  // l'utilisateur courant : elles doivent apparaître dans son espace
+  // organisateur au même titre que les tournois qu'il a réellement créés,
+  // pour pouvoir tester validation de score, litiges et check-in dessus.
+  const demosMoi = TOURNOIS.filter((t) => t.organisateurDynamique);
+  return avecEtatsSuperposes([...lireTournoisCrees(), ...demosMoi]);
 }
 
 function pointsPourPlace(place: number, effectif: number): number {

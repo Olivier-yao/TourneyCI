@@ -233,6 +233,22 @@ export function mettreAJourScoreMatch(
   localStorage.setItem(CLE_BRACKETS_GENERES, JSON.stringify({ ...existants, [tournoiId]: actuels }));
 }
 
+/** Ajoute un événement au fil du match en direct (point 107), visible par
+ * les spectateurs et participants — sans toucher au score ni au statut du
+ * match. Matérialise le bracket en localStorage comme mettreAJourScoreMatch. */
+export function ajouterEvenementMatch(tournoiId: string, matchId: string, texte: string) {
+  if (typeof window === "undefined") return;
+  const actuels = matchsDuTournoi(tournoiId).map((m) => ({ ...m }));
+  const match = actuels.find((m) => m.id === matchId);
+  if (!match) return;
+
+  const minute = (match.evenements?.[0]?.minute ?? 0) + 1;
+  match.evenements = [{ minute, texte }, ...(match.evenements ?? [])];
+
+  const existants = lireBracketsGeneres();
+  localStorage.setItem(CLE_BRACKETS_GENERES, JSON.stringify({ ...existants, [tournoiId]: actuels }));
+}
+
 /** Génère un arbre à élimination directe à partir d'une liste ordonnée de
  * participants (le seeding). Complète avec des "byes" si l'effectif n'est
  * pas une puissance de 2. Persisté en localStorage (pas de vrai backend). */

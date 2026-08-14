@@ -22,6 +22,7 @@ export default function ParametresTournoiPage() {
   const [checkin, setCheckin] = useState(tournoi?.checkin ?? "");
   const [reglement, setReglement] = useState(tournoi?.reglement ?? "");
   const [informations, setInformations] = useState(tournoi?.informations ?? "");
+  const [streamActif, setStreamActif] = useState(tournoi?.streamActif ?? false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -53,6 +54,7 @@ export default function ParametresTournoiPage() {
       checkin: checkin.trim(),
       reglement: reglement.trim(),
       informations: informations.trim() || undefined,
+      streamActif,
     });
     setEnregistre(true);
     setTimeout(() => setEnregistre(false), 2000);
@@ -92,6 +94,21 @@ export default function ParametresTournoiPage() {
           style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
         />
       </div>
+
+      <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+        <input
+          type="checkbox"
+          checked={streamActif}
+          onChange={(e) => setStreamActif(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          Activer le stream live de la partie en cours
+          <span className="block mt-0.5 text-xs" style={{ color: "var(--ds-muted)" }}>
+            Une fois le tournoi en direct, remplace la bannière par un cadre de stream visible des spectateurs.
+          </span>
+        </span>
+      </label>
 
       <Button variante="primary" onClick={enregistrer} disabled={!titre.trim()}>
         {enregistre ? "Enregistré ✓" : "Enregistrer"}

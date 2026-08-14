@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon, Sparkles, Crown } from "lucide-react";
+import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon, Sparkles, Crown, Radio } from "lucide-react";
 import Link from "next/link";
 import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
@@ -539,18 +539,28 @@ export function CtaInscription({
         >
           <Bell size={18} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
         </button>
-        <Button
-          variante="primary"
-          bloc
-          disabled={fermeInscriptions}
-          onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : onClicInscription}
-        >
-          {fermeInscriptions
-            ? "Inscriptions fermées"
-            : choixEquipe || choixTag
-              ? "Continuer"
-              : `S'inscrire · ${formatXof(fraisXof)}`}
-        </Button>
+        {tournoiCommence ? (
+          <div
+            className="flex-1 h-[46px] flex items-center justify-center gap-2 text-[13px] font-medium"
+            style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+          >
+            <Radio size={15} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+            Tournoi en direct · inscriptions closes
+          </div>
+        ) : (
+          <Button
+            variante="primary"
+            bloc
+            disabled={fermeInscriptions}
+            onClick={choixEquipe ? validerEquipe : choixTag ? validerTag : onClicInscription}
+          >
+            {fermeInscriptions
+              ? "Inscriptions fermées"
+              : choixEquipe || choixTag
+                ? "Continuer"
+                : `S'inscrire · ${formatXof(fraisXof)}`}
+          </Button>
+        )}
       </div>
 
       <Modal ouvert={etapeBR !== null} titre="Comment tu joues ?" onFermer={() => setEtapeBR(null)}>

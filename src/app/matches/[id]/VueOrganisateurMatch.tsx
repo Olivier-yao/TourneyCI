@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Minus, Plus, ShieldAlert, CheckCircle2, XCircle, ListChecks } from "lucide-react";
+import { ArrowLeft, Minus, Plus, ShieldAlert, CheckCircle2, XCircle, ListChecks, Radio } from "lucide-react";
 import { Avatar } from "@/components/ds/Avatar";
 import { Button, PRESS } from "@/components/ds/Button";
-import { mettreAJourScoreMatch, type MatchTournoi } from "@/lib/mockBracket";
+import { ajouterEvenementMatch, mettreAJourScoreMatch, type MatchTournoi } from "@/lib/mockBracket";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { litigeDuMatch, resoudreLitige, type Litige } from "@/lib/mockLitige";
+import { tournoiParId, genreDuJeu } from "@/lib/mockTournaments";
+import { textesEvenementsPredefinis } from "@/lib/mockEvenementsJeu";
 
 function initiales(nom: string): string {
   return nom
@@ -45,20 +47,32 @@ export function VueOrganisateurMatch({
   const [s2, setS2] = useState(matchInitial.score2 ?? 0);
   const [litige, setLitige] = useState<Litige | undefined>(undefined);
   const [enregistre, setEnregistre] = useState(false);
+  const [genreJeu, setGenreJeu] = useState<ReturnType<typeof genreDuJeu>>(undefined);
+  const [acteur, setActeur] = useState<"joueur1" | "joueur2">("joueur1");
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLitige(litigeDuMatch(matchInitial.id));
-  }, [matchInitial.id]);
+    const tournoi = tournoiParId(tournoiId);
+    setGenreJeu(tournoi ? genreDuJeu(tournoi.jeuId) : undefined);
+  }, [matchInitial.id, tournoiId]);
 
   const pretAJouer = Boolean(matchInitial.joueur1 && matchInitial.joueur2);
   const modifie = s1 !== (matchInitial.score1 ?? 0) || s2 !== (matchInitial.score2 ?? 0);
+  const nomActeur = acteur === "joueur1" ? matchInitial.joueur1 : matchInitial.joueur2;
+  const nomCible = acteur === "joueur1" ? matchInitial.joueur2 : matchInitial.joueur1;
+  const textesEvenements = nomActeur && nomCible ? textesEvenementsPredefinis(genreJeu, nomActeur, nomCible) : [];
 
   function valider() {
     if (s1 === s2) return;
     mettreAJourScoreMatch(tournoiId, matchInitial.id, s1, s2);
     notifierParticipants(tournoiId, tournoiTitre, `Score validé : ${matchInitial.joueur1} ${s1} - ${s2} ${matchInitial.joueur2}`);
     setEnregistre(true);
+    onMaj();
+  }
+
+  function ajouterEvenement(texte: string) {
+    ajouterEvenementMatch(tournoiId, matchInitial.id, texte);
     onMaj();
   }
 
@@ -140,6 +154,63 @@ export function VueOrganisateurMatch({
           </div>
         )}
       </div>
+
+      {pretAJouer && matchInitial.statut !== "termine" && (
+        <div className="flex flex-col gap-3">
+          <div className="text-[11px] uppercase tracking-wide flex items-center gap-2" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            <Radio size={13} strokeWidth={2} />
+            Fil du match — ajouter un événement
+          </div>
+          <div className="flex p-[3px] gap-[3px]" style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}>
+            <button
+              type="button"
+              onClick={() => setActeur("joueur1")}
+              className={`flex-1 h-8 text-[13px] font-semibold truncate px-2 ${PRESS}`}
+              style={{
+                borderRadius: "var(--ds-radius-sm)",
+                background: acteur === "joueur1" ? "var(--ds-accent-900)" : "transparent",
+                color: acteur === "joueur1" ? "var(--ds-accent-300)" : "var(--ds-muted)",
+              }}
+            >
+              {matchInitial.joueur1}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActeur("joueur2")}
+              className={`flex-1 h-8 text-[13px] font-semibold truncate px-2 ${PRESS}`}
+              style={{
+                borderRadius: "var(--ds-radius-sm)",
+                background: acteur === "joueur2" ? "var(--ds-accent-900)" : "transparent",
+                color: acteur === "joueur2" ? "var(--ds-accent-300)" : "var(--ds-muted)",
+              }}
+            >
+              {matchInitial.joueur2}
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {textesEvenements.map((texte) => (
+              <button
+                key={texte}
+                type="button"
+                onClick={() => ajouterEvenement(texte)}
+                className={`h-10 px-3.5 text-left text-sm ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+              >
+                {texte}
+              </button>
+            ))}
+          </div>
+          {matchInitial.evenements && matchInitial.evenements.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {matchInitial.evenements.slice(0, 3).map((ev, i) => (
+                <p key={i} className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                  {ev.minute}&apos; · {ev.texte}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {litige && (
         <div className="flex flex-col gap-3">

@@ -9,7 +9,7 @@ import { Field } from "@/components/ds/Input";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { hexagoneStyle } from "@/components/ds/Palier";
-import { mesTournoisOrganises, COMMISSION_PCT } from "@/lib/mockTournaments";
+import { mesTournoisOrganises, COMMISSION_PCT, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie } from "@/lib/mockOrganisateur";
 import { nomOrganisateur, definirNomOrganisateur } from "@/lib/mockOrganisateur";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -133,16 +133,19 @@ function OnboardingOrganisateur({ etape, onVerifier, onValideNom }: { etape: "ve
 export default function OrganisateurPage() {
   const connecte = useExigerConnexion();
   const router = useRouter();
-  const [tournoisOrganises] = useState(mesTournoisOrganises);
+  const [tournoisOrganises, setTournoisOrganises] = useState<Tournoi[]>([]);
   const [etape, setEtape] = useState<EtapeOnboarding>("complet");
   const [nomOrg, setNomOrg] = useState<string | undefined>(undefined);
 
   useEffect(() => {
+    // État dépendant du localStorage : liste vide au premier rendu serveur,
+    // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     const certifie = estCertifie();
     const nom = nomOrganisateur();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setNomOrg(nom);
     setEtape(!certifie ? "verification" : !nom ? "nom" : "complet");
+    setTournoisOrganises(mesTournoisOrganises());
   }, []);
 
   if (!connecte) return null;

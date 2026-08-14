@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords } from "lucide-react";
+import { ArrowLeft, Wifi, Settings2, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -76,6 +76,33 @@ function BoutonPartager() {
     >
       {copie ? <Check size={16} strokeWidth={2} /> : <Share2 size={16} strokeWidth={2} />}
     </button>
+  );
+}
+
+/** Cadre dédié au stream live de la partie en cours (point 109), à la place
+ * de la bannière statique une fois le tournoi en direct. Aucun flux réel
+ * dans ce mock (voir point 110, backlog) : juste l'emplacement visuel avec
+ * un indicateur "en direct", prêt à recevoir un lecteur vidéo plus tard. */
+function CadreStream({ hauteur }: { hauteur: number }) {
+  return (
+    <div
+      className="relative w-full flex flex-col items-center justify-center gap-2 overflow-hidden"
+      style={{ height: hauteur, background: "radial-gradient(120% 140% at 50% 20%, var(--ds-accent-900), var(--ds-bg) 75%)", boxShadow: "inset 0 0 0 1px var(--ds-accent-700)" }}
+    >
+      <div
+        className="flex items-center justify-center w-11 h-11"
+        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-800)", boxShadow: "0 0 24px color-mix(in srgb, var(--ds-accent) 30%, transparent)" }}
+      >
+        <Radio size={19} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+      </div>
+      <span className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+        Stream en direct de la partie
+      </span>
+      <div
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(transparent 55%, var(--ds-bg))" }}
+      />
+    </div>
   );
 }
 
@@ -202,8 +229,7 @@ function DetailTournoiInterne() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const equipePreselectionneeId = searchParams.get("equipe") ?? undefined;
-  const tournoi = tournoiParId(params.id);
-  const [organisateur, setOrganisateur] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [modaleOuverte, setModaleOuverte] = useState<"informations" | "reglement" | null>(null);
   const [fermeInscriptions, setFermeInscriptions] = useState(false);
   const [accesChat, setAccesChat] = useState(false);
@@ -215,24 +241,28 @@ function DetailTournoiInterne() {
   const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
 
   useEffect(() => {
-    const monTournoi = Boolean(tournoi) && tournoi?.organisateur === nomOrganisateurActuel();
+    // État dépendant du localStorage (tournoi + ses surcharges) : introuvable
+    // au premier rendu serveur, synchronisé côté client une fois monté
+    // (évite un mismatch d'hydratation — le titre, la bannière, etc. peuvent
+    // différer si l'organisateur a modifié le tournoi depuis cet appareil).
+    const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateur(estOrganisateur());
+    setTournoi(t);
+    const monTournoi = Boolean(t) && t?.organisateur === nomOrganisateurActuel();
     setEstMonTournoi(monTournoi);
     setAccesChat(estInscrit(params.id) || estOrganisateur());
-    if (tournoi) setFermeInscriptions(inscriptionsFermees(tournoi));
+    if (t) setFermeInscriptions(inscriptionsFermees(t));
     // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
     // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
     // l'inscription ni pendant le déroulement, et jamais à l'organisateur.
-    setDemanderAvis(!monTournoi && Boolean(tournoi?.termine) && !monAvisPourTournoi(params.id));
+    setDemanderAvis(!monTournoi && Boolean(t?.termine) && !monAvisPourTournoi(params.id));
     setAvisCompte(compterAvis(params.id));
-    if (tournoi?.termine) {
+    if (t?.termine) {
       reevaluerPaiementsEnAttente();
       setEnSequestre(cashPrizeEnSequestre(params.id));
       setPeutContester(estInscrit(params.id));
       setMonAppel(monAppelPourTournoi(params.id));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   if (!tournoi) {
@@ -275,8 +305,10 @@ function DetailTournoiInterne() {
       className="min-h-screen flex flex-col"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <div className="relative">
-        {tournoi.banniereUrl ? (
+      <div className="relative" style={{ height: tournoi.enDirect && !tournoi.streamActif ? 74 : 210 }}>
+        {tournoi.enDirect ? (
+          tournoi.streamActif && <CadreStream hauteur={210} />
+        ) : tournoi.banniereUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={tournoi.banniereUrl} alt={tournoi.titre} className="w-full object-cover" style={{ height: 210 }} />
         ) : (
@@ -549,7 +581,7 @@ function DetailTournoiInterne() {
           </Link>
         )}
 
-        {organisateur && (
+        {estMonTournoi && (
           <Link
             href={`/organisateur/${tournoi.id}/gestion`}
             className="flex items-center gap-2 p-3 mt-1"
