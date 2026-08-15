@@ -4,22 +4,41 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, Bell, ChevronRight, X, SlidersHorizontal, Play, Radio } from "lucide-react";
+import { Search, Bell, X, SlidersHorizontal, Play, Radio, Heart, VolumeX, ArrowRight, Crosshair, Swords, Goal, Users2, Gamepad2, Eye } from "lucide-react";
 import { Card, CardKicker, CardTitle } from "@/components/ds/Card";
 import { Avatar } from "@/components/ds/Avatar";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
+import { PRESS } from "@/components/ds/Button";
 import { consommerTransitionEntree } from "@/lib/mockAuth";
 import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
+import { estFavori, basculerFavori } from "@/lib/mockFavoris";
+import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type GenreJeu, type Tournoi } from "@/lib/mockTournaments";
+import { matchsDuTournoi } from "@/lib/mockBracket";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
 import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
 import { Modal } from "@/components/ds/Modal";
+
+/** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
+ * dans ce mock) — stable entre le rendu serveur et client. */
+function spectateurs(tournoi: Tournoi): number {
+  let h = 0;
+  for (let i = 0; i < tournoi.id.length; i++) h = (h * 31 + tournoi.id.charCodeAt(i)) >>> 0;
+  return 80 + (h % 400) + tournoi.placesInscrites * 6;
+}
+
+const ICONE_GENRE: Record<GenreJeu, typeof Gamepad2> = {
+  FPS: Crosshair,
+  TPS: Crosshair,
+  Combat: Swords,
+  Sport: Goal,
+  "Battle Royale": Users2,
+};
 
 const conteneurVariants = {
   cache: {},
@@ -42,9 +61,11 @@ export default function AccueilV2Page() {
   const [transitionCube, setTransitionCube] = useState(false);
   const [filtresOuverts, setFiltresOuverts] = useState(false);
   const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
-  const [utilisateur, setUtilisateur] = useState({ nom: "Joueur", initiales: "JO", photoUrl: undefined as string | undefined });
+  const [utilisateur, setUtilisateur] = useState({ nom: "Joueur", initiales: "JO", photoUrl: undefined as string | undefined, ville: "" });
   const [tournois, setTournois] = useState<Tournoi[]>([]);
   const [streamOuvert, setStreamOuvert] = useState<Tournoi | null>(null);
+  const [, setFavorisVersion] = useState(0);
+  const [pageDirect, setPageDirect] = useState(0);
 
   useEffect(() => {
     // État dépendant du localStorage (tournois créés localement) : liste
@@ -60,6 +81,7 @@ export default function AccueilV2Page() {
       nom: profil.pseudo,
       initiales: profil.pseudo.split(" ").map((m) => m[0]).filter(Boolean).join("").slice(0, 2).toUpperCase(),
       photoUrl: profil.photoUrl,
+      ville: profil.ville,
     });
   }, []);
 
@@ -112,72 +134,79 @@ export default function AccueilV2Page() {
           style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}
         >
           <motion.div variants={elementVariants} className="flex items-center justify-between">
-            <Link href="/profil" className="flex items-center gap-2.5">
-              <Avatar initiales={utilisateur.initiales} photoUrl={utilisateur.photoUrl} taille={40} />
-              <div>
-                <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                  Bonsoir
-                </div>
-                <div className="text-[15px] font-semibold capitalize">{utilisateur.nom}</div>
-              </div>
-            </Link>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setNotifOuvertes((v) => !v)}
-                className="relative flex items-center justify-center w-[38px] h-[38px] cursor-pointer"
-                style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+            <div>
+              <div
+                className="text-[23px]"
+                style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"], letterSpacing: "-.02em" }}
               >
-                <Bell size={16} strokeWidth={2} />
-                {nonLues > 0 && (
-                  <span className="absolute top-[7px] right-[7px] w-1.5 h-1.5 rounded-full" style={{ background: "var(--ds-accent)" }} />
-                )}
-              </button>
-              <AnimatePresence>
-                {notifOuvertes && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-11 w-72 z-20 p-2"
-                    style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)", boxShadow: "var(--ds-shadow-lg)" }}
-                  >
-                    {notifications.length === 0 ? (
-                      <p className="text-xs p-2" style={{ color: "var(--ds-muted)" }}>Aucune notification.</p>
-                    ) : (
-                      <>
-                        {notifications.slice(0, 5).map((n) => (
-                          <button
-                            key={n.id}
-                            type="button"
-                            onClick={() => {
-                              marquerLue(n.id);
-                              setNonLues(nombreNonLues());
-                              setNotifOuvertes(false);
-                              if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
-                              else setNotifDetail(n);
-                            }}
-                            className="w-full text-left p-2.5 cursor-pointer"
-                            style={{ borderBottom: "1px solid var(--ds-border)" }}
+                Salut {utilisateur.nom.split(" ")[0]}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                Compétiteur{utilisateur.ville ? ` · ${utilisateur.ville.toLowerCase()}` : ""}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setNotifOuvertes((v) => !v)}
+                  className="relative flex items-center justify-center w-[34px] h-[34px] cursor-pointer"
+                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  <Bell size={16} strokeWidth={2} />
+                  {nonLues > 0 && (
+                    <span className="absolute top-[7px] right-[8px] w-1.5 h-1.5 rounded-full" style={{ background: "var(--ds-accent)" }} />
+                  )}
+                </button>
+                <AnimatePresence>
+                  {notifOuvertes && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-11 w-72 z-20 p-2"
+                      style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)", boxShadow: "var(--ds-shadow-lg)" }}
+                    >
+                      {notifications.length === 0 ? (
+                        <p className="text-xs p-2" style={{ color: "var(--ds-muted)" }}>Aucune notification.</p>
+                      ) : (
+                        <>
+                          {notifications.slice(0, 5).map((n) => (
+                            <button
+                              key={n.id}
+                              type="button"
+                              onClick={() => {
+                                marquerLue(n.id);
+                                setNonLues(nombreNonLues());
+                                setNotifOuvertes(false);
+                                if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
+                                else setNotifDetail(n);
+                              }}
+                              className="w-full text-left p-2.5 cursor-pointer"
+                              style={{ borderBottom: "1px solid var(--ds-border)" }}
+                            >
+                              <div className="text-[13px]">{n.texte}</div>
+                              <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
+                            </button>
+                          ))}
+                          <Link
+                            href="/notifications"
+                            onClick={() => setNotifOuvertes(false)}
+                            className="block text-center text-xs font-medium p-2.5"
+                            style={{ color: "var(--ds-accent-300)" }}
                           >
-                            <div className="text-[13px]">{n.texte}</div>
-                            <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
-                          </button>
-                        ))}
-                        <Link
-                          href="/notifications"
-                          onClick={() => setNotifOuvertes(false)}
-                          className="block text-center text-xs font-medium p-2.5"
-                          style={{ color: "var(--ds-accent-300)" }}
-                        >
-                          Voir tout →
-                        </Link>
-                      </>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                            Voir tout →
+                          </Link>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <Link href="/profil">
+                <Avatar initiales={utilisateur.initiales} photoUrl={utilisateur.photoUrl} taille={34} />
+              </Link>
             </div>
           </motion.div>
 
@@ -259,69 +288,100 @@ export default function AccueilV2Page() {
               </motion.div>
               <motion.div
                 variants={elementVariants}
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  const max = el.scrollWidth - el.clientWidth;
+                  const ratio = max > 0 ? el.scrollLeft / max : 0;
+                  setPageDirect(Math.min(2, Math.round(ratio * 2)));
+                }}
                 className="flex gap-3 overflow-x-auto pb-1 -mx-[20px] px-[20px] snap-x snap-mandatory"
                 style={{ scrollbarWidth: "none" }}
               >
-                {enDirect.map((t) => (
-                  <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0 snap-start" style={{ width: "85%" }}>
-                    <Card>
-                      <div className="relative">
-                        {t.banniereUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={t.banniereUrl} alt={t.titre} className="w-full object-cover" style={{ height: 120 }} />
-                        ) : (
-                          <ImagePlaceholder label="visuel tournoi" hauteur={120} />
-                        )}
-                        <div
-                          className="absolute inset-0 pointer-events-none"
-                          style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
-                        />
-                        <div className="absolute top-2.5 left-2.5">
-                          <LiveBadge />
-                        </div>
-                        {t.streamActif && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setStreamOuvert(t);
-                            }}
-                            aria-label="Regarder le stream"
-                            className="absolute bottom-2.5 right-2.5 flex items-center justify-center w-9 h-9 cursor-pointer"
-                            style={{ borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "1px solid rgba(255,255,255,.35)", color: "#fff" }}
-                          >
-                            <Play size={15} strokeWidth={2} fill="currentColor" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="p-3.5 flex flex-col gap-1.5">
-                        <CardTitle>{t.titre}</CardTitle>
-                        <CardKicker>{t.jeuLabel} · {t.format}</CardKicker>
-                        <div className="flex items-end justify-between mt-1">
-                          <div>
-                            <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
-                            <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                              {formatXof(cashPrizeAffiche(t))}
-                            </div>
+                {enDirect.map((t) => {
+                  const suivi = estFavori(t.id);
+                  return (
+                    <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0 snap-start" style={{ width: "85%" }}>
+                      <Card style={{ boxShadow: suivi ? "0 0 0 1px var(--ds-accent)" : undefined }}>
+                        <div className="relative">
+                          {t.banniereUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={t.banniereUrl} alt={t.titre} className="w-full object-cover" style={{ height: 116 }} />
+                          ) : (
+                            <ImagePlaceholder label="visuel tournoi" hauteur={116} />
+                          )}
+                          <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
+                          />
+                          <div className="absolute top-2.5 left-2.5">
+                            <LiveBadge />
                           </div>
-                          <span
-                            className="h-8 px-3 flex items-center text-xs font-semibold"
-                            style={{ borderRadius: "var(--ds-radius-btn)", background: "var(--ds-btn-primary-bg)", border: "var(--ds-btn-primary-border, 1px solid transparent)", color: "var(--ds-btn-primary-text)" }}
-                          >
-                            Suivre
-                          </span>
+                          {t.streamActif && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setStreamOuvert(t);
+                              }}
+                              aria-label="Regarder le stream"
+                              className="absolute bottom-2.5 right-2.5 flex items-center justify-center w-9 h-9 cursor-pointer"
+                              style={{ borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "1px solid rgba(255,255,255,.35)", color: "#fff" }}
+                            >
+                              <Play size={15} strokeWidth={2} fill="currentColor" />
+                            </button>
+                          )}
                         </div>
-                      </div>
-                    </Card>
-                  </Link>
-                ))}
+                        <div className="p-3.5 flex flex-col gap-1.5">
+                          <CardTitle>{t.titre}</CardTitle>
+                          <CardKicker>{t.jeuLabel} · {t.format}</CardKicker>
+                          <div className="flex items-end justify-between mt-1">
+                            <div>
+                              <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Cash prize</div>
+                              <div className="text-[15px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                                {formatXof(cashPrizeAffiche(t))}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                basculerFavori(t.id);
+                                setFavorisVersion((v) => v + 1);
+                              }}
+                              className={`h-8 px-3 flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${PRESS}`}
+                              style={{
+                                borderRadius: "var(--ds-radius-btn)",
+                                border: `1px solid ${suivi ? "var(--ds-accent)" : "var(--ds-border)"}`,
+                                color: suivi ? "var(--ds-accent-300)" : "var(--ds-muted)",
+                              }}
+                            >
+                              <Heart size={13} strokeWidth={2} fill={suivi ? "currentColor" : "none"} />
+                              {suivi ? "Suivi" : "Suivre"}
+                            </button>
+                          </div>
+                        </div>
+                      </Card>
+                    </Link>
+                  );
+                })}
               </motion.div>
+              {enDirect.length > 1 && (
+                <motion.div variants={elementVariants} className="flex gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-[3px] rounded-full"
+                      style={{ width: i === pageDirect ? 18 : 7, background: i === pageDirect ? "var(--ds-accent)" : "var(--ds-border)" }}
+                    />
+                  ))}
+                </motion.div>
+              )}
             </>
           )}
 
-          <motion.div variants={elementVariants} className="flex items-center justify-between mt-1">
-            <div className="text-base font-medium">Cette semaine</div>
-            <Link href="/tournois" className="text-[13px] font-semibold" style={{ color: "var(--ds-accent-300)" }}>
+          <motion.div variants={elementVariants} className="flex items-center justify-between mt-1 text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            <span>Bientôt · inscriptions ouvertes</span>
+            <Link href="/tournois" className="text-[12px] font-semibold normal-case" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-body)" }}>
               Tout voir
             </Link>
           </motion.div>
@@ -339,30 +399,35 @@ export default function AccueilV2Page() {
             </motion.p>
           ) : (
             <div className="flex flex-col gap-2 pb-4">
-              {prochains.map((t) => (
-                <motion.div key={t.id} variants={elementVariants}>
-                  <Link href={`/tournois/${t.id}`}>
-                    <div
-                      className="flex items-center gap-3 p-3"
-                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-                    >
+              {prochains.map((t) => {
+                const IconeJeu = ICONE_GENRE[genreDuJeu(t.jeuId) as GenreJeu] ?? Gamepad2;
+                return (
+                  <motion.div key={t.id} variants={elementVariants}>
+                    <Link href={`/tournois/${t.id}`}>
                       <div
-                        className="flex items-center justify-center w-[42px] h-[42px] shrink-0"
-                        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", color: "var(--ds-accent)" }}
+                        className="flex items-center gap-3 p-3"
+                        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
                       >
-                        ◆
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">{t.titre}</div>
-                        <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                          {t.dateLabel} · {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal} · {formatXof(t.fraisXof)}
+                        <div
+                          className="flex items-center justify-center w-[42px] h-[42px] shrink-0"
+                          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", color: "var(--ds-accent)" }}
+                        >
+                          <IconeJeu size={18} strokeWidth={2} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{t.titre}</div>
+                          <div className="text-xs truncate" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                            {t.jeuLabel} · {t.dateLabel} · {t.placesInscrites}/{t.placesTotal}
+                          </div>
+                        </div>
+                        <div className="text-sm shrink-0" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                          {formatXof(cashPrizeAffiche(t))}
                         </div>
                       </div>
-                      <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -390,39 +455,113 @@ export default function AccueilV2Page() {
       {/* Aperçu du stream sans quitter l'accueil (point 131) — même
           emplacement visuel que le cadre de la fiche tournoi (backlog stream
           réel, CLAUDE.md point 110). */}
-      <Modal ouvert={streamOuvert !== null} titre={streamOuvert?.titre ?? "Stream"} onFermer={() => setStreamOuvert(null)}>
+      <AnimatePresence>
         {streamOuvert && (
-          <div className="flex flex-col gap-3" style={{ whiteSpace: "normal" }}>
-            <div
-              className="relative w-full overflow-hidden flex flex-col items-center justify-center gap-2"
-              style={{ height: 160, borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-accent-800)" }}
-            >
-              <div
-                className="flex items-center justify-center w-11 h-11"
-                style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)" }}
-              >
-                <Radio size={20} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-              </div>
-              <span className="text-sm font-medium" style={{ color: "var(--ds-text)" }}>Stream en direct de la partie</span>
-              <span
-                className="absolute left-3 bottom-3 flex items-center gap-1.5 px-2.5 py-1 text-[9px] tracking-wide"
-                style={{ borderRadius: "var(--ds-radius-pill)", background: "color-mix(in srgb, var(--ds-bg) 80%, transparent)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--ds-accent-300)" }} />
-                EN DIRECT
-              </span>
-            </div>
-            <Link
-              href={`/tournois/${streamOuvert.id}`}
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <motion.div
+              className="absolute inset-0"
+              style={{ background: "rgba(0,0,0,.6)" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setStreamOuvert(null)}
-              className="text-sm font-medium text-center"
-              style={{ color: "var(--ds-accent-300)" }}
+            />
+            <motion.div
+              className="relative flex flex-col gap-3.5 w-full sm:max-w-sm px-5 pt-3.5 pb-6"
+              style={{ borderRadius: "var(--ds-radius-lg) var(--ds-radius-lg) 0 0", background: "color-mix(in srgb, var(--ds-surface) 92%, var(--ds-bg))", boxShadow: "var(--ds-shadow-lg)" }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 32, stiffness: 320 }}
             >
-              Voir la fiche du tournoi →
-            </Link>
+              <div className="w-11 h-1 rounded-full mx-auto" style={{ background: "var(--ds-border)" }} />
+              <div className="flex items-center gap-2.5">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[17px] font-medium truncate">{streamOuvert.titre}</div>
+                  <div className="text-[9px] uppercase tracking-wide mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    {streamOuvert.jeuLabel} · {streamOuvert.format}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStreamOuvert(null)}
+                  className="flex items-center justify-center w-8 h-8 shrink-0 cursor-pointer"
+                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                  aria-label="Fermer"
+                >
+                  <X size={14} strokeWidth={2} />
+                </button>
+              </div>
+
+              <div
+                className="relative w-full overflow-hidden"
+                style={{ height: 178, borderRadius: "var(--ds-radius-md)", background: "radial-gradient(90% 120% at 50% 45%, var(--ds-accent-900), var(--ds-surface-2) 74%)", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+              >
+                <div
+                  className="absolute inset-0 opacity-[0.07]"
+                  style={{
+                    backgroundImage: "linear-gradient(var(--ds-accent) 1px, transparent 1px), linear-gradient(90deg, var(--ds-accent) 1px, transparent 1px)",
+                    backgroundSize: "28px 28px",
+                  }}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5">
+                  <div
+                    className="flex items-center justify-center w-[50px] h-[50px]"
+                    style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", boxShadow: "0 0 30px color-mix(in srgb, var(--ds-accent) 26%, transparent)" }}
+                  >
+                    <Radio size={22} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+                  </div>
+                  <div className="text-[9px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    Aperçu · lecteur à venir
+                  </div>
+                </div>
+                <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1" style={{ borderRadius: "var(--ds-radius-pill)", background: "rgba(22,24,38,.82)", border: "1px solid var(--ds-accent)" }}>
+                  <span className="w-[5px] h-[5px] rounded-full animate-pulse" style={{ background: "var(--ds-accent-300)" }} />
+                  <span className="text-[9px] tracking-wide" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>EN DIRECT</span>
+                </div>
+                <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1" style={{ borderRadius: "var(--ds-radius-pill)", background: "rgba(22,24,38,.82)" }}>
+                  <Eye size={11} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                  <span className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{spectateurs(streamOuvert)}</span>
+                </div>
+                {(() => {
+                  const enCours = matchsDuTournoi(streamOuvert.id).find((m) => m.statut === "en_cours");
+                  if (!enCours) return null;
+                  return (
+                    <div className="absolute left-2.5 right-2.5 bottom-2.5 flex items-center gap-2 px-2.5 py-2" style={{ borderRadius: "var(--ds-radius-sm)", background: "rgba(22,24,38,.82)" }}>
+                      <div className="flex-1 min-w-0 text-xs truncate">
+                        {enCours.joueur1} <span style={{ color: "var(--ds-muted)" }}>vs</span> {enCours.joueur2}
+                      </div>
+                      <div className="text-sm shrink-0" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                        {enCours.score1 ?? 0} — {enCours.score2 ?? 0}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  aria-label="Couper le son"
+                  className="w-[52px] h-[46px] flex items-center justify-center shrink-0 cursor-pointer"
+                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  <VolumeX size={17} strokeWidth={2} />
+                </button>
+                <Link
+                  href={`/tournois/${streamOuvert.id}`}
+                  onClick={() => setStreamOuvert(null)}
+                  className={`flex-1 h-[46px] flex items-center justify-center gap-2 text-sm font-medium ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+                >
+                  Ouvrir la fiche du tournoi
+                  <ArrowRight size={15} strokeWidth={2} />
+                </Link>
+              </div>
+            </motion.div>
           </div>
         )}
-      </Modal>
+      </AnimatePresence>
     </>
   );
 }

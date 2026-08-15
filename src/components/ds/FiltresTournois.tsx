@@ -100,7 +100,7 @@ export function FiltresTournois({
                 className="text-sm font-medium cursor-pointer"
                 style={{ color: "var(--ds-muted)" }}
               >
-                Tout effacer
+                Réinitialiser
               </button>
             </div>
 
