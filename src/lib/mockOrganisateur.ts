@@ -7,6 +7,8 @@
 
 import { avisDeOrganisateur, avisGlobalDeOrganisateur } from "./mockAvis";
 import { lireProfil } from "./mockProfil";
+import { estOrganisateurApprouve } from "./mockDemandesOrganisateur";
+import { peutModifierMensuel } from "./limiteMensuelle";
 
 export type DemandeCertification = {
   ageConfirme: boolean;
@@ -67,6 +69,82 @@ export function definirNomOrganisateur(nom: string) {
   localStorage.setItem(CLE_NOM_ORGANISATEUR, nom.trim());
 }
 
+/** Noms déjà pris par d'autres organisateurs — dérivé des tournois de démo
+ * (mono-appareil : pas de vrai registre partagé tant qu'il n'y a pas de
+ * backend, phase 8). Évite un import croisé avec mockTournaments.ts (qui
+ * importe déjà ce fichier) en gardant une liste statique ici. */
+const NOMS_ORGANISATEURS_CONNUS = [
+  "Ivoire Esport",
+  "Yop Gaming",
+  "Abidjan Battle Royale",
+  "Yopougon Gaming",
+  "Treichville Esport",
+  "War Room CI",
+  "FGC Côte d'Ivoire",
+];
+
+export function nomOrganisateurDisponible(nom: string): boolean {
+  const cible = nom.trim().toLowerCase();
+  if (!cible) return false;
+  if (cible === (nomOrganisateur() ?? "").trim().toLowerCase()) return true;
+  return !NOMS_ORGANISATEURS_CONNUS.some((n) => n.toLowerCase() === cible);
+}
+
+export function suggererNomsOrganisateurDisponibles(nom: string, nombre = 3): string[] {
+  const base = nom.trim();
+  if (!base) return [];
+  const candidats = [`${base}_`, ...Array.from({ length: 20 }, (_, i) => `${base}${i + 1}`)];
+  const suggestions: string[] = [];
+  for (const candidat of candidats) {
+    if (suggestions.length >= nombre) break;
+    if (nomOrganisateurDisponible(candidat)) suggestions.push(candidat);
+  }
+  return suggestions;
+}
+
+const CLE_NOM_ORGANISATEUR_MODIFIE_LE = "tourney-nom-organisateur-modifie-le";
+
+/** Point 155 : le nom d'organisateur ne peut être changé qu'une fois par
+ * mois — appelé APRÈS un renommage effectif, jamais lors du choix initial
+ * (onboarding), qui n'est pas un "changement". */
+export function marquerNomOrganisateurModifie() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_NOM_ORGANISATEUR_MODIFIE_LE, String(Date.now()));
+}
+
+export function peutChangerNomOrganisateur(): { ok: boolean; prochainChangementLe?: number } {
+  if (typeof window === "undefined") return { ok: true };
+  const brut = localStorage.getItem(CLE_NOM_ORGANISATEUR_MODIFIE_LE);
+  return peutModifierMensuel(brut ? Number(brut) : undefined);
+}
+
+const CLE_PHOTO_ORGANISATEUR = "tourney-photo-organisateur";
+const CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE = "tourney-photo-organisateur-modifiee-le";
+
+/** Point 164 : photo de profil organisateur, distincte de la photo de
+ * profil joueur — modifiable une fois par semaine. */
+export function photoOrganisateur(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return localStorage.getItem(CLE_PHOTO_ORGANISATEUR) || undefined;
+}
+
+export function peutChangerPhotoOrganisateur(): { ok: boolean; prochainChangementLe?: number } {
+  if (typeof window === "undefined") return { ok: true };
+  const brut = localStorage.getItem(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE);
+  if (!brut) return { ok: true };
+  const dernierChangement = Number(brut);
+  const SEPT_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
+  const prochain = dernierChangement + SEPT_JOURS_MS;
+  if (Date.now() >= prochain) return { ok: true };
+  return { ok: false, prochainChangementLe: prochain };
+}
+
+export function definirPhotoOrganisateur(dataUrl: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_PHOTO_ORGANISATEUR, dataUrl);
+  localStorage.setItem(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE, String(Date.now()));
+}
+
 /** Identité organisateur utilisée partout où un tournoi doit être rattaché
  * à un organisateur (création, réputation, modération) : le nom
  * d'organisateur une fois choisi, sinon le pseudo joueur en repli. */
@@ -78,11 +156,39 @@ export function onboardingOrganisateurComplet(): boolean {
   return Boolean(nomOrganisateur());
 }
 
-/** Un organisateur non certifié ne peut créer que des tournois gratuits à
- * l'inscription (point 117) — la certification reste requise pour les
+/** Un organisateur standard ne peut créer que des tournois gratuits à
+ * l'inscription (points 117, 167) — la certification reste requise pour les
  * tournois payants et la commission qui va avec. */
 export function peutCreerTournoiPayantSelonCertification(): boolean {
   return estCertifie();
+}
+
+/**
+ * Point 158 : un organisateur "certifié" a fait les DEUX démarches — la
+ * vérification d'identité (CNI + selfie, points 41/49) ET la demande de
+ * statut organisateur validée par l'administration (point 146). Un
+ * organisateur "standard" (n'a fait ni l'une ni l'autre) peut organiser des
+ * tournois gratuits sans attendre (point 167) ; seuls les tournois payants
+ * et la commission associée exigent le statut certifié complet.
+ */
+export function estOrganisateurCertifie(): boolean {
+  return estCertifie() && estOrganisateurApprouve();
+}
+
+const CLE_REGLEMENT_CERTIFIE_ACCEPTE = "tourney-reglement-certifie-accepte";
+
+/** Point 159 : règlement spécifique aux organisateurs certifiés, distinct du
+ * règlement intérieur général (point 147) — accepté une seule fois, après
+ * validation de la demande de certification, avant de pouvoir créer un
+ * tournoi payant. */
+export function reglementCertifieAccepte(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(CLE_REGLEMENT_CERTIFIE_ACCEPTE) === "1";
+}
+
+export function marquerReglementCertifieAccepte() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_REGLEMENT_CERTIFIE_ACCEPTE, "1");
 }
 
 /**

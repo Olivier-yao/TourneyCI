@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ShieldAlert } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { lireSolde, fraisRetrait, montantNetRetrait, retirer } from "@/lib/mockWallet";
-import { estCertifie } from "@/lib/mockOrganisateur";
 
 const DESTINATIONS = [
   { id: "wave", label: "Wave", indice: "01 •• 42" },
@@ -24,12 +22,10 @@ export default function RetirerPage() {
   const [destination, setDestination] = useState<(typeof DESTINATIONS)[number]["id"]>("wave");
   const [erreur, setErreur] = useState<string | null>(null);
   const [fait, setFait] = useState(false);
-  const [verifie, setVerifie] = useState<boolean | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
-    setVerifie(estCertifie());
   }, []);
 
   const montant = Number(montantSaisi) || 0;
@@ -46,25 +42,6 @@ export default function RetirerPage() {
     setErreur(null);
     setFait(true);
     setTimeout(() => router.push("/profil/solde"), 1400);
-  }
-
-  if (verifie === false) {
-    return (
-      <div className="min-h-screen flex flex-col px-6 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-        <AppBar retour titre="Retirer mes gains" onRetour={() => router.back()} />
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center px-4">
-          <ShieldAlert size={36} style={{ color: "var(--ds-danger)" }} />
-          <p className="text-base font-medium">Identité non vérifiée</p>
-          <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-            Tu peux déposer et gagner de l&apos;argent librement, mais il faut vérifier ton identité avant de
-            pouvoir retirer tes gains.
-          </p>
-          <Link href="/verification-identite">
-            <Button variante="primary">Vérifier mon identité</Button>
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   if (fait) {

@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
+import { History } from "lucide-react";
+import { Modal } from "@/components/ds/Modal";
+import { PRESS } from "@/components/ds/Button";
 import type { MatchTournoi } from "@/lib/mockBracket";
 
 type Ligne = { id: string; d: string };
@@ -17,11 +20,14 @@ function nomRound(round: number, totalRounds: number): string {
 function CarteMatch({
   match,
   refCallback,
+  onVoirHistorique,
 }: {
   match: MatchTournoi;
   refCallback: (el: HTMLDivElement | null) => void;
+  onVoirHistorique: (match: MatchTournoi) => void;
 }) {
   const enCours = match.statut === "en_cours";
+  const termine = match.statut === "termine";
   const p1Gagnant =
     match.statut === "termine" &&
     (match.score1 ?? 0) > (match.score2 ?? 0);
@@ -79,11 +85,24 @@ function CarteMatch({
           EN COURS
         </div>
       )}
+      {termine && (
+        <div className="flex items-center gap-1.5 text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          <History size={11} strokeWidth={2} />
+          Voir l&apos;historique
+        </div>
+      )}
     </div>
   );
 
   if (enCours) {
     return <Link href={`/matches/${match.id}`}>{contenu}</Link>;
+  }
+  if (termine) {
+    return (
+      <button type="button" onClick={() => onVoirHistorique(match)} className={`text-left ${PRESS}`}>
+        {contenu}
+      </button>
+    );
   }
   return contenu;
 }
@@ -111,6 +130,7 @@ function CarteVainqueur({ nom, refCallback }: { nom: string | null; refCallback:
 
 export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
   const [filtre, setFiltre] = useState<"top8" | "tout">("top8");
+  const [matchHistorique, setMatchHistorique] = useState<MatchTournoi | null>(null);
   const conteneurRef = useRef<HTMLDivElement>(null);
   const cartesRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const vainqueurRef = useRef<HTMLDivElement | null>(null);
@@ -265,6 +285,7 @@ export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
                       if (el) cartesRef.current.set(match.id, el);
                       else cartesRef.current.delete(match.id);
                     }}
+                    onVoirHistorique={setMatchHistorique}
                   />
                 ))}
               </div>
@@ -286,6 +307,50 @@ export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
           )}
         </div>
       </div>
+
+      {/* Point 163 : historique consultable d'un duel déjà joué (score final
+          + fil d'événements), pas seulement le score brut affiché sur la carte. */}
+      <Modal
+        ouvert={matchHistorique !== null}
+        titre={matchHistorique ? `${matchHistorique.joueur1 ?? "?"} vs ${matchHistorique.joueur2 ?? "?"}` : ""}
+        onFermer={() => setMatchHistorique(null)}
+      >
+        {matchHistorique && (
+          <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+            <div className="flex items-center justify-center gap-4 py-2">
+              <span className="text-lg font-semibold" style={{ color: (matchHistorique.score1 ?? 0) > (matchHistorique.score2 ?? 0) ? "var(--ds-accent-300)" : "var(--ds-text)" }}>
+                {matchHistorique.joueur1}
+              </span>
+              <span className="text-xl font-bold" style={{ fontFamily: "var(--ds-font-mono)" }}>
+                {matchHistorique.score1} – {matchHistorique.score2}
+              </span>
+              <span className="text-lg font-semibold" style={{ color: (matchHistorique.score2 ?? 0) > (matchHistorique.score1 ?? 0) ? "var(--ds-accent-300)" : "var(--ds-text)" }}>
+                {matchHistorique.joueur2}
+              </span>
+            </div>
+
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Fil du match
+            </div>
+            {matchHistorique.evenements && matchHistorique.evenements.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {matchHistorique.evenements.map((evt, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <span className="shrink-0 text-xs" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                      {evt.minute}&apos;
+                    </span>
+                    <span className="text-sm">{evt.texte}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                Aucun événement enregistré pour ce match — seul le score final est disponible.
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

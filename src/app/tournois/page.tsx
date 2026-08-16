@@ -119,30 +119,32 @@ export default function TournoisPage() {
 
         <motion.div
           variants={elementVariants}
-          className="flex p-[3px] gap-[3px]"
+          className="relative flex p-[3px]"
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
         >
+          <div
+            className="absolute top-[3px] bottom-[3px] transition-all duration-200"
+            style={{
+              width: "calc(50% - 3px)",
+              left: onglet === "inscriptions" ? "50%" : "3px",
+              borderRadius: "var(--ds-radius-sm)",
+              background: "var(--ds-accent-900)",
+              boxShadow: "0 0 0 1px var(--ds-accent)",
+            }}
+          />
           <button
             type="button"
             onClick={() => setOnglet("tous")}
-            className="flex-1 h-8 text-[13px] font-semibold cursor-pointer"
-            style={{
-              borderRadius: "var(--ds-radius-sm)",
-              background: onglet === "tous" ? "var(--ds-accent-900)" : "transparent",
-              color: onglet === "tous" ? "var(--ds-accent-300)" : "var(--ds-muted)",
-            }}
+            className="relative flex-1 h-8 text-[13px] font-semibold cursor-pointer"
+            style={{ color: onglet === "tous" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
           >
             Tous les tournois
           </button>
           <button
             type="button"
             onClick={() => setOnglet("inscriptions")}
-            className="flex-1 h-8 text-[13px] font-semibold cursor-pointer"
-            style={{
-              borderRadius: "var(--ds-radius-sm)",
-              background: onglet === "inscriptions" ? "var(--ds-accent-900)" : "transparent",
-              color: onglet === "inscriptions" ? "var(--ds-accent-300)" : "var(--ds-muted)",
-            }}
+            className="relative flex-1 h-8 text-[13px] font-semibold cursor-pointer"
+            style={{ color: onglet === "inscriptions" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
           >
             Mes inscriptions
           </button>

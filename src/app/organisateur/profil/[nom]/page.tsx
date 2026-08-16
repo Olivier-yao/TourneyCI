@@ -22,14 +22,23 @@ import {
 import {
   statistiquesReputation,
   nomOrganisateurActuel,
-  estCertifie,
+  estOrganisateurCertifie,
   tagOrganisateur,
   definirTagOrganisateur,
   bioOrganisateur,
   definirBioOrganisateur,
   banniereOrganisateur,
   definirBanniereOrganisateur,
+  definirNomOrganisateur,
+  nomOrganisateurDisponible,
+  suggererNomsOrganisateurDisponibles,
+  peutChangerNomOrganisateur,
+  marquerNomOrganisateurModifie,
+  photoOrganisateur,
+  definirPhotoOrganisateur,
+  peutChangerPhotoOrganisateur,
 } from "@/lib/mockOrganisateur";
+import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { compterAvis, monAvisPourOrganisateur, laisserAvisOrganisateur, retirerAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
@@ -78,6 +87,13 @@ export default function ProfilOrganisateurPage() {
   const [brouillonTag, setBrouillonTag] = useState("");
   const [brouillonBio, setBrouillonBio] = useState("");
   const [tournois, setTournois] = useState<Tournoi[]>([]);
+  const [photo, setPhoto] = useState<string | undefined>(undefined);
+  const [editionPhotoOuverte, setEditionPhotoOuverte] = useState(false);
+  const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
+  const [editionNom, setEditionNom] = useState(false);
+  const [brouillonNom, setBrouillonNom] = useState("");
+  const [erreurNom, setErreurNom] = useState<string | null>(null);
+  const [suggestionsNom, setSuggestionsNom] = useState<string[]>([]);
 
   const affluence = useMemo(() => {
     if (tournois.length === 0) return 0;
@@ -102,11 +118,16 @@ export default function ProfilOrganisateurPage() {
     setRang(classement.findIndex((o) => o.nom === nom) + 1);
     const moi = nomOrganisateurActuel() === nom;
     setCestMoi(moi);
-    setCertifie(moi ? estCertifie() : true);
+    // Point 158/166 : le badge "certifié" reflète le statut complet
+    // (identité vérifiée + demande validée), pas la seule identité — pour un
+    // autre organisateur, ce mock mono-appareil n'a pas de vrai registre
+    // partagé et affiche toujours certifié (limitation connue).
+    setCertifie(moi ? estOrganisateurCertifie() : true);
     if (moi) {
       setTag(tagOrganisateur());
       setBio(bioOrganisateur());
       setBanniere(banniereOrganisateur());
+      setPhoto(photoOrganisateur());
     }
   }
 
@@ -149,6 +170,43 @@ export default function ProfilOrganisateurPage() {
   function confirmerSwitch() {
     if (switchEnAttente) voter(switchEnAttente);
     setSwitchEnAttente(null);
+  }
+
+  function validerNom() {
+    const nouveauNom = brouillonNom.trim();
+    if (!nouveauNom || nouveauNom === nom) {
+      setEditionNom(false);
+      return;
+    }
+    const { ok, prochainChangementLe } = peutChangerNomOrganisateur();
+    if (!ok) {
+      setErreurNom(`Tu pourras renommer ton profil organisateur à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`);
+      setSuggestionsNom([]);
+      return;
+    }
+    if (!nomOrganisateurDisponible(nouveauNom)) {
+      setErreurNom("Ce nom est déjà pris.");
+      setSuggestionsNom(suggererNomsOrganisateurDisponibles(nouveauNom));
+      return;
+    }
+    definirNomOrganisateur(nouveauNom);
+    marquerNomOrganisateurModifie();
+    setErreurNom(null);
+    setSuggestionsNom([]);
+    setEditionNom(false);
+    router.replace(`/organisateur/profil/${encodeURIComponent(nouveauNom)}`);
+  }
+
+  function validerPhoto(dataUrl: string) {
+    const { ok, prochainChangementLe } = peutChangerPhotoOrganisateur();
+    if (!ok) {
+      setErreurPhoto(`Tu pourras changer ta photo organisateur à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`);
+      return;
+    }
+    definirPhotoOrganisateur(dataUrl);
+    setPhoto(dataUrl);
+    setErreurPhoto(null);
+    setEditionPhotoOuverte(false);
   }
 
   function validerTag() {
@@ -264,10 +322,93 @@ export default function ProfilOrganisateurPage() {
         )}
 
         {cestMoi && (
-          <div className="text-xl" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
-            {nom}
+          <div className="flex items-end gap-3.5 -mt-[34px]">
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setEditionPhotoOuverte(true)}
+                className={`relative flex items-center justify-center w-[72px] h-[72px] text-xl font-semibold overflow-hidden ${PRESS}`}
+                style={{
+                  borderRadius: "var(--ds-radius-lg)",
+                  background: "var(--ds-accent-800)",
+                  border: "2px solid var(--ds-bg)",
+                  boxShadow: certifie ? "0 0 0 1px var(--ds-accent-700)" : "0 0 0 1px var(--ds-border)",
+                  color: "var(--ds-accent-300)",
+                }}
+              >
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photo} alt={nom} className="w-full h-full object-cover" />
+                ) : (
+                  nom.slice(0, 2).toUpperCase()
+                )}
+                <div
+                  className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                  style={{ background: "rgba(0,0,0,.45)" }}
+                >
+                  <Camera size={16} strokeWidth={2} style={{ color: "#fff" }} />
+                </div>
+              </button>
+              {certifie && (
+                <div
+                  className="absolute -right-1 -bottom-1 w-6 h-6 flex items-center justify-center"
+                  style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-700)", border: "2px solid var(--ds-bg)", color: "var(--ds-accent-100)" }}
+                >
+                  <BadgeCheck size={13} strokeWidth={2} />
+                </div>
+              )}
+            </div>
+            <div className="pb-1 min-w-0 flex-1">
+              {editionNom ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={brouillonNom}
+                      onChange={(e) => { setBrouillonNom(e.target.value); setErreurNom(null); setSuggestionsNom([]); }}
+                      className="flex-1 h-8 px-2.5 text-sm outline-none"
+                      style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)" }}
+                    />
+                    <button type="button" onClick={validerNom} className={`text-xs font-medium ${PRESS}`} style={{ color: "var(--ds-accent-300)" }}>OK</button>
+                  </div>
+                  {erreurNom && <p className="text-[10px]" style={{ color: "var(--ds-danger)" }}>{erreurNom}</p>}
+                  {suggestionsNom.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestionsNom.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => { setBrouillonNom(s); setErreurNom(null); setSuggestionsNom([]); }}
+                          className="px-2 py-1 text-[11px] cursor-pointer"
+                          style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setBrouillonNom(nom); setEditionNom(true); }}
+                  className={`flex items-center gap-1.5 text-xl truncate ${PRESS}`}
+                  style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}
+                >
+                  {nom}
+                  <Pencil size={12} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                </button>
+              )}
+            </div>
           </div>
         )}
+
+        <Modal ouvert={editionPhotoOuverte} titre="Photo organisateur" onFermer={() => setEditionPhotoOuverte(false)}>
+          <div className="flex flex-col items-center gap-2 not-italic" style={{ whiteSpace: "normal" }}>
+            <PhotoCropper photoActuelle={photo} onValider={validerPhoto} />
+            {erreurPhoto && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreurPhoto}</p>}
+            <p className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Modifiable une fois par semaine.</p>
+          </div>
+        </Modal>
 
         {cestMoi &&
           (editionTag ? (
@@ -294,13 +435,22 @@ export default function ProfilOrganisateurPage() {
           ))}
 
         <div className="flex items-center gap-2 flex-wrap">
-          {certifie && (
+          {certifie ? (
             <span
               className="px-2.5 py-1 text-[10px]"
               style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-800)", boxShadow: "0 0 0 1px var(--ds-accent-700)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
             >
               CERTIFIÉ
             </span>
+          ) : (
+            cestMoi && (
+              <span
+                className="px-2.5 py-1 text-[10px]"
+                style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+              >
+                STANDARD
+              </span>
+            )
           )}
           {rang > 0 && (
             <span

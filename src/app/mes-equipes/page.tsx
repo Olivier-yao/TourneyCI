@@ -45,9 +45,16 @@ function GestionEquipeProfil({
   const [nom, setNom] = useState(equipe.nom);
   const [nouveauMembre, setNouveauMembre] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  const [erreurNom, setErreurNom] = useState<string | null>(null);
 
   function valider() {
-    if (nom.trim() && nom.trim() !== equipe.nom) renommerEquipeProfil(equipe.id, nom.trim());
+    if (!nom.trim() || nom.trim() === equipe.nom) return;
+    const err = renommerEquipeProfil(equipe.id, nom.trim());
+    if (err) {
+      setErreurNom(err);
+      return;
+    }
+    setErreurNom(null);
     onChange();
   }
 
@@ -78,7 +85,12 @@ function GestionEquipeProfil({
       <div className="flex flex-col gap-3.5 not-italic" style={{ whiteSpace: "normal" }}>
         <div className="flex items-end gap-2">
           <div className="flex-1">
-            <Field label="Nom de l'équipe" value={nom} onChange={(e) => setNom(e.target.value)} />
+            <Field
+              label="Nom de l'équipe"
+              value={nom}
+              onChange={(e) => { setNom(e.target.value); setErreurNom(null); }}
+              erreur={erreurNom ?? undefined}
+            />
           </div>
           <button
             type="button"
@@ -90,6 +102,7 @@ function GestionEquipeProfil({
             Renommer
           </button>
         </div>
+        <p className="text-[11px] -mt-2.5" style={{ color: "var(--ds-muted)" }}>Modifiable une fois par mois.</p>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>

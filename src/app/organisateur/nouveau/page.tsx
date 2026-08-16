@@ -11,8 +11,7 @@ import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
 import { lireSolde, debiter } from "@/lib/mockWallet";
-import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estCertifie } from "@/lib/mockOrganisateur";
-import { estOrganisateurApprouve } from "@/lib/mockDemandesOrganisateur";
+import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estOrganisateurCertifie, reglementCertifieAccepte } from "@/lib/mockOrganisateur";
 import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
@@ -117,16 +116,26 @@ export default function NouveauTournoiPage() {
   const [onboardingOk, setOnboardingOk] = useState(false);
 
   useEffect(() => {
-    if (!onboardingOrganisateurComplet() || !estOrganisateurApprouve()) {
+    // Point 167 : un nom d'organisateur suffit pour créer un tournoi
+    // gratuit, sans attendre la demande de statut certifié (point 146/158).
+    if (!onboardingOrganisateurComplet()) {
       router.replace("/organisateur");
+      return;
+    }
+    const estCert = estOrganisateurCertifie();
+    // Point 159 : le règlement organisateur certifié doit être accepté avant
+    // le premier tournoi payant — un organisateur qui vient d'être certifié
+    // mais n'est pas encore passé par cet écran y est renvoyé ici.
+    if (estCert && !reglementCertifieAccepte()) {
+      router.replace("/organisateur/reglement-certifie");
       return;
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
     // Un tournoi payant demande à la fois un compte en règle (anti-triche)
-    // et une identité vérifiée (point 117) — sans certification, seuls les
-    // tournois gratuits (avec cash prize auto-financé possible) sont permis.
-    const estCert = estCertifie();
+    // et le statut organisateur certifié complet (identité vérifiée +
+    // demande validée + règlement accepté, points 158-159) — sans ça, seuls
+    // les tournois gratuits (avec cash prize auto-financé possible) sont permis.
     const autorise = estCert && peutCreerTournoiPayant(nomOrganisateurActuel());
     setCertifie(estCert);
     setPayantAutorise(autorise);
@@ -215,7 +224,7 @@ export default function NouveauTournoiPage() {
     if (payant && !payantAutorise) {
       setErreur(
         !certifie
-          ? "Certifie ton identité pour pouvoir créer un tournoi payant."
+          ? "Deviens organisateur certifié pour pouvoir créer un tournoi payant."
           : "Compte suspendu pour les tournois payants (vérification anti-triche en cours).",
       );
       return;
@@ -331,7 +340,7 @@ export default function NouveauTournoiPage() {
               if (v === "payant" && !payantAutorise) {
                 setErreur(
                   !certifie
-                    ? "Certifie ton identité pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
+                    ? "Deviens organisateur certifié pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
                     : "Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.",
                 );
                 return;
@@ -349,7 +358,7 @@ export default function NouveauTournoiPage() {
           {!payantAutorise && (
             <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
               {!certifie
-                ? "Organisateur non certifié : tournois gratuits uniquement pour l'instant (certifie ton identité pour débloquer les tournois payants et ta commission)."
+                ? "Organisateur standard : tournois gratuits uniquement pour l'instant (deviens organisateur certifié pour débloquer les tournois payants et ta commission)."
                 : "Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits."}
             </p>
           )}

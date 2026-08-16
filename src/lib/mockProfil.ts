@@ -2,6 +2,8 @@
  * Données mock pour la phase 6 du chantier V2 (profil + classement).
  */
 
+import { peutModifierMensuel } from "./limiteMensuelle";
+
 export type Rang = "Débutant" | "Amateur" | "Confirmé" | "Expert" | "Élite" | "Légende";
 
 export type Profil = {
@@ -107,6 +109,56 @@ const SEUIL_MATCHS_ACTIF = 15;
 
 export function estActif(matchsJoues: number): boolean {
   return matchsJoues >= SEUIL_MATCHS_ACTIF;
+}
+
+/** Pseudos déjà "pris" par d'autres joueurs — dérivé des données de
+ * classement de démo (mono-appareil : pas de vrai registre partagé tant
+ * qu'il n'y a pas de backend, phase 8). Exclut la ligne "moi" pour ne pas se
+ * bloquer soi-même. */
+function pseudosDejaPris(): string[] {
+  return Object.values(CLASSEMENTS)
+    .flat()
+    .filter((e) => !e.moi)
+    .map((e) => e.nom);
+}
+
+/** Point 154 : un pseudo saisi ne doit pas déjà être utilisé par un autre
+ * joueur (comparaison insensible à la casse). */
+export function pseudoDisponible(pseudo: string): boolean {
+  const cible = pseudo.trim().toLowerCase();
+  if (!cible) return false;
+  return !pseudosDejaPris().some((n) => n.toLowerCase() === cible);
+}
+
+/** Alternatives disponibles à partir d'un pseudo déjà pris (chiffre ou
+ * underscore ajouté), pour proposer un choix immédiat sans obliger à
+ * ressaisir de zéro. */
+export function suggererPseudosDisponibles(pseudo: string, nombre = 3): string[] {
+  const base = pseudo.trim();
+  if (!base) return [];
+  const candidats = [`${base}_`, ...Array.from({ length: 20 }, (_, i) => `${base}${i + 1}`)];
+  const suggestions: string[] = [];
+  for (const candidat of candidats) {
+    if (suggestions.length >= nombre) break;
+    if (pseudoDisponible(candidat)) suggestions.push(candidat);
+  }
+  return suggestions;
+}
+
+const CLE_PSEUDO_MODIFIE_LE = "tourney-pseudo-modifie-le";
+
+/** Point 155 : le pseudo ne peut être changé qu'une fois par mois — appelé
+ * par le formulaire de réglages APRÈS un changement effectif, jamais lors de
+ * la première saisie obligatoire (point 142/154), qui n'est pas un "changement". */
+export function marquerPseudoModifie() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_PSEUDO_MODIFIE_LE, String(Date.now()));
+}
+
+export function peutChangerPseudo(): { ok: boolean; prochainChangementLe?: number } {
+  if (typeof window === "undefined") return { ok: true };
+  const brut = localStorage.getItem(CLE_PSEUDO_MODIFIE_LE);
+  return peutModifierMensuel(brut ? Number(brut) : undefined);
 }
 
 export function sauvegarderProfil(donnees: { pseudo: string; ville: string }) {

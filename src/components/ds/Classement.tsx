@@ -50,10 +50,17 @@ const HAUTEURS_MARCHE = [48, 64, 40];
 const TAILLES_AVATAR = [48, 58, 48];
 const ORDRE_PODIUM = [1, 0, 2];
 
+/** Point 169 : mise en scène dédiée au podium (distincte de l'apparition
+ * ligne par ligne du reste du classement) — chaque colonne "pousse" depuis
+ * le bas avec un léger ressort, la marche du 1er arrivant en dernier pour
+ * l'effet de révélation. */
 function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?: string }) {
   if (top3.length === 0) return null;
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="relative overflow-hidden px-3 pt-4"
       style={{ borderRadius: "var(--ds-radius-lg)", background: "radial-gradient(120% 140% at 50% 0%, var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
     >
@@ -63,6 +70,12 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
           if (!entree) return <div key={`vide-${i}`} />;
           const or = entree.position === 1;
           return (
+            <motion.div
+              key={`podium-anim-${entree.position}`}
+              initial={{ opacity: 0, y: 22, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 320, damping: 22, delay: 0.1 + (2 - colonne) * 0.1 }}
+            >
             <Link key={`podium-${entree.position}`} href={`/joueur/${encodeURIComponent(entree.nom)}`} className="flex flex-col items-center gap-2">
               <div className="relative">
                 <Avatar initiales={entree.initiales} taille={TAILLES_AVATAR[colonne]} photoUrl={entree.moi ? monPhotoUrl : undefined} />
@@ -103,16 +116,25 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
                 </span>
               </div>
             </Link>
+            </motion.div>
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function LigneClassement({ entree, monBadgeActif, monPhotoUrl }: { entree: ClassementEntree; monBadgeActif: boolean; monPhotoUrl?: string }) {
+/** Point 169 : apparition progressive ligne par ligne (reste du classement,
+ * à partir de la 4e position) — décalée par index, distincte de la mise en
+ * scène du podium ci-dessus. */
+function LigneClassement({ entree, index = 0, monBadgeActif, monPhotoUrl }: { entree: ClassementEntree; index?: number; monBadgeActif: boolean; monPhotoUrl?: string }) {
   return (
-    <motion.div layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, delay: Math.min(index, 12) * 0.035, ease: [0.16, 1, 0.3, 1] }}
+    >
       <Link
         href={`/joueur/${encodeURIComponent(entree.nom)}`}
         className="flex items-center gap-3 py-2.5 px-2.5 -mx-2.5"
@@ -236,8 +258,8 @@ export function Classement() {
           <Podium top3={top3} monPhotoUrl={monPhotoUrl} />
 
           <div className="flex flex-col">
-            {reste.map((entree) => (
-              <LigneClassement key={entree.position} entree={entree} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
+            {reste.map((entree, index) => (
+              <LigneClassement key={entree.position} entree={entree} index={index} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
             ))}
             {!moiVisible && moi && (
               <>

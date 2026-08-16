@@ -4,8 +4,6 @@
  * automatiquement à la fin d'un tournoi (cf. mockTournaments.terminerTournoi).
  */
 
-import { estCertifie } from "./mockOrganisateur";
-
 export type TypeMouvement = "gain" | "inscription" | "recharge" | "retrait" | "commission" | "financement" | "remboursement";
 
 export type Mouvement = {
@@ -91,9 +89,6 @@ export function montantNetRetrait(montantXof: number): number {
 }
 
 export function retirer(montantXof: number, moyen: string): { ok: boolean; erreur?: string } {
-  if (!estCertifie()) {
-    return { ok: false, erreur: "Vérifie ton identité avant de pouvoir retirer tes gains." };
-  }
   if (montantXof < 1000) return { ok: false, erreur: "Le retrait minimum est de 1 000 F." };
   if (lireSolde() < montantXof) return { ok: false, erreur: "Solde insuffisant pour ce retrait." };
   enregistrerMouvement({

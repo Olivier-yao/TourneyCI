@@ -4,6 +4,9 @@
  * pour inspection. Le tournoi reste actif tant qu'elle n'est pas validée.
  */
 
+import { VALIDATION_AUTOMATIQUE_ACTIVE } from "./mockValidationAuto";
+import { annulerTournoi } from "./mockTournaments";
+
 export type StatutDemandeAnnulation = "en_attente" | "validee" | "refusee";
 
 export type DemandeAnnulation = {
@@ -13,6 +16,8 @@ export type DemandeAnnulation = {
   organisateur: string;
   motif: string;
   statut: StatutDemandeAnnulation;
+  /** Motif du refus ou note de validation, visible par l'organisateur (point 160). */
+  messageAdmin?: string;
   horodatage: number;
 };
 
@@ -47,10 +52,15 @@ export function creerDemandeAnnulation(
     tournoiTitre,
     organisateur,
     motif: motif.trim(),
-    statut: "en_attente",
+    statut: VALIDATION_AUTOMATIQUE_ACTIVE ? "validee" : "en_attente",
+    messageAdmin: VALIDATION_AUTOMATIQUE_ACTIVE ? "Validation automatique (pré-backend, point 157)." : undefined,
     horodatage: Date.now(),
   };
   localStorage.setItem(CLE_DEMANDES_ANNULATION, JSON.stringify([...lireTout(), demande]));
+  // Pré-backend (point 157) : l'administration ne clique plus "Valider" pour
+  // déclencher l'annulation réelle (annulerTournoi gère remboursements etc.,
+  // point 22) puisque la demande est déjà "validee" — on l'appelle donc ici.
+  if (VALIDATION_AUTOMATIQUE_ACTIVE) annulerTournoi(tournoiId);
   return demande;
 }
 
@@ -60,8 +70,8 @@ export function demandesEnAttente(): DemandeAnnulation[] {
     .sort((a, b) => a.horodatage - b.horodatage);
 }
 
-export function traiterDemandeAnnulation(id: string, statut: "validee" | "refusee") {
+export function traiterDemandeAnnulation(id: string, statut: "validee" | "refusee", messageAdmin?: string) {
   if (typeof window === "undefined") return;
-  const maj = lireTout().map((d) => (d.id === id ? { ...d, statut } : d));
+  const maj = lireTout().map((d) => (d.id === id ? { ...d, statut, messageAdmin: messageAdmin?.trim() || undefined } : d));
   localStorage.setItem(CLE_DEMANDES_ANNULATION, JSON.stringify(maj));
 }

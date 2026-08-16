@@ -14,8 +14,7 @@ import { mesFavoris } from "@/lib/mockFavoris";
 import { equipesDuJoueur } from "@/lib/mockEquipesBR";
 import { equipesProfilDontChef } from "@/lib/mockEquipesProfil";
 import { tournoiParId, estTermine, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
-import { estCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
-import { estOrganisateurApprouve } from "@/lib/mockDemandesOrganisateur";
+import { estCertifie, estOrganisateurCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
 import { compteurFollowers } from "@/lib/mockSuiviOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { rolePrefere, definirRole, type Role } from "@/lib/mockAuth";
@@ -33,7 +32,7 @@ export default function ProfilPage() {
   const [role, setRole] = useState<Role>("joueur");
   const [vueOrga, setVueOrga] = useState<{
     onboardingOk: boolean;
-    approuve: boolean;
+    certifie: boolean;
     nom: string;
     tag?: string;
     coeurs: number;
@@ -63,7 +62,7 @@ export default function ProfilPage() {
     const classement = classementOrganisateurs();
     setVueOrga({
       onboardingOk,
-      approuve: estOrganisateurApprouve(),
+      certifie: estOrganisateurCertifie(),
       nom: nomOrga,
       tag: tagOrganisateur(),
       coeurs: stats.coeurs,
@@ -323,13 +322,24 @@ export default function ProfilPage() {
             <>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-lg font-medium">{vueOrga.nom}</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-lg font-medium">{vueOrga.nom}</div>
+                    {vueOrga.certifie && (
+                      <span
+                        className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+                      >
+                        <ShieldCheck size={10} strokeWidth={2.5} />
+                        Certifié
+                      </span>
+                    )}
+                  </div>
                   {vueOrga.tag && <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>@{vueOrga.tag}</div>}
                 </div>
-                <Link href={vueOrga.approuve ? "/organisateur/nouveau" : "/organisateur"}>
+                <Link href="/organisateur/nouveau">
                   <Button variante="secondary">
                     <Plus size={15} strokeWidth={2} />
-                    {vueOrga.approuve ? "Créer" : "Statut en attente"}
+                    Créer
                   </Button>
                 </Link>
               </div>
@@ -400,14 +410,14 @@ export default function ProfilPage() {
         </div>
       )}
 
-      <a
-        href="mailto:support@tourney-ci.app?subject=Signalement%20—%20app%20Tourney"
+      <Link
+        href="/profil/service-client"
         className="flex items-center justify-center gap-1.5 px-5 pt-4 pb-24 text-xs"
         style={{ color: "var(--ds-muted)" }}
       >
         <LifeBuoy size={13} strokeWidth={2} />
         Service client
-      </a>
+      </Link>
 
       <TabBar />
     </div>

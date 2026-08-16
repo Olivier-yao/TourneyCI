@@ -9,7 +9,7 @@ import { Button } from "@/components/ds/Button";
 import { ThemeProvider } from "@/components/ds/ThemeProvider";
 import { ThemeToggle } from "@/components/ds/ThemeToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
-import { lireProfil, sauvegarderProfil, sauvegarderPhoto } from "@/lib/mockProfil";
+import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, peutChangerPseudo, marquerPseudoModifie } from "@/lib/mockProfil";
 import { PAYS } from "@/lib/mockGeographie";
 import { deconnecter } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -20,12 +20,35 @@ function ParametresInterne() {
   const connecte = useExigerConnexion();
   const router = useRouter();
   const [profil, setProfil] = useState(lireProfil);
+  const [pseudoOriginal] = useState(() => lireProfil().pseudo);
   const [enregistre, setEnregistre] = useState(false);
+  const [erreurPseudo, setErreurPseudo] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
 
   function enregistrer(e: React.FormEvent) {
     e.preventDefault();
-    sauvegarderProfil({ pseudo: profil.pseudo, ville: profil.ville });
+    const pseudoSaisi = profil.pseudo.trim();
+    const pseudoChange = pseudoSaisi !== pseudoOriginal;
+
+    if (pseudoChange) {
+      const { ok, prochainChangementLe } = peutChangerPseudo();
+      if (!ok) {
+        setErreurPseudo(`Tu pourras changer de pseudo à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`);
+        setSuggestions([]);
+        return;
+      }
+      if (!pseudoDisponible(pseudoSaisi)) {
+        setErreurPseudo("Ce pseudo est déjà pris.");
+        setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+        return;
+      }
+    }
+
+    setErreurPseudo(null);
+    setSuggestions([]);
+    sauvegarderProfil({ pseudo: pseudoSaisi, ville: profil.ville });
+    if (pseudoChange) marquerPseudoModifie();
     setEnregistre(true);
   }
 
@@ -89,8 +112,36 @@ function ParametresInterne() {
             onChange={(e) => {
               setProfil({ ...profil, pseudo: e.target.value });
               setEnregistre(false);
+              setErreurPseudo(null);
+              setSuggestions([]);
             }}
+            erreur={erreurPseudo ?? undefined}
           />
+          {suggestions.length > 0 && (
+            <div className="flex flex-col gap-1.5 -mt-2">
+              <span className="text-xs" style={{ color: "var(--ds-muted)" }}>Disponibles :</span>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setProfil({ ...profil, pseudo: s });
+                      setSuggestions([]);
+                      setErreurPseudo(null);
+                    }}
+                    className="px-3 py-1.5 text-sm cursor-pointer"
+                    style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="text-xs -mt-2" style={{ color: "var(--ds-muted)" }}>
+            Modifiable une fois par mois.
+          </p>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Ville</label>
             <select
