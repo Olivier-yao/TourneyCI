@@ -67,7 +67,7 @@ function DemandeOrganisateurEcran({
               ? `Ta demande de statut organisateur pour "${nomOrg}" a été envoyée à l'administration. Tu pourras créer des tournois dès qu'elle sera validée.`
               : refusee
                 ? "L'administration n'a pas validé ta demande. Tu peux en envoyer une nouvelle si ta situation a changé."
-                : "Nom choisi, identité vérifiable indépendamment (point 41/49) — il reste à soumettre une demande formelle de statut organisateur, examinée par l'administration avant de pouvoir créer un tournoi."}
+                : "Nom choisi — il reste à soumettre une demande formelle de statut organisateur, examinée par l'administration avant de pouvoir créer un tournoi."}
           </p>
         </div>
       </div>
@@ -172,9 +172,9 @@ function OnboardingOrganisateur({ certifie, onVerifier, onValideNom }: { certifi
         <div className="mt-auto p-3.5 flex items-start gap-2.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}>
           <Lock size={17} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent-400, var(--ds-accent))" }} />
           <div>
-            <div className="text-sm font-medium">Tournois gratuits dès maintenant</div>
+            <div className="text-sm font-medium">Encore une étape après le nom</div>
             <p className="mt-0.5 text-xs" style={{ color: "var(--ds-text-muted)" }}>
-              Tu peux organiser sans attendre la validation ; seuls les tournois payants demandent la certification.
+              Une demande de statut organisateur sera envoyée à l&apos;administration — la création de tournoi (gratuit ou payant) reste bloquée tant qu&apos;elle n&apos;est pas validée.
             </p>
           </div>
         </div>

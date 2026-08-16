@@ -313,10 +313,10 @@ export default function ProfilPage() {
               <ShieldCheck size={26} style={{ color: "var(--ds-accent-300)" }} />
               <div className="text-base font-medium">Deviens organisateur</div>
               <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-                Vérifie ton identité pour pouvoir créer et gérer tes propres tournois.
+                Choisis un nom public puis envoie une demande de statut organisateur, examinée par l&apos;administration, pour pouvoir créer et gérer tes propres tournois.
               </p>
-              <Link href="/verification-identite">
-                <Button variante="primary">Vérifier mon identité</Button>
+              <Link href="/organisateur">
+                <Button variante="primary">Devenir organisateur</Button>
               </Link>
             </div>
           ) : (
