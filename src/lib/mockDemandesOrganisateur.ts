@@ -17,6 +17,8 @@ export type DemandeOrganisateur = {
   nomOrganisateur: string;
   /** Motivation du candidat (point 162), visible par l'administration. */
   motivation: string;
+  /** Identité vérifiée (CNI, points 41/49) au moment de la demande — affiché à l'administration. */
+  identiteVerifiee: boolean;
   statut: StatutDemandeOrganisateur;
   /** Motif du refus ou note de validation, visible par le demandeur (point 160). */
   messageAdmin?: string;
@@ -45,7 +47,11 @@ export function estOrganisateurApprouve(): boolean {
   return demandeOrganisateurActuelle()?.statut === "validee";
 }
 
-export function creerDemandeOrganisateur(nomOrganisateur: string, motivation: string): DemandeOrganisateur | null {
+export function creerDemandeOrganisateur(
+  nomOrganisateur: string,
+  motivation: string,
+  identiteVerifiee: boolean,
+): DemandeOrganisateur | null {
   if (typeof window === "undefined" || !nomOrganisateur.trim() || !motivation.trim()) return null;
   const existante = demandeOrganisateurActuelle();
   if (existante?.statut === "en_attente" || existante?.statut === "validee") return existante;
@@ -53,6 +59,7 @@ export function creerDemandeOrganisateur(nomOrganisateur: string, motivation: st
     id: `orga-${Date.now().toString(36)}`,
     nomOrganisateur: nomOrganisateur.trim(),
     motivation: motivation.trim(),
+    identiteVerifiee,
     statut: VALIDATION_AUTOMATIQUE_ACTIVE ? "validee" : "en_attente",
     messageAdmin: VALIDATION_AUTOMATIQUE_ACTIVE ? "Validation automatique (pré-backend, point 157)." : undefined,
     horodatage: Date.now(),

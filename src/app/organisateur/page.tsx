@@ -315,7 +315,7 @@ export default function OrganisateurPage() {
         nomOrg={nomOrg ?? ""}
         demande={demande}
         onEnvoyer={(motivation) => {
-          const d = creerDemandeOrganisateur(nomOrg ?? "", motivation);
+          const d = creerDemandeOrganisateur(nomOrg ?? "", motivation, certifie);
           if (d) {
             setDemande(d);
             setOrganisateurCertifie(estOrganisateurCertifie());
