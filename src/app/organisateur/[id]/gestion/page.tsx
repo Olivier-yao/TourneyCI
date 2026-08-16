@@ -10,7 +10,7 @@ import { Modal } from "@/components/ds/Modal";
 import { tournoiParId, inscriptionsFermees, terminerTournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
 import { classementFinalBR, manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { creerDemandeAnnulation, demandeAnnulationPourTournoi, type DemandeAnnulation } from "@/lib/mockDemandesAnnulation";
 
 /** La clôture n'est plus déclenchée manuellement (point 119) : dès que le
@@ -220,8 +220,8 @@ export default function GestionTournoiPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(estOrganisateur());
-  }, []);
+    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+  }, [params.id]);
 
   const tournoi = tournoiParId(params.id);
 

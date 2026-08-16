@@ -7,7 +7,7 @@ import { Trophy } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { tournoiParId } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { GestionMatches } from "../gestion/GestionMatches";
 import { GestionManchesBR } from "../gestion/GestionManchesBR";
 
@@ -22,8 +22,8 @@ export default function QualificationTournoiPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(estOrganisateur());
-  }, []);
+    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+  }, [params.id]);
 
   const tournoi = tournoiParId(params.id);
 

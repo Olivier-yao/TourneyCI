@@ -9,7 +9,7 @@ import { Button } from "@/components/ds/Button";
 import { SelecteurSymbole } from "@/components/ds/SelecteurSymbole";
 import { tournoiParId, modifierTournoi } from "@/lib/mockTournaments";
 import { SYMBOLE_DEFAUT } from "@/lib/mockSymboles";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 /** Édition des infos générales du tournoi (titre, règlement...) — la gestion
  * du stream a été déplacée vers un écran dédié (point 130). */
@@ -30,8 +30,8 @@ export default function ParametresTournoiPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(estOrganisateur());
-  }, []);
+    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+  }, [params.id]);
 
   if (!tournoi) {
     return (

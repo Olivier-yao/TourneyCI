@@ -7,7 +7,7 @@ import { Monitor, Radio, Check, Wifi, MoreVertical, Eye, Lock } from "lucide-rea
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, modifierTournoi } from "@/lib/mockTournaments";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 /** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
  * dans ce mock) — stable entre le rendu serveur et client. */
@@ -40,8 +40,8 @@ export default function StreamTournoiPage() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(estOrganisateur());
-  }, []);
+    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+  }, [params.id]);
 
   useEffect(() => {
     if (!streamActif) return;
