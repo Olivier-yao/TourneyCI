@@ -17,6 +17,7 @@ import {
   Flag,
   Scale,
   XCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import {
@@ -31,6 +32,7 @@ import {
   traiterDemandeOrganisateur,
   type DemandeOrganisateur,
 } from "@/lib/mockDemandesOrganisateur";
+import type { AnalyseDemandeOrganisateur } from "@/lib/mockAnalyseAutomatique";
 import {
   demandesEnAttente as demandesAnnulationEnAttente,
   traiterDemandeAnnulation,
@@ -427,12 +429,39 @@ function EtatVide({ texte }: { texte: string }) {
   );
 }
 
+function AnalyseAutomatique({ analyse }: { analyse: AnalyseDemandeOrganisateur }) {
+  return (
+    <div
+      className="flex flex-col gap-1.5 p-2.5"
+      style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}
+    >
+      <div
+        className="text-[9px] tracking-[.08em] uppercase"
+        style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-muted)" }}
+      >
+        Analyse automatique · {analyse.score}/{analyse.total} critères
+      </div>
+      {analyse.criteres.map((c) => (
+        <div key={c.label} className="flex items-start gap-1.5 text-[11px] leading-snug" style={{ color: c.rempli ? "var(--ds-text)" : "var(--ds-muted)" }}>
+          {c.rempli ? (
+            <CheckCircle2 size={12} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent-300)" }} />
+          ) : (
+            <XCircle size={12} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-muted)" }} />
+          )}
+          {c.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CarteAction({
   icon: Icon,
   primary,
   titre,
   meta,
   corps,
+  analyse,
   placeholder,
   onAccepter,
   onRefuser,
@@ -442,6 +471,7 @@ function CarteAction({
   titre: string;
   meta: string;
   corps: string;
+  analyse?: AnalyseDemandeOrganisateur;
   placeholder: string;
   onAccepter: (message: string) => void;
   onRefuser: (message: string) => void;
@@ -480,6 +510,8 @@ function CarteAction({
       >
         {corps}
       </p>
+
+      {analyse && <AnalyseAutomatique analyse={analyse} />}
 
       <textarea
         value={message}
@@ -698,6 +730,7 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
                   titre={d.nomOrganisateur}
                   meta={`DEMANDE DU ${formatDateHeure(d.horodatage)} · ${d.identiteVerifiee ? "CNI VÉRIFIÉE" : "CNI EN ATTENTE"}`}
                   corps={d.motivation}
+                  analyse={d.analyseAutomatique}
                   placeholder={`Réponse à ${d.nomOrganisateur}…`}
                   onAccepter={(msg) => {
                     traiterDemandeOrganisateur(d.id, "validee", msg);

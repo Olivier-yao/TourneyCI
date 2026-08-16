@@ -9,6 +9,7 @@
  */
 
 import { VALIDATION_AUTOMATIQUE_ACTIVE } from "./mockValidationAuto";
+import { analyserDemandeOrganisateur, type AnalyseDemandeOrganisateur } from "./mockAnalyseAutomatique";
 
 export type StatutDemandeOrganisateur = "en_attente" | "validee" | "refusee";
 
@@ -19,6 +20,8 @@ export type DemandeOrganisateur = {
   motivation: string;
   /** Identité vérifiée (CNI, points 41/49) au moment de la demande — affiché à l'administration. */
   identiteVerifiee: boolean;
+  /** Résultat de l'analyse automatique (point 170), affiché à l'administration sur les demandes en attente. */
+  analyseAutomatique: AnalyseDemandeOrganisateur;
   statut: StatutDemandeOrganisateur;
   /** Motif du refus ou note de validation, visible par le demandeur (point 160). */
   messageAdmin?: string;
@@ -55,13 +58,18 @@ export function creerDemandeOrganisateur(
   if (typeof window === "undefined" || !nomOrganisateur.trim() || !motivation.trim()) return null;
   const existante = demandeOrganisateurActuelle();
   if (existante?.statut === "en_attente" || existante?.statut === "validee") return existante;
+  const analyse = analyserDemandeOrganisateur(motivation, identiteVerifiee);
+  const validationAuto = VALIDATION_AUTOMATIQUE_ACTIVE && analyse.pertinente;
   const demande: DemandeOrganisateur = {
     id: `orga-${Date.now().toString(36)}`,
     nomOrganisateur: nomOrganisateur.trim(),
     motivation: motivation.trim(),
     identiteVerifiee,
-    statut: VALIDATION_AUTOMATIQUE_ACTIVE ? "validee" : "en_attente",
-    messageAdmin: VALIDATION_AUTOMATIQUE_ACTIVE ? "Validation automatique (pré-backend, point 157)." : undefined,
+    analyseAutomatique: analyse,
+    statut: validationAuto ? "validee" : "en_attente",
+    messageAdmin: validationAuto
+      ? "Validation automatique après analyse : demande jugée pertinente pour la plateforme."
+      : undefined,
     horodatage: Date.now(),
   };
   localStorage.setItem(CLE_DEMANDES_ORGANISATEUR, JSON.stringify([...lireTout(), demande]));
