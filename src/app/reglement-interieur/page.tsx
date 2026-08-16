@@ -169,7 +169,8 @@ export default function ReglementInterieurPage() {
   function continuer() {
     if (!accepte) return;
     marquerReglementAccepte();
-    router.push("/accueil");
+    // Point 190 : replace, pas push — voir bienvenue-profil pour le détail.
+    router.replace("/accueil");
   }
 
   if (!pret) return null;

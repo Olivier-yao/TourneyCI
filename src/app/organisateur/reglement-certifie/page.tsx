@@ -47,7 +47,8 @@ export default function ReglementCertifiePage() {
   function continuer() {
     if (!aLuJusquauBout) return;
     marquerReglementCertifieAccepte();
-    router.push("/organisateur/nouveau");
+    // Point 190 : replace, pas push — voir bienvenue-profil pour le détail.
+    router.replace("/organisateur/nouveau");
   }
 
   if (!pret) return null;

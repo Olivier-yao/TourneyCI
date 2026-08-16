@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Wifi } from "lucide-react";
+import { Wifi, MapPin } from "lucide-react";
 import { Card, CardKicker, CardTitle } from "./Card";
 import { LiveBadge } from "./LiveBadge";
 import { ImagePlaceholder } from "./ImagePlaceholder";
@@ -35,7 +35,7 @@ export function CarteTournoi({ tournoi: t }: { tournoi: Tournoi }) {
             )}
             <div
               className="absolute inset-0 pointer-events-none"
-              style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
+              style={{ background: "linear-gradient(to top, rgba(0,0,0,.6) 0%, rgba(0,0,0,.32) 40%, rgba(0,0,0,.08) 70%, transparent 100%)" }}
             />
             {t.enDirect && (
               <div className="absolute top-3 left-3">
@@ -67,20 +67,27 @@ export function CarteTournoi({ tournoi: t }: { tournoi: Tournoi }) {
               >
                 {LABEL_TYPE[t.type]}
               </span>
-              {t.modalite === "virtuel" && (
-                <span
-                  className="flex items-center gap-1 text-[11px] px-2.5 py-1"
-                  style={{
-                    borderRadius: "var(--ds-radius-pill)",
-                    border: "1px solid var(--ds-border)",
-                    color: "var(--ds-muted)",
-                    fontFamily: "var(--ds-font-mono)",
-                  }}
-                >
-                  <Wifi size={11} strokeWidth={2} />
-                  En ligne
-                </span>
-              )}
+              <span
+                className="flex items-center gap-1 text-[11px] px-2.5 py-1"
+                style={{
+                  borderRadius: "var(--ds-radius-pill)",
+                  border: "1px solid var(--ds-border)",
+                  color: "var(--ds-muted)",
+                  fontFamily: "var(--ds-font-mono)",
+                }}
+              >
+                {t.modalite === "virtuel" ? (
+                  <>
+                    <Wifi size={11} strokeWidth={2} />
+                    En ligne
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={11} strokeWidth={2} />
+                    En présentiel
+                  </>
+                )}
+              </span>
             </div>
 
             <CardTitle>{t.titre}</CardTitle>

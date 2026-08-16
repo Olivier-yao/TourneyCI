@@ -72,9 +72,9 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
           return (
             <motion.div
               key={`podium-anim-${entree.position}`}
-              initial={{ opacity: 0, y: 22, scale: 0.85 }}
+              initial={{ opacity: 0, y: 30, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ type: "spring", stiffness: 320, damping: 22, delay: 0.1 + (2 - colonne) * 0.1 }}
+              transition={{ type: "spring", stiffness: 220, damping: 20, delay: (entree.position - 1) * 0.45 }}
             >
             <Link key={`podium-${entree.position}`} href={`/joueur/${encodeURIComponent(entree.nom)}`} className="flex flex-col items-center gap-2">
               <div className="relative">

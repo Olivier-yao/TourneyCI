@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ds/Avatar";
 import { BadgePalier } from "@/components/ds/Palier";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
-import { lireProfil, estActif, palierActuel, palierParPoints, mesPointsCumules } from "@/lib/mockProfil";
+import { lireProfil, estActif, palierActuel, palierParPoints, mesPointsCumules, tagDeJoueur } from "@/lib/mockProfil";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type ResultatMatch = "V" | "D";
@@ -67,7 +67,7 @@ function statsDerivees(nom: string): StatsJoueur {
     victoires,
     actif: estActif(matchsJoues),
     ville: VILLES_DEMO[h % VILLES_DEMO.length],
-    tag: nom.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, ""),
+    tag: tagDeJoueur(nom),
     points,
     rangNational: 1 + (h % 200),
     form: derivesForme(nom),

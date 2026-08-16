@@ -21,6 +21,21 @@ export type TypeCompetition = "1v1" | "equipes" | "battle_royale";
 export type Modalite = "virtuel" | "presentiel";
 export type ModeEquipe = "libre" | "predefinies";
 
+/** Sous-types Équipes (bracket à élimination directe, distinct du Battle
+ * Royale) — point 198 : ajout d'Escouade (5) pour couvrir les formats
+ * compétitifs 5v5 des jeux de tir tactiques (ex. mode classé COD Mobile),
+ * courants dans les genres FPS/TPS déjà pris en charge mais absents du
+ * quatuor standard des squads Battle Royale (qui reste volontairement à 4,
+ * conforme aux standards du genre). */
+export type EquipeSousType = "duo" | "trio" | "squad" | "escouade";
+
+export const LABEL_UNITE_EQUIPE: Record<EquipeSousType, { nom: string; singulier: string; pluriel: string }> = {
+  duo: { nom: "Duo", singulier: "DUO", pluriel: "DUOS" },
+  trio: { nom: "Trio", singulier: "TRIO", pluriel: "TRIOS" },
+  squad: { nom: "Squad", singulier: "SQUAD", pluriel: "SQUADS" },
+  escouade: { nom: "Escouade", singulier: "ESCOUADE", pluriel: "ESCOUADES" },
+};
+
 export type EquipeInfo = { id: string; nom: string };
 
 export type RepartitionCashPrize = {
@@ -54,9 +69,9 @@ export type Tournoi = {
   modeEquipe?: ModeEquipe;
   /** Sous-type Battle Royale (obligatoire quand type === "battle_royale"). */
   brSousType?: "solo" | "duo" | "trio" | "squad";
-  /** Sous-type Équipes (taille cible, point 177) — facultatif : "libre" sans
-   * sous-type précisé reste possible. */
-  equipeSousType?: "duo" | "trio" | "squad";
+  /** Sous-type Équipes (taille cible, point 177, escouade ajoutée au point
+   * 198) — facultatif : "libre" sans sous-type précisé reste possible. */
+  equipeSousType?: EquipeSousType;
   /** Origine du financement du cash prize : frais d'inscription des
    * participants (défaut) ou solde de l'organisateur (inscription gratuite). */
   financementCashPrize?: "inscriptions" | "organisateur";
@@ -635,7 +650,7 @@ export function annulerTournoi(id: string) {
   ajouterA(CLE_TOURNOIS_ANNULES, id);
   const tournoi = tournoiParId(id);
   if (tournoi && tournoi.fraisXof > 0 && estInscrit(id)) {
-    crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement");
+    crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement", tournoi.id);
   }
 }
 
@@ -787,7 +802,7 @@ function retirerPaiementAttente(tournoiId: string) {
 export function libererSequestreCashPrize(tournoiId: string) {
   const paiement = lirePaiementsAttente().find((p) => p.tournoiId === tournoiId);
   if (!paiement) return;
-  crediter(paiement.montantXof, `Gain (débloqué) · ${paiement.titre}`, "gain");
+  crediter(paiement.montantXof, `Gain (débloqué) · ${paiement.titre}`, "gain", paiement.tournoiId);
   retirerPaiementAttente(tournoiId);
 }
 
@@ -799,7 +814,7 @@ export function reevaluerPaiementsEnAttente() {
     const brises = avisDuTournoi(paiement.tournoiId).filter((a) => a.type === "coeur_brise").length;
     const conteste = appelOuvertPourTournoi(paiement.tournoiId);
     if (brises < SEUIL_COEURS_BRISES_SEQUESTRE && !conteste) {
-      crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain");
+      crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain", paiement.tournoiId);
       retirerPaiementAttente(paiement.tournoiId);
     }
   }
@@ -844,7 +859,7 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
 
   if (tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()) {
     const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);
-    if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission");
+    if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission", tournoi.id);
   }
 
   ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);

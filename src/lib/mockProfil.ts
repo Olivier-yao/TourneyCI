@@ -111,6 +111,25 @@ export function estActif(matchsJoues: number): boolean {
   return matchsJoues >= SEUIL_MATCHS_ACTIF;
 }
 
+/** TAG dérivé du pseudo (point 192) : identifiant stable, insensible à la
+ * casse et aux espaces, utilisé pour rechercher un profil (ex. invitation en
+ * équipe) sans exposer/dupliquer le pseudo affiché. Même formule que la
+ * page profil joueur (joueur/[nom]). */
+export function tagDeJoueur(nom: string): string {
+  return nom.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+/** Recherche un profil connu (données de démo, mono-appareil) dont le TAG
+ * dérivé correspond exactement — utilisée pour l'invitation en équipe par
+ * TAG (point 192). Exclut "moi" : on ne s'invite pas soi-même. */
+export function joueurParTag(tag: string): { nom: string } | undefined {
+  const cible = tag.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+  if (!cible) return undefined;
+  const moi = profilBase().pseudo;
+  const nom = pseudosDejaPris().find((n) => n !== moi && tagDeJoueur(n) === cible);
+  return nom ? { nom } : undefined;
+}
+
 /** Pseudos déjà "pris" par d'autres joueurs — dérivé des données de
  * classement de démo (mono-appareil : pas de vrai registre partagé tant
  * qu'il n'y a pas de backend, phase 8). Exclut la ligne "moi" pour ne pas se

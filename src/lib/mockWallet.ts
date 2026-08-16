@@ -13,7 +13,16 @@ export type Mouvement = {
   montantXof: number;
   dateLabel: string;
   horodatage: number;
+  /** Tournoi lié (point 196), quand le mouvement en découle directement
+   * (gain, inscription, commission, financement, remboursement). */
+  tournoiId?: string;
 };
+
+/** Code de transaction unique (point 196) — dérivé de l'id, déjà unique par
+ * construction, pour éviter un champ redondant à stocker/migrer. */
+export function codeTransaction(id: string): string {
+  return `TXN-${id.replace(/^mv-/, "").toUpperCase()}`;
+}
 
 const CLE_SOLDE = "tourney-solde";
 const CLE_MOUVEMENTS = "tourney-mouvements";
@@ -54,16 +63,16 @@ function enregistrerMouvement(m: Omit<Mouvement, "id" | "horodatage">) {
 const AUJOURD_HUI = () =>
   new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 
-export function crediter(montantXof: number, libelle: string, type: TypeMouvement = "gain") {
+export function crediter(montantXof: number, libelle: string, type: TypeMouvement = "gain", tournoiId?: string) {
   if (montantXof <= 0) return;
-  enregistrerMouvement({ type, libelle, montantXof, dateLabel: AUJOURD_HUI() });
+  enregistrerMouvement({ type, libelle, montantXof, dateLabel: AUJOURD_HUI(), tournoiId });
 }
 
 /** Débite si le solde est suffisant. Retourne false sinon (aucun effet). */
-export function debiter(montantXof: number, libelle: string, type: TypeMouvement): boolean {
+export function debiter(montantXof: number, libelle: string, type: TypeMouvement, tournoiId?: string): boolean {
   if (montantXof <= 0) return false;
   if (lireSolde() < montantXof) return false;
-  enregistrerMouvement({ type, libelle, montantXof: -montantXof, dateLabel: AUJOURD_HUI() });
+  enregistrerMouvement({ type, libelle, montantXof: -montantXof, dateLabel: AUJOURD_HUI(), tournoiId });
   return true;
 }
 

@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trophy, Ticket, ArrowDownLeft, Gift, RotateCcw } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
-import { Button } from "@/components/ds/Button";
+import { Button, PRESS } from "@/components/ds/Button";
+import { Modal } from "@/components/ds/Modal";
 import { TourneyCard } from "@/components/ds/TourneyCard";
 import { lireProfil, type Profil } from "@/lib/mockProfil";
-import { lireSolde, mesMouvements, gainsTotal, retraitEnVerification, type Mouvement } from "@/lib/mockWallet";
+import { lireSolde, mesMouvements, gainsTotal, retraitEnVerification, codeTransaction, type Mouvement } from "@/lib/mockWallet";
+import { tournoiParId } from "@/lib/mockTournaments";
 
 const ICONE_MOUVEMENT: Record<Mouvement["type"], typeof Trophy> = {
   gain: Trophy,
@@ -19,6 +21,16 @@ const ICONE_MOUVEMENT: Record<Mouvement["type"], typeof Trophy> = {
   remboursement: RotateCcw,
 };
 
+const LABEL_TYPE_MOUVEMENT: Record<Mouvement["type"], string> = {
+  gain: "Gain",
+  commission: "Commission",
+  inscription: "Inscription",
+  recharge: "Recharge",
+  retrait: "Retrait",
+  financement: "Financement cash prize",
+  remboursement: "Remboursement",
+};
+
 export default function SoldePage() {
   const router = useRouter();
   const [profil, setProfil] = useState<Profil | null>(null);
@@ -26,6 +38,7 @@ export default function SoldePage() {
   const [mouvements, setMouvements] = useState<Mouvement[]>([]);
   const [gains, setGains] = useState(0);
   const [gainsRecents, setGainsRecents] = useState(0);
+  const [mouvementSelectionne, setMouvementSelectionne] = useState<Mouvement | null>(null);
 
   useEffect(() => {
     const lus = mesMouvements();
@@ -89,7 +102,13 @@ export default function SoldePage() {
             const Icone = ICONE_MOUVEMENT[m.type];
             const positif = m.montantXof > 0;
             return (
-              <div key={m.id} className="flex items-center gap-3 py-2.5" style={{ borderBottom: "1px solid var(--ds-border)" }}>
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMouvementSelectionne(m)}
+                className={`flex items-center gap-3 py-2.5 text-left ${PRESS}`}
+                style={{ borderBottom: "1px solid var(--ds-border)" }}
+              >
                 <div
                   className="w-8 h-8 shrink-0 flex items-center justify-center"
                   style={{ borderRadius: "var(--ds-radius-sm)", background: positif ? "var(--ds-accent-900)" : "var(--ds-surface-2)", color: positif ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
@@ -119,11 +138,44 @@ export default function SoldePage() {
                   {positif ? "+" : ""}
                   {m.montantXof.toLocaleString("fr-FR")}
                 </div>
-              </div>
+              </button>
             );
           })
         )}
       </div>
+
+      <Modal ouvert={mouvementSelectionne !== null} titre="Détail de la transaction" onFermer={() => setMouvementSelectionne(null)}>
+        {mouvementSelectionne && (
+          <div className="flex flex-col gap-2.5 not-italic" style={{ whiteSpace: "normal" }}>
+            <p>{mouvementSelectionne.libelle}</p>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "var(--ds-muted)" }}>Type</span>
+              <span>{LABEL_TYPE_MOUVEMENT[mouvementSelectionne.type]}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "var(--ds-muted)" }}>Montant</span>
+              <span style={{ color: mouvementSelectionne.montantXof > 0 ? "var(--ds-accent-300)" : "var(--ds-text)" }}>
+                {mouvementSelectionne.montantXof > 0 ? "+" : ""}
+                {mouvementSelectionne.montantXof.toLocaleString("fr-FR")} F
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span style={{ color: "var(--ds-muted)" }}>Date</span>
+              <span>{mouvementSelectionne.dateLabel}</span>
+            </div>
+            {mouvementSelectionne.tournoiId && (
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "var(--ds-muted)" }}>Tournoi</span>
+                <span className="text-right">{tournoiParId(mouvementSelectionne.tournoiId)?.titre ?? mouvementSelectionne.tournoiId}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm pt-1" style={{ borderTop: "1px solid var(--ds-border)" }}>
+              <span style={{ color: "var(--ds-muted)" }}>Code de transaction</span>
+              <span style={{ fontFamily: "var(--ds-font-mono)" }}>{codeTransaction(mouvementSelectionne.id)}</span>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

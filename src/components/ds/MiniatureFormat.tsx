@@ -1,9 +1,7 @@
 "use client";
 
-import type { TypeCompetition } from "@/lib/mockTournaments";
+import { LABEL_UNITE_EQUIPE, type TypeCompetition, type EquipeSousType } from "@/lib/mockTournaments";
 import { LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
-
-type EquipeSousType = "duo" | "trio" | "squad";
 
 /** Petites boîtes + traits de connexion représentant un bracket à
  * élimination directe (1v1 ou Équipes) — deux quarts, une demi, une finale. */
@@ -71,7 +69,7 @@ function legendePour(type: TypeCompetition, brSousType?: SousTypeBR, equipeSousT
     return "Élimination directe : chaque duel qualifie un joueur pour le tour suivant, jusqu'à la finale.";
   }
   if (type === "equipes") {
-    const taille = equipeSousType ? ` en ${LABEL_UNITE_BR[equipeSousType].nom.toLowerCase()}` : "";
+    const taille = equipeSousType ? ` en ${LABEL_UNITE_EQUIPE[equipeSousType].nom.toLowerCase()}` : "";
     return `Élimination directe entre équipes${taille} : chaque duel qualifie une équipe pour le tour suivant, jusqu'à la finale.`;
   }
   const nom = LABEL_UNITE_BR[brSousType ?? "solo"].nom.toLowerCase();

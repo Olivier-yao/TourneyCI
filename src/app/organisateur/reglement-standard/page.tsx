@@ -44,7 +44,8 @@ export default function ReglementStandardPage() {
   function continuer() {
     if (!aLuJusquauBout) return;
     marquerReglementStandardAccepte();
-    router.push("/organisateur");
+    // Point 190 : replace, pas push — voir bienvenue-profil pour le détail.
+    router.replace("/organisateur");
   }
 
   if (!pret) return null;

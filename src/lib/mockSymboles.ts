@@ -28,13 +28,26 @@ import {
   Radio,
   Music,
   Anchor,
+  HandFist,
+  Axe,
+  Hammer,
+  Binoculars,
+  Siren,
+  Volleyball,
+  Dumbbell,
+  Flag,
+  Pickaxe,
+  Hourglass,
+  Orbit,
+  Castle,
   type LucideIcon,
 } from "lucide-react";
 
 /** Symboles esport/gaming proposés à la création d'un tournoi (point 144),
  * à la place d'un upload d'image libre — sélection visuelle parmi un jeu
  * d'icônes Lucide déjà utilisées dans le reste du projet, avec un nom clair
- * par symbole. Bibliothèque enrichie au point 175. */
+ * par symbole. Bibliothèque enrichie aux points 175 puis 197 (davantage de
+ * styles de jeu : combat rapproché, sport, battle royale, ambiance FPS/TPS). */
 export const SYMBOLES_TOURNOI: { id: string; label: string; icone: LucideIcon }[] = [
   { id: "epee", label: "Épée", icone: Sword },
   { id: "epees-croisees", label: "Épées croisées", icone: Swords },
@@ -65,6 +78,18 @@ export const SYMBOLES_TOURNOI: { id: string; label: string; icone: LucideIcon }[
   { id: "signal", label: "Signal", icone: Radio },
   { id: "rythme", label: "Rythme", icone: Music },
   { id: "ancre", label: "Ancre", icone: Anchor },
+  { id: "poing", label: "Poing", icone: HandFist },
+  { id: "hache", label: "Hache", icone: Axe },
+  { id: "marteau", label: "Marteau", icone: Hammer },
+  { id: "jumelles", label: "Jumelles", icone: Binoculars },
+  { id: "alerte", label: "Alerte", icone: Siren },
+  { id: "ballon", label: "Ballon", icone: Volleyball },
+  { id: "force", label: "Force", icone: Dumbbell },
+  { id: "drapeau", label: "Drapeau", icone: Flag },
+  { id: "pioche", label: "Pioche", icone: Pickaxe },
+  { id: "sablier", label: "Sablier", icone: Hourglass },
+  { id: "orbite", label: "Orbite", icone: Orbit },
+  { id: "forteresse", label: "Forteresse", icone: Castle },
 ];
 
 export const SYMBOLE_DEFAUT = "epees-croisees";

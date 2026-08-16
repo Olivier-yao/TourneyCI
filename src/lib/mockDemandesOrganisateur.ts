@@ -10,6 +10,7 @@
 
 import { VALIDATION_AUTOMATIQUE_ACTIVE } from "./mockValidationAuto";
 import { analyserDemandeOrganisateur, type AnalyseDemandeOrganisateur } from "./mockAnalyseAutomatique";
+import { ajouterNotification } from "./mockNotifications";
 
 export type StatutDemandeOrganisateur = "en_attente" | "validee" | "refusee";
 
@@ -84,6 +85,21 @@ export function demandesOrganisateurEnAttente(): DemandeOrganisateur[] {
 
 export function traiterDemandeOrganisateur(id: string, statut: "validee" | "refusee", messageAdmin?: string) {
   if (typeof window === "undefined") return;
-  const maj = lireTout().map((d) => (d.id === id ? { ...d, statut, messageAdmin: messageAdmin?.trim() || undefined } : d));
+  const motif = messageAdmin?.trim() || undefined;
+  const maj = lireTout().map((d) => (d.id === id ? { ...d, statut, messageAdmin: motif } : d));
   localStorage.setItem(CLE_DEMANDES_ORGANISATEUR, JSON.stringify(maj));
+  // Point 189 : notifier le candidat de la décision — motif du refus tel que
+  // saisi par l'administration, ou message de bienvenue détaillant ce que
+  // débloque la certification (règlement dédié, point 159).
+  if (statut === "refusee") {
+    ajouterNotification(
+      motif
+        ? `Ta demande d'organisateur certifié a été refusée — motif : ${motif}`
+        : "Ta demande d'organisateur certifié a été refusée. Tu peux en envoyer une nouvelle si ta situation a changé.",
+    );
+  } else {
+    ajouterNotification(
+      "Bienvenue parmi les organisateurs certifiés ! Tu peux désormais créer des tournois payants et percevoir ta commission. En échange, tu t'engages à reverser intégralement le cash prize, garder tes annonces exactes et arbitrer tes litiges avec impartialité — le détail t'attend dans le règlement dédié avant ta prochaine création.",
+    );
+  }
 }

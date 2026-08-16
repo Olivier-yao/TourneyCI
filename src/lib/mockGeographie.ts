@@ -16,11 +16,17 @@
 export type VilleEntree = { nom: string; communes?: string[] };
 export type Pays = { id: string; nom: string; villes: VilleEntree[] };
 
+/** Point 195 : bibliothèque enrichie (davantage de villes réelles par pays)
+ * — chaque liste de villes (et de communes) est déjà triée alphabétiquement
+ * ici à la source, pour que tous les sélecteurs qui la consomment (via
+ * villesDuPays() ou directement pays.villes) l'affichent triée sans avoir à
+ * re-trier à chaque endroit. */
 export const PAYS: Pays[] = [
   {
     id: "ci",
     nom: "Côte d'Ivoire",
     villes: [
+      { nom: "Abengourou" },
       {
         nom: "Abidjan",
         communes: [
@@ -40,19 +46,119 @@ export const PAYS: Pays[] = [
         ],
       },
       { nom: "Bouaké" },
+      { nom: "Daloa" },
+      { nom: "Divo" },
+      { nom: "Gagnoa" },
+      { nom: "Korhogo" },
+      { nom: "Man" },
+      { nom: "San-Pédro" },
       { nom: "Yamoussoukro" },
     ],
   },
-  { id: "sn", nom: "Sénégal", villes: [{ nom: "Dakar" }, { nom: "Thiès" }] },
-  { id: "ml", nom: "Mali", villes: [{ nom: "Bamako" }] },
-  { id: "bf", nom: "Burkina Faso", villes: [{ nom: "Ouagadougou" }] },
-  { id: "gh", nom: "Ghana", villes: [{ nom: "Accra" }, { nom: "Kumasi" }] },
-  { id: "tg", nom: "Togo", villes: [{ nom: "Lomé" }] },
-  { id: "bj", nom: "Bénin", villes: [{ nom: "Cotonou" }] },
-  { id: "ng", nom: "Nigéria", villes: [{ nom: "Lagos" }, { nom: "Abuja" }] },
-  { id: "cm", nom: "Cameroun", villes: [{ nom: "Douala" }, { nom: "Yaoundé" }] },
-  { id: "cd", nom: "RD Congo", villes: [{ nom: "Kinshasa" }] },
-  { id: "ke", nom: "Kenya", villes: [{ nom: "Nairobi" }] },
+  {
+    id: "sn",
+    nom: "Sénégal",
+    villes: [
+      { nom: "Dakar" },
+      { nom: "Kaolack" },
+      { nom: "Mbour" },
+      { nom: "Saint-Louis" },
+      { nom: "Thiès" },
+      { nom: "Touba" },
+      { nom: "Ziguinchor" },
+    ],
+  },
+  {
+    id: "ml",
+    nom: "Mali",
+    villes: [
+      { nom: "Bamako" },
+      { nom: "Kayes" },
+      { nom: "Mopti" },
+      { nom: "Ségou" },
+      { nom: "Sikasso" },
+    ],
+  },
+  {
+    id: "bf",
+    nom: "Burkina Faso",
+    villes: [
+      { nom: "Bobo-Dioulasso" },
+      { nom: "Koudougou" },
+      { nom: "Ouagadougou" },
+    ],
+  },
+  {
+    id: "gh",
+    nom: "Ghana",
+    villes: [
+      { nom: "Accra" },
+      { nom: "Cape Coast" },
+      { nom: "Kumasi" },
+      { nom: "Takoradi" },
+      { nom: "Tamale" },
+    ],
+  },
+  {
+    id: "tg",
+    nom: "Togo",
+    villes: [
+      { nom: "Kara" },
+      { nom: "Lomé" },
+      { nom: "Sokodé" },
+    ],
+  },
+  {
+    id: "bj",
+    nom: "Bénin",
+    villes: [
+      { nom: "Cotonou" },
+      { nom: "Parakou" },
+      { nom: "Porto-Novo" },
+    ],
+  },
+  {
+    id: "ng",
+    nom: "Nigéria",
+    villes: [
+      { nom: "Abuja" },
+      { nom: "Benin City" },
+      { nom: "Ibadan" },
+      { nom: "Kano" },
+      { nom: "Lagos" },
+      { nom: "Port Harcourt" },
+    ],
+  },
+  {
+    id: "cm",
+    nom: "Cameroun",
+    villes: [
+      { nom: "Bafoussam" },
+      { nom: "Douala" },
+      { nom: "Garoua" },
+      { nom: "Yaoundé" },
+    ],
+  },
+  {
+    id: "cd",
+    nom: "RD Congo",
+    villes: [
+      { nom: "Goma" },
+      { nom: "Kinshasa" },
+      { nom: "Lubumbashi" },
+      { nom: "Mbuji-Mayi" },
+    ],
+  },
+  {
+    id: "ke",
+    nom: "Kenya",
+    villes: [
+      { nom: "Kisumu" },
+      { nom: "Mombasa" },
+      { nom: "Nairobi" },
+      { nom: "Nakuru" },
+    ],
+  },
 ];
 
 export function toutesLesVilles(): string[] {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, Plus, Heart, ShieldCheck, IdCard, AtSign, Lock, Clock, XCircle, Send, CheckCircle2 } from "lucide-react";
 import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
@@ -27,11 +27,13 @@ type EtapeOnboarding = "nom" | "complet";
  */
 function DemandeOrganisateurEcran({
   nomOrg,
+  identiteVerifiee,
   demande,
   onEnvoyer,
   onFermer,
 }: {
   nomOrg: string;
+  identiteVerifiee: boolean;
   demande: DemandeOrganisateur | undefined;
   onEnvoyer: (motivation: string) => void;
   onFermer: () => void;
@@ -42,6 +44,13 @@ function DemandeOrganisateurEcran({
   const validee = demande?.statut === "validee";
   const refusee = demande?.statut === "refusee";
   const soumise = enAttente || validee || refusee;
+  // Point 188 : critères affichés au candidat avant l'envoi, pour qu'il sache
+  // exactement ce qui est attendu plutôt que de découvrir un refus après coup.
+  const criteres = [
+    { label: "Identité vérifiée (CNI + selfie)", ok: identiteVerifiee },
+    { label: "Nom d'organisateur choisi", ok: Boolean(nomOrg) },
+    { label: "Motivation détaillée rédigée", ok: motivation.trim().length >= 20 },
+  ];
 
   function envoyer() {
     if (!motivation.trim()) {
@@ -96,19 +105,35 @@ function DemandeOrganisateurEcran({
         </div>
 
         {!soumise || refusee ? (
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
-              Pourquoi veux-tu devenir organisateur certifié ?
-            </label>
-            <textarea
-              value={motivation}
-              onChange={(e) => setMotivation(e.target.value)}
-              rows={4}
-              placeholder="Ex : je veux promouvoir le gaming local, organiser des tournois payants pour ma communauté..."
-              className="px-3 py-2.5 text-sm outline-none resize-none"
-              style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
-            />
-            {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <div className="text-[10px] uppercase tracking-wide mb-1" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                Critères attendus
+              </div>
+              {criteres.map((c) => (
+                <div key={c.label} className="flex items-center gap-2.5 py-2" style={{ borderBottom: "1px solid var(--ds-border)" }}>
+                  <CheckCircle2 size={15} strokeWidth={2} style={{ color: c.ok ? "var(--ds-accent-300)" : "var(--ds-muted)" }} />
+                  <span className="flex-1 text-[13px]" style={{ color: c.ok ? "var(--ds-text)" : "var(--ds-muted)" }}>{c.label}</span>
+                  <span className="text-[10px]" style={{ color: c.ok ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    {c.ok ? "OK" : "MANQUANT"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+                Pourquoi veux-tu devenir organisateur certifié ?
+              </label>
+              <textarea
+                value={motivation}
+                onChange={(e) => setMotivation(e.target.value)}
+                rows={4}
+                placeholder="Ex : je veux promouvoir le gaming local, organiser des tournois payants pour ma communauté..."
+                className="px-3 py-2.5 text-sm outline-none resize-none"
+                style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+              />
+              {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
+            </div>
           </div>
         ) : null}
       </div>
@@ -266,9 +291,10 @@ function OnboardingOrganisateur({ certifie, onVerifier, onValideNom }: { certifi
   );
 }
 
-export default function OrganisateurPage() {
+function OrganisateurPageInterne() {
   const connecte = useExigerConnexion();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tournoisOrganises, setTournoisOrganises] = useState<Tournoi[]>([]);
   const [etape, setEtape] = useState<EtapeOnboarding>("complet");
   const [nomOrg, setNomOrg] = useState<string | undefined>(undefined);
@@ -299,6 +325,12 @@ export default function OrganisateurPage() {
     // demande de statut certifié (point 158) n'est plus une étape imposée.
     setEtape(!nom ? "nom" : "complet");
     setTournoisOrganises(mesTournoisOrganises());
+    // Point 187 : arrivée depuis l'alerte du formulaire de création après
+    // vérification d'identité — ouvre directement la demande de certification
+    // plutôt que de laisser l'utilisateur revenir au même message.
+    if (searchParams.get("ouvrirCertification") === "1" && nom && estCert && !estOrganisateurCertifie()) {
+      setVueCertification(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -322,6 +354,7 @@ export default function OrganisateurPage() {
     return (
       <DemandeOrganisateurEcran
         nomOrg={nomOrg ?? ""}
+        identiteVerifiee={certifie}
         demande={demande}
         onEnvoyer={(motivation) => {
           const d = creerDemandeOrganisateur(nomOrg ?? "", motivation, certifie);
@@ -458,5 +491,13 @@ export default function OrganisateurPage() {
 
       <TabBar />
     </div>
+  );
+}
+
+export default function OrganisateurPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrganisateurPageInterne />
+    </Suspense>
   );
 }

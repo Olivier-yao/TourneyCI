@@ -71,7 +71,7 @@ export function FluxPaiement({
     e.preventDefault();
 
     if (moyen === "tourneycard") {
-      const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription");
+      const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id);
       if (!ok) {
         setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
         return;

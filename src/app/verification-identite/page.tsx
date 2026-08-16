@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, CheckCircle2, Camera, IdCard, UserCircle2 } from "lucide-react";
+import { ShieldCheck, CheckCircle2, Camera, IdCard, UserCircle2, Loader2 } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Button, PRESS } from "@/components/ds/Button";
 import { COMMISSION_PCT } from "@/lib/mockTournaments";
@@ -40,7 +40,7 @@ function EmplacementFichier({
       <span className="text-[9px] uppercase tracking-wide" style={{ fontFamily: "var(--ds-font-mono)" }}>
         {fichier ? "Ajouté" : label}
       </span>
-      <input type="file" accept="image/*" className="hidden" onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
+      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
     </label>
   );
 }
@@ -55,11 +55,22 @@ export default function VerificationIdentitePage() {
   const [selfie, setSelfie] = useState<File | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoye, setEnvoye] = useState(false);
+  const [enCours, setEnCours] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCertifie(estCertifie());
   }, []);
+
+  useEffect(() => {
+    if (!enCours) return;
+    // Point 186 : tant qu'il n'y a pas de vrai backend (point 157), la
+    // vérification est déjà considérée comme validée dès la soumission —
+    // ce délai simule juste le temps de traitement avant de renvoyer vers
+    // l'accueil.
+    const id = setTimeout(() => router.replace("/accueil"), 3500);
+    return () => clearTimeout(id);
+  }, [enCours, router]);
 
   const conditions = [
     { label: "Pièce d'identité lisible et non expirée", ok: Boolean(recto && verso) },
@@ -85,9 +96,22 @@ export default function VerificationIdentitePage() {
     setErreur(null);
     setEnvoye(true);
     setCertifie(true);
+    setEnCours(true);
   }
 
   const demande = demandeCertification();
+
+  if (enCours) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+        <Loader2 size={32} className="animate-spin" style={{ color: "var(--ds-accent-300)" }} />
+        <p className="text-base font-medium">Vérification en cours</p>
+        <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
+          Tes documents sont en cours de traitement. Tu vas être redirigé vers l&apos;accueil.
+        </p>
+      </div>
+    );
+  }
 
   if (certifie) {
     return (

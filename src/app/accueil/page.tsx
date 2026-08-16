@@ -311,7 +311,7 @@ export default function AccueilV2Page() {
                           )}
                           <div
                             className="absolute inset-0 pointer-events-none"
-                            style={{ background: "linear-gradient(to top, rgba(0,0,0,.5), transparent 60%)" }}
+                            style={{ background: "linear-gradient(to top, rgba(0,0,0,.6) 0%, rgba(0,0,0,.32) 40%, rgba(0,0,0,.08) 70%, transparent 100%)" }}
                           />
                           <div className="absolute top-2.5 left-2.5">
                             <LiveBadge />

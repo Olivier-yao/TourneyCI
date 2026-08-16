@@ -26,9 +26,14 @@ import {
   type TypeCompetition,
   type Modalite,
   type ModeEquipe,
+  type EquipeSousType,
 } from "@/lib/mockTournaments";
 
 type ModeFinalistes = "1" | "3" | "perso";
+
+/** Point 184 : le check-in ne peut jamais être fixé après ou au même moment
+ * que le début du tournoi — 10 minutes est le minimum autorisé avant. */
+const DELAI_CHECKIN_MIN_MS = 10 * 60 * 1000;
 
 const TYPES: { id: TypeCompetition; label: string }[] = [
   { id: "1v1", label: "1v1" },
@@ -43,10 +48,11 @@ const SOUS_TYPES_BR: { id: "solo" | "duo" | "trio" | "squad"; label: string }[] 
   { id: "squad", label: "Squad" },
 ];
 
-const SOUS_TYPES_EQUIPE: { id: "duo" | "trio" | "squad"; label: string }[] = [
+const SOUS_TYPES_EQUIPE: { id: EquipeSousType; label: string }[] = [
   { id: "duo", label: "Duo" },
   { id: "trio", label: "Trio" },
   { id: "squad", label: "Squad" },
+  { id: "escouade", label: "Escouade" },
 ];
 
 function SegmentedControl<T extends string>({
@@ -110,7 +116,7 @@ export default function NouveauTournoiPage() {
   const [titre, setTitre] = useState("");
   const [type, setType] = useState<TypeCompetition>("1v1");
   const [brSousType, setBrSousType] = useState<"solo" | "duo" | "trio" | "squad">("solo");
-  const [equipeSousType, setEquipeSousType] = useState<"duo" | "trio" | "squad">("squad");
+  const [equipeSousType, setEquipeSousType] = useState<EquipeSousType>("squad");
   const [modalite, setModalite] = useState<Modalite>("presentiel");
   const [ville, setVille] = useState("");
   const [modeEquipe, setModeEquipe] = useState<ModeEquipe>("libre");
@@ -233,6 +239,13 @@ export default function NouveauTournoiPage() {
       setErreur("La date est obligatoire.");
       return;
     }
+    if (debutTournoiTs !== undefined) {
+      const checkinTs = versTimestamp(dateJour, checkinHeure);
+      if (checkinTs === undefined || debutTournoiTs - checkinTs < DELAI_CHECKIN_MIN_MS) {
+        setErreur("Le check-in doit être fixé au moins 10 minutes avant le début du tournoi.");
+        return;
+      }
+    }
     if (financeParOrganisateur && cashPrizeNum > 0 && cashPrizeNum > solde) {
       setErreur("Solde insuffisant pour financer ce cash prize.");
       return;
@@ -258,10 +271,6 @@ export default function NouveauTournoiPage() {
   }
 
   function finaliserCreation() {
-    if (financeParOrganisateur && cashPrizeNum > 0) {
-      debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement");
-    }
-
     const equipes =
       type === "equipes" && modeEquipe === "predefinies"
         ? nomsEquipes
@@ -303,6 +312,10 @@ export default function NouveauTournoiPage() {
       repartitionCashPrize:
         (payant || financeParOrganisateur) && cashPrizeEffectif > 0 ? repartitionCalculee : undefined,
     });
+
+    if (financeParOrganisateur && cashPrizeNum > 0) {
+      debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement", tournoi.id);
+    }
 
     router.push(`/tournois/${tournoi.id}`);
   }
@@ -358,11 +371,14 @@ export default function NouveauTournoiPage() {
                   setAlerteVerifOuverte(true);
                   return;
                 }
-                setErreur(
-                  !certifie
-                    ? "Envoie ta demande de statut organisateur certifié pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
-                    : "Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.",
-                );
+                if (!certifie) {
+                  // Point 187 : l'identité est déjà vérifiée (étape 1) — au
+                  // lieu de répéter le même message, on envoie directement
+                  // vers la demande de certification (étape 2, point 181).
+                  router.push("/organisateur?ouvrirCertification=1");
+                  return;
+                }
+                setErreur("Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.");
                 return;
               }
               setErreur(null);
@@ -667,6 +683,18 @@ export default function NouveauTournoiPage() {
           </p>
         )}
         <Field label="Heure de check-in" type="time" value={checkinHeure} onChange={(e) => setCheckinHeure(e.target.value)} />
+        {(() => {
+          if (debutTournoiTs === undefined) return null;
+          const checkinTs = versTimestamp(dateJour, checkinHeure);
+          const invalide = checkinTs === undefined || debutTournoiTs - checkinTs < DELAI_CHECKIN_MIN_MS;
+          return (
+            <p className="text-xs -mt-3" style={{ color: invalide ? "var(--ds-danger)" : "var(--ds-muted)" }}>
+              {invalide
+                ? "Doit être au moins 10 minutes avant le début du tournoi."
+                : "Au moins 10 minutes avant le début — tu peux choisir plus tôt."}
+            </p>
+          );
+        })()}
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>

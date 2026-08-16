@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon, Sparkles, Crown, Radio } from "lucide-react";
+import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon, Sparkles, Crown, Radio, Plus } from "lucide-react";
 import Link from "next/link";
 import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
@@ -28,7 +28,8 @@ import {
   TAILLE_EQUIPE_BR,
   type EquipeBR,
 } from "@/lib/mockEquipesBR";
-import { equipesProfilDontChef, type EquipeProfil } from "@/lib/mockEquipesProfil";
+import { equipesProfilDontChef, equipesProfilDontMembreNonChef, type EquipeProfil } from "@/lib/mockEquipesProfil";
+import { proposerInscriptionEquipe } from "@/lib/mockPropositionsEquipe";
 import { LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
@@ -70,6 +71,7 @@ export function CtaInscription({
   const estBREquipes = typeCompetition === "battle_royale" && brSousType && brSousType !== "solo";
   const [choixEquipe, setChoixEquipe] = useState(false);
   const [nomEquipe, setNomEquipe] = useState("");
+  const [creationEquipeManuelle, setCreationEquipeManuelle] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [favori, setFavori] = useState(false);
   const [notifs, setNotifs] = useState(false);
@@ -87,8 +89,10 @@ export function CtaInscription({
   const [presenceAcceptee, setPresenceAcceptee] = useState(false);
   const [montantEnAttente, setMontantEnAttente] = useState(fraisXof);
 
-  const [etapeBR, setEtapeBR] = useState<"menu" | "creer" | "rejoindre" | "precreees" | null>(null);
+  const [etapeBR, setEtapeBR] = useState<"menu" | "creer" | "rejoindre" | "precreees" | "proposer" | null>(null);
   const [equipesProfilChef, setEquipesProfilChef] = useState<EquipeProfil[]>([]);
+  const [equipesProfilMembre, setEquipesProfilMembre] = useState<EquipeProfil[]>([]);
+  const [propositionEnvoyee, setPropositionEnvoyee] = useState<string | null>(null);
   const [equipesBR, setEquipesBR] = useState<EquipeBR[]>([]);
   const [nomEquipeBR, setNomEquipeBR] = useState("");
   const [payerPourEquipe, setPayerPourEquipe] = useState(false);
@@ -110,6 +114,7 @@ export function CtaInscription({
     const profil = lireProfil();
     setMonPseudo(profil.pseudo);
     setEquipesProfilChef(equipesProfilDontChef(profil.pseudo));
+    setEquipesProfilMembre(equipesProfilDontMembreNonChef(profil.pseudo));
 
     const equipeConfirmee = estBREquipes ? equipeDeJoueur(tournoiId, profil.pseudo) : undefined;
     const dejaInscrit = estInscrit(tournoiId);
@@ -226,6 +231,14 @@ export function CtaInscription({
     setMonEquipeChef(equipeAvecMembres);
     setEtapeBR(null);
     demarrerInscription(equipe.nom, undefined, undefined, fraisXof);
+  }
+
+  /** Point 192 : un membre non-chef ne peut que proposer — le chef doit
+   * valider depuis "Mes équipes" pour que l'inscription se lance réellement. */
+  function proposerEquipe(ep: EquipeProfil) {
+    proposerInscriptionEquipe(ep.id, ep.nom, tournoiId, monPseudo, ep.chef);
+    setPropositionEnvoyee(ep.nom);
+    setEtapeBR(null);
   }
 
   function validerEquipeAleatoire() {
@@ -467,6 +480,18 @@ export function CtaInscription({
         </div>
       )}
 
+      {propositionEnvoyee && (
+        <div
+          className="flex items-center gap-2.5 p-3"
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+        >
+          <CheckCircle2 size={16} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-300)" }} />
+          <div className="flex-1 text-sm">
+            Proposition envoyée au chef de <strong>{propositionEnvoyee}</strong> — l&apos;inscription se finalisera après sa validation.
+          </div>
+        </div>
+      )}
+
       {monEquipeChef && !tournoiCommence && (
         <Link
           href={`/tournois/${tournoiId}/equipe/${monEquipeChef.id}`}
@@ -504,12 +529,56 @@ export function CtaInscription({
               ))}
             </div>
           ) : (
-            <Field
-              label="Nom de ton équipe"
-              value={nomEquipe}
-              onChange={(e) => setNomEquipe(e.target.value)}
-              placeholder="Les Lions"
-            />
+            <div className="flex flex-col gap-2">
+              {equipesProfilChef.length > 0 && !creationEquipeManuelle ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    Mes équipes
+                  </div>
+                  {equipesProfilChef.map((ep) => (
+                    <button
+                      key={ep.id}
+                      type="button"
+                      onClick={() => setNomEquipe(ep.nom)}
+                      className={`flex items-center gap-3 p-2.5 text-left ${PRESS}`}
+                      style={{
+                        borderRadius: "var(--ds-radius-md)",
+                        background: "var(--ds-surface)",
+                        boxShadow: nomEquipe === ep.nom ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)",
+                      }}
+                    >
+                      <EcussonEquipe initiales={ep.nom.slice(0, 2).toUpperCase()} style={nomEquipe === ep.nom ? "accent" : "neutre"} largeur={36} hauteur={42} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{ep.nom}</div>
+                        <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                          {ep.membres.length} membre{ep.membres.length > 1 ? "s" : ""}
+                        </div>
+                      </div>
+                      {nomEquipe === ep.nom && <CheckCircle2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreationEquipeManuelle(true);
+                      setNomEquipe("");
+                    }}
+                    className={`flex items-center justify-center gap-2 p-2.5 text-sm font-medium ${PRESS}`}
+                    style={{ borderRadius: "var(--ds-radius-md)", border: "1px dashed var(--ds-border-strong)", color: "var(--ds-muted)" }}
+                  >
+                    <Plus size={15} strokeWidth={2} />
+                    Créer une équipe pour ce tournoi
+                  </button>
+                </div>
+              ) : (
+                <Field
+                  label="Nom de ton équipe"
+                  value={nomEquipe}
+                  onChange={(e) => setNomEquipe(e.target.value)}
+                  placeholder="Les Lions"
+                />
+              )}
+            </div>
           )}
           {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
         </div>
@@ -612,6 +681,21 @@ export function CtaInscription({
                   </div>
                 </button>
               )}
+              {equipesProfilMembre.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setEtapeBR("proposer")}
+                  className={`flex items-center gap-3 p-3.5 text-left ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+                >
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Proposer une de mes équipes</div>
+                    <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                      LE CHEF DEVRA VALIDER TA PROPOSITION
+                    </div>
+                  </div>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setEtapeBR("creer")}
@@ -693,6 +777,31 @@ export function CtaInscription({
                   </div>
                   <span className="text-xs font-semibold shrink-0" style={{ color: "var(--ds-accent-300)" }}>
                     Utiliser
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {etapeBR === "proposer" && (
+            <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+              {equipesProfilMembre.map((ep) => (
+                <button
+                  key={ep.id}
+                  type="button"
+                  onClick={() => proposerEquipe(ep)}
+                  className={`flex items-center gap-3 p-2.5 text-left ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+                >
+                  <EcussonEquipe initiales={ep.nom.slice(0, 2).toUpperCase()} style="neutre" largeur={40} hauteur={46} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{ep.nom}</div>
+                    <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                      Chef · {ep.chef}
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold shrink-0" style={{ color: "var(--ds-accent-300)" }}>
+                    Proposer
                   </span>
                 </button>
               ))}

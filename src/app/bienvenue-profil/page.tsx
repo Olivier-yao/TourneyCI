@@ -72,7 +72,11 @@ export default function BienvenueProfilPage() {
     sauvegarderProfil({ pseudo: pseudoSaisi, ville });
     sauvegarderPhoto(photoUrl);
     marquerProfilInitialComplet();
-    router.push(reglementAccepte() ? "/accueil" : "/reglement-interieur");
+    // Point 190 : replace (pas push) — sinon la sortie d'un écran de
+    // passage obligatoire ajoute une entrée d'historique orpheline, et le
+    // bouton retour finit par boucler entre deux écrans au lieu de remonter
+    // jusqu'à l'écran réellement précédent.
+    router.replace(reglementAccepte() ? "/accueil" : "/reglement-interieur");
   }
 
   if (!pret) return null;

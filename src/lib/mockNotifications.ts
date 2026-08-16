@@ -32,7 +32,9 @@ export function mesNotifications(): NotificationApp[] {
   return lireBrut(CLE_NOTIFICATIONS, NOTIFICATIONS_INITIALES);
 }
 
-function ajouterNotification(texte: string, tournoiId?: string) {
+/** Point 189 : exportée pour permettre l'envoi de notifications ponctuelles
+ * hors contexte tournoi (ex. décision admin sur une demande de certification). */
+export function ajouterNotification(texte: string, tournoiId?: string) {
   if (typeof window === "undefined") return;
   const existantes = mesNotifications();
   const nouvelle: NotificationApp = {
