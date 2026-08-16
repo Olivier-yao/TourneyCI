@@ -56,7 +56,20 @@ export default function OnboardingPage() {
 
   const ecrans: Ecran[] = [
     {
-      visuel: <ImagePlaceholder label={"photo — joueurs\nmanette, fond noir"} />,
+      visuel: (
+        <div className="relative w-full overflow-hidden" style={{ height: 380 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/onboarding/joueur-manette.png"
+            alt="Joueur avec manette et casque, fond sombre"
+            className="w-full h-full object-cover"
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: "linear-gradient(transparent 40%, var(--ds-bg))" }}
+          />
+        </div>
+      ),
       titre: "Joue. Gagne.\nMonte au classement.",
       description:
         "Des tournois FIFA, Free Fire et CODM tous les week-ends, entre Abidjan, Bouaké et Yamoussoukro.",
