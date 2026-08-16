@@ -7,7 +7,16 @@
  */
 
 export type StatutBR = "en_jeu" | "elimine";
-export type SousTypeBR = "solo" | "duo" | "squad";
+export type SousTypeBR = "solo" | "duo" | "trio" | "squad";
+
+/** Libellés d'unité par sous-type (point 177 : ajout de Trio), utilisés
+ * partout où le sous-type doit s'afficher (gestion des manches, inscription). */
+export const LABEL_UNITE_BR: Record<SousTypeBR, { nom: string; singulier: string; pluriel: string }> = {
+  solo: { nom: "Joueur", singulier: "JOUEUR", pluriel: "JOUEURS" },
+  duo: { nom: "Duo", singulier: "DUO", pluriel: "DUOS" },
+  trio: { nom: "Trio", singulier: "TRIO", pluriel: "TRIOS" },
+  squad: { nom: "Squad", singulier: "SQUAD", pluriel: "SQUADS" },
+};
 
 export type ParticipantBR = {
   id: string;

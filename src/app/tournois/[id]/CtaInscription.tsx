@@ -29,7 +29,7 @@ import {
   type EquipeBR,
 } from "@/lib/mockEquipesBR";
 import { equipesProfilDontChef, type EquipeProfil } from "@/lib/mockEquipesProfil";
-import type { SousTypeBR } from "@/lib/mockBattleRoyale";
+import { LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
 export function CtaInscription({
@@ -590,7 +590,7 @@ export function CtaInscription({
         <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
           {brSousType && brSousType !== "solo" && (
             <p className="text-xs -mt-1" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              {brSousType === "duo" ? "Duo" : "Squad"} de {TAILLE_EQUIPE_BR[brSousType]}
+              {LABEL_UNITE_BR[brSousType].nom} de {TAILLE_EQUIPE_BR[brSousType]}
               {fraisXof > 0 ? ` · ${formatXof(fraisXof)} par joueur` : " · gratuit"}
             </p>
           )}

@@ -9,7 +9,7 @@
  * pas synchronisés entre plusieurs téléphones (pas de backend).
  */
 
-import type { SousTypeBR } from "./mockBattleRoyale";
+import { LABEL_UNITE_BR, type SousTypeBR } from "./mockBattleRoyale";
 
 export type EquipeBR = {
   id: string;
@@ -41,6 +41,7 @@ export type RetraitEquipeBR = {
 /** Taille cible d'une équipe selon le sous-type Battle Royale. */
 export const TAILLE_EQUIPE_BR: Record<Exclude<SousTypeBR, "solo">, number> = {
   duo: 2,
+  trio: 3,
   squad: 4,
 };
 
@@ -183,7 +184,7 @@ export function rejoindreEquipeAleatoire(tournoiId: string, joueur: string, sous
     return { ...disponible, membres: [...disponible.membres, joueur] };
   }
   const numero = equipes.length + 1;
-  const prefixe = sousType === "duo" ? "Duo" : "Squad";
+  const prefixe = LABEL_UNITE_BR[sousType].nom;
   return creerEquipeBR(tournoiId, `${prefixe} auto ${numero}`, joueur, false);
 }
 

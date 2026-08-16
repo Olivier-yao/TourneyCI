@@ -294,7 +294,7 @@ export default function AccueilV2Page() {
                   const ratio = max > 0 ? el.scrollLeft / max : 0;
                   setPageDirect(Math.min(2, Math.round(ratio * 2)));
                 }}
-                className="flex gap-3 overflow-x-auto pb-1 -mx-[20px] px-[20px] snap-x snap-mandatory"
+                className="flex gap-3 overflow-x-auto pt-1 pb-1 -mx-[20px] px-[20px] snap-x snap-mandatory"
                 style={{ scrollbarWidth: "none" }}
               >
                 {enDirect.map((t) => {

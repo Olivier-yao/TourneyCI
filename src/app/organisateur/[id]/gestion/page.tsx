@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, Settings2, Users, ListChecks, Flag, Zap, Clock, Radio, KeyRound, Info } from "lucide-react";
+import { CheckCircle2, XCircle, Settings2, Users, ListChecks, Flag, Zap, Clock, Radio, KeyRound, Info, Network } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { Modal } from "@/components/ds/Modal";
@@ -31,7 +31,7 @@ function SectionCloture({
   tournoiTitre: string;
   organisateur: string;
   type: "1v1" | "equipes" | "battle_royale";
-  brSousType?: "solo" | "duo" | "squad";
+  brSousType?: "solo" | "duo" | "trio" | "squad";
   termine: boolean;
   onTermine: () => void;
 }) {
@@ -316,6 +316,19 @@ export default function GestionTournoiPage() {
             <div className="text-[13px] font-medium">Paramètres</div>
             <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
               Stream / diffusion
+            </div>
+          </div>
+        </Link>
+        <Link
+          href={tournoi.type === "battle_royale" ? `/tournois/${params.id}/battle-royale` : `/tournois/${params.id}/bracket`}
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+        >
+          <Network size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">{tournoi.type === "battle_royale" ? "Aperçu classement" : "Aperçu bracket"}</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Avant le lancement
             </div>
           </div>
         </Link>

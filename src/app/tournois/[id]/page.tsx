@@ -379,8 +379,13 @@ function DetailTournoiInterne() {
   const sousType =
     tournoi.type === "battle_royale" && tournoi.brSousType
       ? tournoi.brSousType.charAt(0).toUpperCase() + tournoi.brSousType.slice(1)
-      : tournoi.type === "equipes" && tournoi.modeEquipe
-        ? tournoi.modeEquipe === "libre" ? "Libre" : "Prédéfinies"
+      : tournoi.type === "equipes"
+        ? [
+            tournoi.equipeSousType ? tournoi.equipeSousType.charAt(0).toUpperCase() + tournoi.equipeSousType.slice(1) : undefined,
+            tournoi.modeEquipe ? (tournoi.modeEquipe === "libre" ? "Libre" : "Prédéfinies") : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · ") || undefined
         : undefined;
   const typeLabel = sousType ? `${nomType} · ${sousType}` : nomType;
   const aUnBracket =

@@ -7,11 +7,10 @@ import { ArrowLeft, Search, CheckCircle2, Flame, Lock } from "lucide-react";
 import { Avatar } from "@/components/ds/Avatar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { PRESS } from "@/components/ds/Button";
-import { tournoiParId, inscriptionsFermees } from "@/lib/mockTournaments";
+import { tournoiParId } from "@/lib/mockTournaments";
 import { lireProfil, estActif } from "@/lib/mockProfil";
-import { inscriptionDe } from "@/lib/mockInscriptions";
+import { inscriptionDe, estInscrit } from "@/lib/mockInscriptions";
 import { estPresent, definirPresence } from "@/lib/mockCheckin";
-import { estOrganisateur } from "@/lib/mockAuth";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 function tagDe(nom: string): string {
@@ -23,8 +22,8 @@ export default function InscritsPage() {
   const tournoi = tournoiParId(params.id);
   const [requete, setRequete] = useState("");
   const [monPseudo, setMonPseudo] = useState<{ nom: string; actif: boolean; photoUrl?: string } | null>(null);
-  const [organisateur, setOrganisateur] = useState(false);
   const [estMonTournoi, setEstMonTournoi] = useState(false);
+  const [inscrit, setInscrit] = useState(false);
   const [versionCheckin, setVersionCheckin] = useState(0);
 
   useEffect(() => {
@@ -33,8 +32,10 @@ export default function InscritsPage() {
     const nomAffiche = inscription?.equipe ?? inscription?.tag ?? profil.pseudo;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
-    setOrganisateur(estOrganisateur());
     setEstMonTournoi(tournoi?.organisateur === nomOrganisateurActuel());
+    // Point 180 : un participant a accès à la liste des inscrits dès qu'il
+    // s'est lui-même inscrit, sans attendre la clôture des inscriptions.
+    setInscrit(estInscrit(params.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -60,7 +61,7 @@ export default function InscritsPage() {
     );
   }
 
-  if (!estMonTournoi && !inscriptionsFermees(tournoi)) {
+  if (!estMonTournoi && !inscrit) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <div className="sticky top-0 z-10 px-5 pt-[22px] pb-3 flex items-center gap-3" style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}>
@@ -74,7 +75,7 @@ export default function InscritsPage() {
         <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
           <Lock size={22} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            La liste des inscrits sera visible une fois les inscriptions closes.
+            La liste des inscrits est réservée à l&apos;organisateur et aux participants inscrits.
           </p>
         </div>
       </div>
@@ -110,7 +111,7 @@ export default function InscritsPage() {
           />
         </div>
 
-        {organisateur && (
+        {estMonTournoi && (
           <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
             En tant qu&apos;organisateur, touche le statut d&apos;un inscrit pour valider son check-in juste avant le début.
           </p>
@@ -142,7 +143,7 @@ export default function InscritsPage() {
                     <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{p.tag}</div>
                   </div>
                 </Link>
-                {organisateur ? (
+                {estMonTournoi ? (
                   <button
                     type="button"
                     onClick={() => basculerPresence(p.nom, p.checkin)}

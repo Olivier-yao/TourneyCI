@@ -10,10 +10,11 @@ import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { hexagoneStyle } from "@/components/ds/Palier";
 import { mesTournoisOrganises, COMMISSION_PCT, type Tournoi } from "@/lib/mockTournaments";
-import { estCertifie, estOrganisateurCertifie } from "@/lib/mockOrganisateur";
+import { estCertifie, estOrganisateurCertifie, reglementStandardAccepte } from "@/lib/mockOrganisateur";
 import { nomOrganisateur, definirNomOrganisateur } from "@/lib/mockOrganisateur";
 import { creerDemandeOrganisateur, demandeOrganisateurActuelle, type DemandeOrganisateur } from "@/lib/mockDemandesOrganisateur";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { AlerteVerificationIdentite } from "@/components/ds/AlerteVerificationIdentite";
 
 type EtapeOnboarding = "nom" | "complet";
 
@@ -275,12 +276,19 @@ export default function OrganisateurPage() {
   const [organisateurCertifie, setOrganisateurCertifie] = useState(false);
   const [demande, setDemande] = useState<DemandeOrganisateur | undefined>(undefined);
   const [vueCertification, setVueCertification] = useState(false);
+  const [alerteVerifOuverte, setAlerteVerifOuverte] = useState(false);
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     const estCert = estCertifie();
     const nom = nomOrganisateur();
+    // Point 178 : le règlement général doit être lu avant même le choix du
+    // nom d'organisateur, la toute première fois.
+    if (!nom && !reglementStandardAccepte()) {
+      router.replace("/organisateur/reglement-standard");
+      return;
+    }
     const demandeActuelle = demandeOrganisateurActuelle();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCertifie(estCert);
@@ -291,6 +299,7 @@ export default function OrganisateurPage() {
     // demande de statut certifié (point 158) n'est plus une étape imposée.
     setEtape(!nom ? "nom" : "complet");
     setTournoisOrganises(mesTournoisOrganises());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!connecte) return null;
@@ -373,7 +382,16 @@ export default function OrganisateurPage() {
       {!organisateurCertifie && (
         <button
           type="button"
-          onClick={() => setVueCertification(true)}
+          onClick={() => {
+            // Point 181 : l'accès à la demande de certification (étape 2)
+            // reste bloqué tant que la vérification d'identité (étape 1)
+            // n'est pas complétée.
+            if (!certifie) {
+              setAlerteVerifOuverte(true);
+              return;
+            }
+            setVueCertification(true);
+          }}
           className={`flex items-center justify-between p-3 text-left ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
         >
@@ -384,6 +402,12 @@ export default function OrganisateurPage() {
           <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
         </button>
       )}
+
+      <AlerteVerificationIdentite
+        ouvert={alerteVerifOuverte}
+        description="Avant d'envoyer ta demande de statut organisateur certifié, tu dois d'abord faire vérifier ton identité (pièce d'identité + âge)."
+        onFermer={() => setAlerteVerifOuverte(false)}
+      />
 
       <Link
         href="/organisateur/classement"

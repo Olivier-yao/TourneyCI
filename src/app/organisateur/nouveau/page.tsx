@@ -11,7 +11,9 @@ import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
 import { lireSolde, debiter } from "@/lib/mockWallet";
-import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estOrganisateurCertifie, reglementCertifieAccepte } from "@/lib/mockOrganisateur";
+import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estCertifie, estOrganisateurCertifie, reglementCertifieAccepte } from "@/lib/mockOrganisateur";
+import { AlerteVerificationIdentite } from "@/components/ds/AlerteVerificationIdentite";
+import { MiniatureFormat } from "@/components/ds/MiniatureFormat";
 import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
@@ -34,9 +36,16 @@ const TYPES: { id: TypeCompetition; label: string }[] = [
   { id: "battle_royale", label: "Battle Royale" },
 ];
 
-const SOUS_TYPES_BR: { id: "solo" | "duo" | "squad"; label: string }[] = [
+const SOUS_TYPES_BR: { id: "solo" | "duo" | "trio" | "squad"; label: string }[] = [
   { id: "solo", label: "Solo" },
   { id: "duo", label: "Duo" },
+  { id: "trio", label: "Trio" },
+  { id: "squad", label: "Squad" },
+];
+
+const SOUS_TYPES_EQUIPE: { id: "duo" | "trio" | "squad"; label: string }[] = [
+  { id: "duo", label: "Duo" },
+  { id: "trio", label: "Trio" },
   { id: "squad", label: "Squad" },
 ];
 
@@ -100,7 +109,8 @@ export default function NouveauTournoiPage() {
   const [jeuPersonnalise, setJeuPersonnalise] = useState("");
   const [titre, setTitre] = useState("");
   const [type, setType] = useState<TypeCompetition>("1v1");
-  const [brSousType, setBrSousType] = useState<"solo" | "duo" | "squad">("solo");
+  const [brSousType, setBrSousType] = useState<"solo" | "duo" | "trio" | "squad">("solo");
+  const [equipeSousType, setEquipeSousType] = useState<"duo" | "trio" | "squad">("squad");
   const [modalite, setModalite] = useState<Modalite>("presentiel");
   const [ville, setVille] = useState("");
   const [modeEquipe, setModeEquipe] = useState<ModeEquipe>("libre");
@@ -113,6 +123,8 @@ export default function NouveauTournoiPage() {
   const [solde, setSolde] = useState(0);
   const [payantAutorise, setPayantAutorise] = useState(true);
   const [certifie, setCertifie] = useState(false);
+  const [identiteVerifiee, setIdentiteVerifiee] = useState(false);
+  const [alerteVerifOuverte, setAlerteVerifOuverte] = useState(false);
   const [onboardingOk, setOnboardingOk] = useState(false);
 
   useEffect(() => {
@@ -138,6 +150,7 @@ export default function NouveauTournoiPage() {
     // les tournois gratuits (avec cash prize auto-financé possible) sont permis.
     const autorise = estCert && peutCreerTournoiPayant(nomOrganisateurActuel());
     setCertifie(estCert);
+    setIdentiteVerifiee(estCertifie());
     setPayantAutorise(autorise);
     if (!autorise) setPayant(false);
     setOnboardingOk(true);
@@ -195,7 +208,10 @@ export default function NouveauTournoiPage() {
 
   function labelFormat(): string {
     if (type === "1v1") return "1v1";
-    if (type === "equipes") return `Équipes${modeEquipe === "libre" ? " · libre" : ""}`;
+    if (type === "equipes") {
+      const taille = equipeSousType.charAt(0).toUpperCase() + equipeSousType.slice(1);
+      return `Équipes · ${taille}${modeEquipe === "libre" ? " · libre" : ""}`;
+    }
     return `Battle Royale · ${places} joueurs`;
   }
 
@@ -283,6 +299,7 @@ export default function NouveauTournoiPage() {
       equipes,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       brSousType: type === "battle_royale" ? brSousType : undefined,
+      equipeSousType: type === "equipes" ? equipeSousType : undefined,
       repartitionCashPrize:
         (payant || financeParOrganisateur) && cashPrizeEffectif > 0 ? repartitionCalculee : undefined,
     });
@@ -335,12 +352,15 @@ export default function NouveauTournoiPage() {
               { id: "payant", label: "Payant" },
             ]}
             valeur={payant ? "payant" : "gratuit"}
-            disabledIds={payantAutorise ? [] : ["payant"]}
             onChange={(v) => {
               if (v === "payant" && !payantAutorise) {
+                if (!identiteVerifiee) {
+                  setAlerteVerifOuverte(true);
+                  return;
+                }
                 setErreur(
                   !certifie
-                    ? "Deviens organisateur certifié pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
+                    ? "Envoie ta demande de statut organisateur certifié pour pouvoir créer un tournoi payant — en attendant, tu peux organiser gratuitement."
                     : "Ton compte organisateur est temporairement suspendu (vérification anti-triche en cours) : impossible de créer un tournoi payant.",
                 );
                 return;
@@ -357,9 +377,11 @@ export default function NouveauTournoiPage() {
           </p>
           {!payantAutorise && (
             <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
-              {!certifie
-                ? "Organisateur standard : tournois gratuits uniquement pour l'instant (deviens organisateur certifié pour débloquer les tournois payants et ta commission)."
-                : "Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits."}
+              {!identiteVerifiee
+                ? "Organisateur standard : tournois gratuits uniquement pour l'instant (vérifie ton identité puis envoie une demande de statut certifié pour débloquer les tournois payants et ta commission)."
+                : !certifie
+                  ? "Identité vérifiée : envoie ta demande de statut organisateur certifié depuis ton tableau de bord pour débloquer les tournois payants."
+                  : "Compte suspendu pour les tournois payants (vérification en cours). Tu peux toujours créer des tournois gratuits."}
             </p>
           )}
 
@@ -534,8 +556,20 @@ export default function NouveauTournoiPage() {
           <SegmentedControl options={TYPES} valeur={type} onChange={setType} />
         </div>
 
+        <MiniatureFormat
+          type={type}
+          brSousType={type === "battle_royale" ? brSousType : undefined}
+          equipeSousType={type === "equipes" ? equipeSousType : undefined}
+        />
+
         {type === "equipes" && (
           <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+                Taille d&apos;équipe
+              </label>
+              <SegmentedControl options={SOUS_TYPES_EQUIPE} valeur={equipeSousType} onChange={setEquipeSousType} />
+            </div>
             <SegmentedControl
               options={[
                 { id: "libre" as ModeEquipe, label: "Équipes libres" },
@@ -704,6 +738,12 @@ export default function NouveauTournoiPage() {
           Créer le tournoi
         </Button>
       </form>
+
+      <AlerteVerificationIdentite
+        ouvert={alerteVerifOuverte}
+        description="L'accès aux tournois payants nécessite d'abord de compléter la vérification d'identité (pièce d'identité + âge). Une fois validée, tu pourras envoyer ta demande de statut organisateur certifié."
+        onFermer={() => setAlerteVerifOuverte(false)}
+      />
     </div>
   );
 }

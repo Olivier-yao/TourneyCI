@@ -53,7 +53,10 @@ export type Tournoi = {
   equipes?: EquipeInfo[];
   modeEquipe?: ModeEquipe;
   /** Sous-type Battle Royale (obligatoire quand type === "battle_royale"). */
-  brSousType?: "solo" | "duo" | "squad";
+  brSousType?: "solo" | "duo" | "trio" | "squad";
+  /** Sous-type Équipes (taille cible, point 177) — facultatif : "libre" sans
+   * sous-type précisé reste possible. */
+  equipeSousType?: "duo" | "trio" | "squad";
   /** Origine du financement du cash prize : frais d'inscription des
    * participants (défaut) ou solde de l'organisateur (inscription gratuite). */
   financementCashPrize?: "inscriptions" | "organisateur";

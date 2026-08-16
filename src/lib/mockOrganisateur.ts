@@ -191,6 +191,21 @@ export function marquerReglementCertifieAccepte() {
   localStorage.setItem(CLE_REGLEMENT_CERTIFIE_ACCEPTE, "1");
 }
 
+const CLE_REGLEMENT_STANDARD_ACCEPTE = "tourney-reglement-standard-accepte";
+
+/** Point 178 : règlement général affiché au clic sur "Devenir organisateur",
+ * avant le choix du nom — distinct du règlement organisateur certifié
+ * (point 159) qui, lui, ne concerne que les tournois payants. */
+export function reglementStandardAccepte(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(CLE_REGLEMENT_STANDARD_ACCEPTE) === "1";
+}
+
+export function marquerReglementStandardAccepte() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CLE_REGLEMENT_STANDARD_ACCEPTE, "1");
+}
+
 /**
  * Identité complémentaire du profil organisateur (point 58/59) : TAG
  * personnel, bio et bannière. Comme le nom d'organisateur ci-dessus, ces

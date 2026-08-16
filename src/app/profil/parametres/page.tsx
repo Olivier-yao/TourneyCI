@@ -10,17 +10,16 @@ import { ThemeProvider } from "@/components/ds/ThemeProvider";
 import { ThemeToggle } from "@/components/ds/ThemeToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, peutChangerPseudo, marquerPseudoModifie } from "@/lib/mockProfil";
-import { PAYS } from "@/lib/mockGeographie";
+import { PAYS, paysDeVille } from "@/lib/mockGeographie";
 import { deconnecter } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
-
-const TOUS_LES_LIEUX = PAYS.flatMap((p) => p.villes.flatMap((v) => [v.nom, ...(v.communes ?? [])]));
 
 function ParametresInterne() {
   const connecte = useExigerConnexion();
   const router = useRouter();
   const [profil, setProfil] = useState(lireProfil);
   const [pseudoOriginal] = useState(() => lireProfil().pseudo);
+  const [paysId, setPaysId] = useState(() => paysDeVille(lireProfil().ville)?.id ?? PAYS[0].id);
   const [enregistre, setEnregistre] = useState(false);
   const [erreurPseudo, setErreurPseudo] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -143,6 +142,25 @@ function ParametresInterne() {
             Modifiable une fois par mois.
           </p>
           <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Pays</label>
+            <select
+              value={paysId}
+              onChange={(e) => {
+                const nouveauPaysId = e.target.value;
+                const nouveauPays = PAYS.find((p) => p.id === nouveauPaysId);
+                setPaysId(nouveauPaysId);
+                setProfil({ ...profil, ville: nouveauPays?.villes[0]?.nom ?? "" });
+                setEnregistre(false);
+              }}
+              className="h-11 px-3.5 text-sm outline-none cursor-pointer"
+              style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
+            >
+              {PAYS.map((pays) => (
+                <option key={pays.id} value={pays.id}>{pays.nom}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Ville</label>
             <select
               value={profil.ville}
@@ -153,17 +171,21 @@ function ParametresInterne() {
               className="h-11 px-3.5 text-sm outline-none cursor-pointer"
               style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
             >
-              {!TOUS_LES_LIEUX.includes(profil.ville) && <option value={profil.ville}>{profil.ville}</option>}
-              {PAYS.map((pays) => (
-                <optgroup key={pays.id} label={pays.nom}>
-                  {pays.villes.flatMap((ville) => [
-                    <option key={ville.nom} value={ville.nom}>{ville.nom}</option>,
-                    ...(ville.communes ?? []).map((commune) => (
-                      <option key={commune} value={commune}>{`-- ${commune}`}</option>
-                    )),
-                  ])}
-                </optgroup>
-              ))}
+              {(() => {
+                const villesDuPaysActuel = PAYS.find((p) => p.id === paysId)?.villes ?? [];
+                const lieuConnu = villesDuPaysActuel.some((v) => v.nom === profil.ville || v.communes?.includes(profil.ville));
+                return (
+                  <>
+                    {!lieuConnu && <option value={profil.ville}>{profil.ville}</option>}
+                    {villesDuPaysActuel.flatMap((ville) => [
+                      <option key={ville.nom} value={ville.nom}>{ville.nom}</option>,
+                      ...(ville.communes ?? []).map((commune) => (
+                        <option key={commune} value={commune}>{`-- ${commune}`}</option>
+                      )),
+                    ])}
+                  </>
+                );
+              })()}
             </select>
           </div>
           <Button variante="primary" type="submit">

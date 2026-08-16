@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { tournoiParId, bracketVerrouillee } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { BracketV2 } from "./BracketV2";
 import { GenerationBracket } from "./GenerationBracket";
 
@@ -30,7 +30,8 @@ export default function BracketPage() {
   }
 
   const matches = matchsDuTournoi(params.id);
-  const verrouillee = bracketVerrouillee(tournoi) && !estOrganisateur();
+  const estMonTournoi = tournoi.organisateur === nomOrganisateurActuel();
+  const verrouillee = bracketVerrouillee(tournoi) && !estMonTournoi;
 
   return (
     <div
@@ -75,7 +76,7 @@ export default function BracketPage() {
           </p>
         </div>
       ) : matches.length === 0 ? (
-        estOrganisateur() ? (
+        estMonTournoi ? (
           <GenerationBracket
             tournoiId={params.id}
             inscrits={tournoi.inscrits}

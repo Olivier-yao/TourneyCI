@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Info } from "lucide-react";
-import { unitesBR, manchesBR, ajouterMancheBR, type SousTypeBR } from "@/lib/mockBattleRoyale";
+import { unitesBR, manchesBR, ajouterMancheBR, LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
@@ -65,12 +65,12 @@ export function GestionManchesBR({
         </div>
         <div className="flex-1 h-px" style={{ background: "var(--ds-border)" }} />
         <div className="text-[9px] shrink-0" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          {participants.length} {sousType === "solo" ? "JOUEURS" : sousType === "duo" ? "DUOS" : "SQUADS"}
+          {participants.length} {LABEL_UNITE_BR[sousType].pluriel}
         </div>
       </div>
       <div className="flex items-center gap-2.5 px-2.5">
         <div className="flex-1 text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          {sousType === "solo" ? "JOUEUR" : sousType === "duo" ? "DUO" : "SQUAD"}
+          {LABEL_UNITE_BR[sousType].singulier}
         </div>
         <div className="w-14 text-center text-[9px] shrink-0" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>PLACE</div>
         <div className="w-[100px] text-center text-[9px] shrink-0" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>ÉLIMS</div>

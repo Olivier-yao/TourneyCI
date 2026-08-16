@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Settings2, Search } from "lucide-react";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { tournoiParId } from "@/lib/mockTournaments";
 import { manchesBR, classementCumuleBR } from "@/lib/mockBattleRoyale";
 
@@ -29,10 +29,10 @@ export default function BattleRoyalePage() {
     // État lu depuis le localStorage : neutre au premier rendu serveur,
     // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateur(estOrganisateur());
+    setOrganisateur(tournoi?.organisateur === nomOrganisateurActuel());
     setManches(manchesBR(params.id));
     setClassement(classementCumuleBR(params.id, tournoi?.brSousType ?? "solo"));
-  }, [params.id, rafraichir, tournoi?.brSousType]);
+  }, [params.id, rafraichir, tournoi?.brSousType, tournoi?.organisateur]);
 
   if (!tournoi) {
     return (
