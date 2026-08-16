@@ -7,7 +7,7 @@ import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto } from "@/lib/mockProfil";
-import { estConnecte, profilInitialComplet, marquerProfilInitialComplet } from "@/lib/mockAuth";
+import { estConnecte, profilInitialComplet, marquerProfilInitialComplet, reglementAccepte } from "@/lib/mockAuth";
 
 /** Étape obligatoire après la création de compte (point 142) : pseudo et
  * photo de profil, sans possibilité de passer — condition d'accès à
@@ -25,7 +25,7 @@ export default function BienvenueProfilPage() {
       return;
     }
     if (profilInitialComplet()) {
-      router.replace("/accueil");
+      router.replace(reglementAccepte() ? "/accueil" : "/reglement-interieur");
       return;
     }
     const profil = lireProfil();
@@ -48,7 +48,7 @@ export default function BienvenueProfilPage() {
     sauvegarderProfil({ pseudo: pseudo.trim(), ville: lireProfil().ville });
     sauvegarderPhoto(photoUrl);
     marquerProfilInitialComplet();
-    router.push("/accueil");
+    router.push(reglementAccepte() ? "/accueil" : "/reglement-interieur");
   }
 
   if (!pret) return null;

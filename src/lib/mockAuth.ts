@@ -31,6 +31,13 @@ const CLE_PROFIL_INITIAL_COMPLET = "tourney-profil-initial-complet";
 export const profilInitialComplet = () => lire(CLE_PROFIL_INITIAL_COMPLET);
 export const marquerProfilInitialComplet = () => ecrire(CLE_PROFIL_INITIAL_COMPLET);
 
+const CLE_REGLEMENT_ACCEPTE = "tourney-reglement-accepte";
+
+/** Point 147 : acceptation obligatoire du règlement intérieur avant
+ * d'atteindre l'accueil, une seule fois par appareil — cf. /reglement-interieur. */
+export const reglementAccepte = () => lire(CLE_REGLEMENT_ACCEPTE);
+export const marquerReglementAccepte = () => ecrire(CLE_REGLEMENT_ACCEPTE);
+
 export const estConnecte = () => lire(CLE_CONNECTE);
 
 export function marquerConnecte(source: SourceConnexion, identifiant: string) {

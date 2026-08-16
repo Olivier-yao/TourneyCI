@@ -15,13 +15,16 @@ import {
   aUnMotDePasse,
   armerTransitionEntree,
   profilInitialComplet,
+  reglementAccepte,
 } from "@/lib/mockAuth";
 
-/** Point 142 : la première étape après une connexion réussie mène toujours
- * au profil obligatoire tant qu'il n'a pas été complété une fois sur cet
- * appareil, avant d'atteindre l'accueil. */
+/** Points 142 et 147 : après une connexion réussie, deux étapes obligatoires
+ * (profil puis règlement intérieur) tant qu'elles n'ont pas été complétées
+ * une fois sur cet appareil, avant d'atteindre l'accueil. */
 function destinationApresConnexion(): string {
-  return profilInitialComplet() ? "/accueil" : "/bienvenue-profil";
+  if (!profilInitialComplet()) return "/bienvenue-profil";
+  if (!reglementAccepte()) return "/reglement-interieur";
+  return "/accueil";
 }
 
 const CODE_DEMO = "4821";
