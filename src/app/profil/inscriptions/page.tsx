@@ -21,7 +21,7 @@ export default function MesInscriptionsPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Mes inscriptions" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Mes inscriptions" onRetour={() => router.back()} />
 
       <div className="flex-1 flex flex-col gap-3">
         {tournois.map((t) => (

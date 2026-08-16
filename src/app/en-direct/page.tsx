@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ChevronRight, Users, Radio, Heart } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
-import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
+import { symboleParId } from "@/lib/mockSymboles";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
@@ -107,19 +107,20 @@ export default function EnDirectPage() {
           <div className="flex flex-col gap-2">
             {enDirect.map((t) => {
               const { score, phase } = infosDirect(t);
+              const symbole = symboleParId(t.symboleId);
+              const IconeSymbole = symbole.icone;
               return (
                 <Link key={t.id} href={`/tournois/${t.id}`}>
                   <div
                     className="flex items-center gap-3 p-3"
                     style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
                   >
-                    <div className="relative shrink-0 w-11 h-11 overflow-hidden" style={{ borderRadius: "var(--ds-radius-sm)" }}>
-                      {t.imageCarreeUrl || t.banniereUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={t.imageCarreeUrl ?? t.banniereUrl} alt={t.titre} className="w-full h-full object-cover" />
-                      ) : (
-                        <ImagePlaceholder label="" hauteur={44} />
-                      )}
+                    <div
+                      className="flex items-center justify-center shrink-0 w-11 h-11"
+                      style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-900)" }}
+                      title={symbole.label}
+                    >
+                      <IconeSymbole size={20} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5 min-w-0">

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BannerCropper } from "@/components/ds/BannerCropper";
+import { SelecteurSymbole } from "@/components/ds/SelecteurSymbole";
+import { SYMBOLE_DEFAUT } from "@/lib/mockSymboles";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
@@ -10,6 +12,7 @@ import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
 import { lireSolde, debiter } from "@/lib/mockWallet";
 import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estCertifie } from "@/lib/mockOrganisateur";
+import { estOrganisateurApprouve } from "@/lib/mockDemandesOrganisateur";
 import { formatXof } from "@/lib/formatXof";
 import {
   JEUX,
@@ -93,7 +96,7 @@ export default function NouveauTournoiPage() {
   const router = useRouter();
 
   const [banniereUrl, setBanniereUrl] = useState<string | undefined>(undefined);
-  const [imageCarreeUrl, setImageCarreeUrl] = useState<string | undefined>(undefined);
+  const [symboleId, setSymboleId] = useState(SYMBOLE_DEFAUT);
   const [jeuId, setJeuId] = useState(JEUX[0].id);
   const [jeuPersonnalise, setJeuPersonnalise] = useState("");
   const [titre, setTitre] = useState("");
@@ -114,7 +117,7 @@ export default function NouveauTournoiPage() {
   const [onboardingOk, setOnboardingOk] = useState(false);
 
   useEffect(() => {
-    if (!onboardingOrganisateurComplet()) {
+    if (!onboardingOrganisateurComplet() || !estOrganisateurApprouve()) {
       router.replace("/organisateur");
       return;
     }
@@ -264,7 +267,7 @@ export default function NouveauTournoiPage() {
       informations: informations.trim() || undefined,
       inscrits: [],
       banniereUrl,
-      imageCarreeUrl,
+      symboleId,
       debutTournoiTs,
       debutInscriptionsTs,
       finInscriptionsTs,
@@ -304,7 +307,7 @@ export default function NouveauTournoiPage() {
       className="min-h-screen flex flex-col px-6 py-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar retour titre="Créer un tournoi" onRetour={() => router.push("/accueil")} />
+      <AppBar retour titre="Créer un tournoi" onRetour={() => router.back()} />
 
       <form onSubmit={creer} className="flex flex-col gap-5 mt-4 max-w-sm pb-10">
         <div>
@@ -486,17 +489,9 @@ export default function NouveauTournoiPage() {
             className="text-xs uppercase tracking-wide mb-2"
             style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
           >
-            Visuel carré (onglet En direct)
+            Symbole (onglet En direct)
           </div>
-          <BannerCropper
-            banniereActuelle={imageCarreeUrl}
-            onValider={setImageCarreeUrl}
-            apercuLargeur={220}
-            apercuHauteur={220}
-            sortieLargeur={440}
-            sortieHauteur={440}
-            texteVide="Ajouter un visuel carré"
-          />
+          <SelecteurSymbole symboleId={symboleId} onChange={setSymboleId} />
         </div>
 
         <div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Splash } from "@/components/ds/Splash";
-import { estConnecte, estOnboarde } from "@/lib/mockAuth";
+import { estConnecte, estOnboarde, profilInitialComplet } from "@/lib/mockAuth";
 
 export function LanceurApp() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export function LanceurApp() {
 
   function surSplashTermine() {
     if (estConnecte()) {
-      router.push("/accueil");
+      router.push(profilInitialComplet() ? "/accueil" : "/bienvenue-profil");
     } else {
       router.push(estOnboarde() ? "/verify" : "/onboarding");
     }

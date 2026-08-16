@@ -300,7 +300,7 @@ export default function AccueilV2Page() {
                 {enDirect.map((t) => {
                   const suivi = estFavori(t.id);
                   return (
-                    <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0 snap-start" style={{ width: "85%" }}>
+                    <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0 snap-center" style={{ width: "78%" }}>
                       <Card style={{ boxShadow: suivi ? "0 0 0 1px var(--ds-accent)" : undefined }}>
                         <div className="relative">
                           {t.banniereUrl ? (

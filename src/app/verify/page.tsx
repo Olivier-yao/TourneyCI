@@ -14,7 +14,15 @@ import {
   verifierMotDePasse,
   aUnMotDePasse,
   armerTransitionEntree,
+  profilInitialComplet,
 } from "@/lib/mockAuth";
+
+/** Point 142 : la première étape après une connexion réussie mène toujours
+ * au profil obligatoire tant qu'il n'a pas été complété une fois sur cet
+ * appareil, avant d'atteindre l'accueil. */
+function destinationApresConnexion(): string {
+  return profilInitialComplet() ? "/accueil" : "/bienvenue-profil";
+}
 
 const CODE_DEMO = "4821";
 const EMAIL_GOOGLE_DEMO = "demo@gmail.com";
@@ -230,14 +238,14 @@ function VerifyInterne() {
     marquerOnboarde();
     marquerConnecte("telephone", telephone);
     armerTransitionEntree();
-    router.push("/accueil");
+    router.push(destinationApresConnexion());
   }
 
   function finInscription() {
     marquerOnboarde();
     marquerConnecte("telephone", telephone);
     armerTransitionEntree();
-    router.push("/accueil");
+    router.push(destinationApresConnexion());
   }
 
   function connexionGoogle() {
@@ -247,7 +255,7 @@ function VerifyInterne() {
       marquerOnboarde();
       marquerConnecte("google", EMAIL_GOOGLE_DEMO);
       armerTransitionEntree();
-      router.push("/accueil");
+      router.push(destinationApresConnexion());
     }, 900);
   }
 

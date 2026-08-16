@@ -47,7 +47,7 @@ export default function QualificationTournoiPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5 pb-10" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre={tournoi.type === "battle_royale" ? "Éliminations" : "Qualifications"} onRetour={() => router.push(`/organisateur/${params.id}/gestion`)} />
+      <AppBar retour titre={tournoi.type === "battle_royale" ? "Éliminations" : "Qualifications"} onRetour={() => router.back()} />
 
       <div className="text-base font-medium flex items-center gap-2">
         <Trophy size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />

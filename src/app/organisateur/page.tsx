@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Plus, Heart, ShieldCheck, IdCard, AtSign, Lock } from "lucide-react";
+import { ChevronRight, Plus, Heart, ShieldCheck, IdCard, AtSign, Lock, Clock, XCircle, Send } from "lucide-react";
 import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { TabBar } from "@/components/ds/TabBar";
@@ -12,9 +12,81 @@ import { hexagoneStyle } from "@/components/ds/Palier";
 import { mesTournoisOrganises, COMMISSION_PCT, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie } from "@/lib/mockOrganisateur";
 import { nomOrganisateur, definirNomOrganisateur } from "@/lib/mockOrganisateur";
+import { creerDemandeOrganisateur, demandeOrganisateurActuelle, type DemandeOrganisateur } from "@/lib/mockDemandesOrganisateur";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
-type EtapeOnboarding = "nom" | "complet";
+type EtapeOnboarding = "nom" | "demande" | "complet";
+
+/** Étape distincte de la vérification d'identité (point 146) : même certifié,
+ * l'utilisateur doit obtenir une validation formelle de l'administration
+ * avant de pouvoir effectivement créer des tournois. */
+function DemandeOrganisateurEcran({
+  nomOrg,
+  demande,
+  onEnvoyer,
+}: {
+  nomOrg: string;
+  demande: DemandeOrganisateur | undefined;
+  onEnvoyer: () => void;
+}) {
+  const enAttente = demande?.statut === "en_attente";
+  const refusee = demande?.statut === "refusee";
+
+  return (
+    <div className="relative min-h-screen flex flex-col overflow-hidden" style={{ background: "var(--ds-bg)" }}>
+      <div
+        className="absolute inset-0"
+        style={{ background: "radial-gradient(120% 90% at 50% 0%, var(--ds-accent-900) 0%, var(--ds-bg) 58%)" }}
+      />
+      <div className="relative flex-1 flex flex-col px-5 pt-6 pb-24 gap-3">
+        <div className="text-[10px] uppercase tracking-wide text-center" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+          Devenir organisateur
+        </div>
+
+        <div className="flex justify-center py-2">
+          <div
+            className="flex items-center justify-center"
+            style={{ ...hexagoneStyle, width: 92, height: 102, background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)", boxShadow: "0 0 44px color-mix(in srgb, var(--ds-accent) 26%, transparent)" }}
+          >
+            {enAttente ? (
+              <Clock size={38} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+            ) : refusee ? (
+              <XCircle size={38} strokeWidth={2} style={{ color: "var(--ds-danger)" }} />
+            ) : (
+              <Send size={34} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+            )}
+          </div>
+        </div>
+
+        <div className="text-center">
+          <div className="text-2xl leading-tight" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
+            {enAttente ? "Demande en cours d'examen" : refusee ? "Demande refusée" : "Dernière étape"}
+          </div>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+            {enAttente
+              ? `Ta demande de statut organisateur pour "${nomOrg}" a été envoyée à l'administration. Tu pourras créer des tournois dès qu'elle sera validée.`
+              : refusee
+                ? "L'administration n'a pas validé ta demande. Tu peux en envoyer une nouvelle si ta situation a changé."
+                : "Nom choisi, identité vérifiable indépendamment (point 41/49) — il reste à soumettre une demande formelle de statut organisateur, examinée par l'administration avant de pouvoir créer un tournoi."}
+          </p>
+        </div>
+      </div>
+
+      {!enAttente && (
+        <div className="relative px-5 pb-6">
+          <button
+            type="button"
+            onClick={onEnvoyer}
+            className={`w-full h-[46px] text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+          >
+            {refusee ? "Envoyer une nouvelle demande" : "Envoyer ma demande"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function LigneEtape({ n, titre, meta, actuelle, faite }: { n: number; titre: string; meta: string; actuelle: boolean; faite: boolean }) {
   return (
@@ -137,16 +209,19 @@ export default function OrganisateurPage() {
   const [etape, setEtape] = useState<EtapeOnboarding>("complet");
   const [nomOrg, setNomOrg] = useState<string | undefined>(undefined);
   const [certifie, setCertifie] = useState(false);
+  const [demande, setDemande] = useState<DemandeOrganisateur | undefined>(undefined);
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     const estCert = estCertifie();
     const nom = nomOrganisateur();
+    const demandeActuelle = demandeOrganisateurActuelle();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCertifie(estCert);
     setNomOrg(nom);
-    setEtape(!nom ? "nom" : "complet");
+    setDemande(demandeActuelle);
+    setEtape(!nom ? "nom" : demandeActuelle?.statut === "validee" ? "complet" : "demande");
     setTournoisOrganises(mesTournoisOrganises());
   }, []);
 
@@ -160,7 +235,20 @@ export default function OrganisateurPage() {
         onValideNom={(nom) => {
           definirNomOrganisateur(nom);
           setNomOrg(nom);
-          setEtape("complet");
+          setEtape("demande");
+        }}
+      />
+    );
+  }
+
+  if (etape === "demande") {
+    return (
+      <DemandeOrganisateurEcran
+        nomOrg={nomOrg ?? ""}
+        demande={demande}
+        onEnvoyer={() => {
+          const d = creerDemandeOrganisateur(nomOrg ?? "");
+          if (d) setDemande(d);
         }}
       />
     );

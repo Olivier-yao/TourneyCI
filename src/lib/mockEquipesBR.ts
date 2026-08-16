@@ -193,3 +193,25 @@ export function lienInvitation(tournoiId: string, equipeId: string): string {
   const origine = typeof window !== "undefined" ? window.location.origin : "";
   return `${origine}/tournois/${tournoiId}?equipe=${equipeId}`;
 }
+
+/** Intègre directement des membres sans passer par la file de demandes —
+ * réservé au cas où le chef a déjà validé ces joueurs en amont (équipe
+ * pré-créée du profil, point 140), donc pas besoin de ré-approuver. */
+export function ajouterMembresDirect(equipeId: string, membres: string[]) {
+  majEquipe(equipeId, (e) => ({
+    ...e,
+    membres: [...e.membres, ...membres.filter((m) => !e.membres.includes(m))],
+  }));
+}
+
+/** Point 140 : les équipes éphémères (point 54) sont un repli propre au
+ * tournoi — une fois celui-ci terminé, elles n'ont plus lieu de persister
+ * (le hub "mes équipes" du profil est désormais réservé aux équipes
+ * pré-créées, gérées indépendamment de tout tournoi). */
+export function supprimerEquipesDuTournoi(tournoiId: string) {
+  const equipesRestantes = lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.tournoiId !== tournoiId);
+  const idsSupprimes = new Set(lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.tournoiId === tournoiId).map((e) => e.id));
+  ecrire(CLE_EQUIPES, equipesRestantes);
+  ecrire(CLE_DEMANDES, lire<DemandeEquipeBR>(CLE_DEMANDES).filter((d) => !idsSupprimes.has(d.equipeId)));
+  ecrire(CLE_RETRAITS, lire<RetraitEquipeBR>(CLE_RETRAITS).filter((r) => !idsSupprimes.has(r.equipeId)));
+}

@@ -6,8 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
-import { BannerCropper } from "@/components/ds/BannerCropper";
+import { SelecteurSymbole } from "@/components/ds/SelecteurSymbole";
 import { tournoiParId, modifierTournoi } from "@/lib/mockTournaments";
+import { SYMBOLE_DEFAUT } from "@/lib/mockSymboles";
 import { estOrganisateur } from "@/lib/mockAuth";
 
 /** Édition des infos générales du tournoi (titre, règlement...) — la gestion
@@ -25,7 +26,7 @@ export default function ParametresTournoiPage() {
   const [checkin, setCheckin] = useState(tournoi?.checkin ?? "");
   const [reglement, setReglement] = useState(tournoi?.reglement ?? "");
   const [informations, setInformations] = useState(tournoi?.informations ?? "");
-  const [imageCarreeUrl, setImageCarreeUrl] = useState(tournoi?.imageCarreeUrl);
+  const [symboleId, setSymboleId] = useState(tournoi?.symboleId ?? SYMBOLE_DEFAUT);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -57,7 +58,7 @@ export default function ParametresTournoiPage() {
       checkin: checkin.trim(),
       reglement: reglement.trim(),
       informations: informations.trim() || undefined,
-      imageCarreeUrl,
+      symboleId,
     });
     setEnregistre(true);
     setTimeout(() => setEnregistre(false), 2000);
@@ -65,7 +66,7 @@ export default function ParametresTournoiPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5 pb-10" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Infos du tournoi" onRetour={() => router.push(`/organisateur/${params.id}/gestion`)} />
+      <AppBar retour titre="Infos du tournoi" onRetour={() => router.back()} />
 
       <Field label="Titre" value={titre} onChange={(e) => setTitre(e.target.value)} />
       <Field label="Ville / lieu" value={ville} onChange={(e) => setVille(e.target.value)} />
@@ -94,16 +95,8 @@ export default function ParametresTournoiPage() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Visuel carré (onglet En direct)</label>
-        <BannerCropper
-          banniereActuelle={imageCarreeUrl}
-          onValider={setImageCarreeUrl}
-          apercuLargeur={220}
-          apercuHauteur={220}
-          sortieLargeur={440}
-          sortieHauteur={440}
-          texteVide="Ajouter un visuel carré"
-        />
+        <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Symbole (onglet En direct)</label>
+        <SelecteurSymbole symboleId={symboleId} onChange={setSymboleId} />
       </div>
 
       <Button variante="primary" onClick={enregistrer} disabled={!titre.trim()}>

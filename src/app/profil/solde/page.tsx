@@ -44,7 +44,7 @@ export default function SoldePage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Solde & TourneyCard" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Solde & TourneyCard" onRetour={() => router.back()} />
 
       <TourneyCard profil={profil} solde={solde} />
 

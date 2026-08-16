@@ -30,7 +30,7 @@ export default function FavorisPage() {
       className="min-h-screen flex flex-col px-5 pt-4 pb-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar retour titre="Mes favoris" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Mes favoris" onRetour={() => router.back()} />
 
       <div className="pt-4 flex-1 flex flex-col gap-3">
         {tournois.map((t) => (

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Crown, Flame, Medal } from "lucide-react";
 import { JEUX } from "@/lib/mockTournaments";
 import { CLASSEMENTS, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
-import { PAYS, villesDuPays } from "@/lib/mockGeographie";
+import { PAYS, villesDuPays, lieuDansVille } from "@/lib/mockGeographie";
 import { BadgePalier } from "./Palier";
 import { Avatar } from "./Avatar";
 
@@ -36,10 +36,12 @@ function construireClassement(paysActif: string, villeActif: string): Classement
   }
   let fusionne = Array.from(parNom.values());
   if (villeActif !== VILLE_TOUTES) {
-    fusionne = fusionne.filter((e) => e.ville === villeActif);
+    // Une entrée dont la ville est en fait une commune (ex: "Yopougon")
+    // compte pour sa ville parente ("Abidjan") — point 141.
+    fusionne = fusionne.filter((e) => lieuDansVille(e.ville, villeActif));
   } else if (paysActif !== PAYS_TOUS) {
     const villes = villesDuPays(paysActif);
-    fusionne = fusionne.filter((e) => villes.includes(e.ville));
+    fusionne = fusionne.filter((e) => villes.some((v) => lieuDansVille(e.ville, v)));
   }
   return [...fusionne].sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
 }
@@ -146,7 +148,7 @@ export function Classement() {
   const [monBadgeActif, setMonBadgeActif] = useState(false);
   const [monPhotoUrl, setMonPhotoUrl] = useState<string | undefined>(undefined);
   const classement = construireClassement(paysActif, villeActif);
-  const villesDisponibles = paysActif === PAYS_TOUS ? PAYS.flatMap((p) => p.villes) : villesDuPays(paysActif);
+  const villesDisponibles = paysActif === PAYS_TOUS ? PAYS.flatMap((p) => p.villes.map((v) => v.nom)) : villesDuPays(paysActif);
 
   useEffect(() => {
     const profil = lireProfil();

@@ -15,6 +15,7 @@ import { estInscrit, inscriptionDe } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
 import { avisDuTournoi } from "./mockAvis";
 import { appelOuvertPourTournoi } from "./mockAppel";
+import { supprimerEquipesDuTournoi } from "./mockEquipesBR";
 
 export type TypeCompetition = "1v1" | "equipes" | "battle_royale";
 export type Modalite = "virtuel" | "presentiel";
@@ -61,9 +62,10 @@ export type Tournoi = {
   commissionActivee?: boolean;
   repartitionCashPrize?: RepartitionCashPrize[];
   banniereUrl?: string;
-  /** Visuel carré dédié à l'onglet "En direct" (point 132), distinct de la
-   * bannière (format large) — recadré en 1:1 par l'organisateur. */
-  imageCarreeUrl?: string;
+  /** Symbole esport choisi par l'organisateur pour l'onglet "En direct"
+   * (point 144, remplace l'upload d'image carrée du point 132) — identifiant
+   * d'une icône du référentiel SYMBOLES_TOURNOI, pas une image libre. */
+  symboleId?: string;
   termine?: boolean;
   annule?: boolean;
   /** Horodatage (ms) de début du tournoi. */
@@ -601,7 +603,7 @@ export function estAnnule(id: string): boolean {
  * les champs structurels/financiers (type, frais, cash prize, dates) déjà
  * pris en compte par des inscriptions en cours. */
 export type ParametresModifiablesTournoi = Partial<
-  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations" | "streamActif" | "imageCarreeUrl">
+  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations" | "streamActif" | "symboleId">
 >;
 
 const CLE_PARAMETRES_SUPERPOSES = "tourney-parametres-superposes";
@@ -844,5 +846,6 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
 
   ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);
   notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
+  supprimerEquipesDuTournoi(tournoiId);
   return { pointsAttribues, gainCredite };
 }

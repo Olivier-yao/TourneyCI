@@ -24,9 +24,11 @@ import {
   demanderRejoindre,
   aUneDemandeEnAttente,
   rejoindreEquipeAleatoire,
+  ajouterMembresDirect,
   TAILLE_EQUIPE_BR,
   type EquipeBR,
 } from "@/lib/mockEquipesBR";
+import { equipesProfilDontChef, type EquipeProfil } from "@/lib/mockEquipesProfil";
 import type { SousTypeBR } from "@/lib/mockBattleRoyale";
 import type { EquipeInfo, ModeEquipe, TypeCompetition } from "@/lib/mockTournaments";
 
@@ -85,7 +87,8 @@ export function CtaInscription({
   const [presenceAcceptee, setPresenceAcceptee] = useState(false);
   const [montantEnAttente, setMontantEnAttente] = useState(fraisXof);
 
-  const [etapeBR, setEtapeBR] = useState<"menu" | "creer" | "rejoindre" | null>(null);
+  const [etapeBR, setEtapeBR] = useState<"menu" | "creer" | "rejoindre" | "precreees" | null>(null);
+  const [equipesProfilChef, setEquipesProfilChef] = useState<EquipeProfil[]>([]);
   const [equipesBR, setEquipesBR] = useState<EquipeBR[]>([]);
   const [nomEquipeBR, setNomEquipeBR] = useState("");
   const [payerPourEquipe, setPayerPourEquipe] = useState(false);
@@ -106,6 +109,7 @@ export function CtaInscription({
     setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
     const profil = lireProfil();
     setMonPseudo(profil.pseudo);
+    setEquipesProfilChef(equipesProfilDontChef(profil.pseudo));
 
     const equipeConfirmee = estBREquipes ? equipeDeJoueur(tournoiId, profil.pseudo) : undefined;
     const dejaInscrit = estInscrit(tournoiId);
@@ -209,6 +213,19 @@ export function CtaInscription({
     const montant = payerPourEquipe ? fraisXof * taille : fraisXof;
     setEtapeBR(null);
     demarrerInscription(equipe.nom, undefined, payerPourEquipe ? equipe.id : undefined, montant);
+  }
+
+  /** Point 140 : utilise une équipe pré-créée du profil au lieu de recréer un
+   * groupe éphémère de zéro — les membres sont intégrés directement (déjà
+   * validés par le chef en amont), sans passer par la file de demandes. */
+  function utiliserEquipeProfil(ep: EquipeProfil) {
+    if (!brSousType || brSousType === "solo") return;
+    const equipe = creerEquipeBR(tournoiId, ep.nom, monPseudo, false);
+    ajouterMembresDirect(equipe.id, ep.membres.filter((m) => m !== monPseudo));
+    const equipeAvecMembres = { ...equipe, membres: [...new Set([...equipe.membres, ...ep.membres])] };
+    setMonEquipeChef(equipeAvecMembres);
+    setEtapeBR(null);
+    demarrerInscription(equipe.nom, undefined, undefined, fraisXof);
   }
 
   function validerEquipeAleatoire() {
@@ -580,6 +597,21 @@ export function CtaInscription({
 
           {etapeBR === "menu" && (
             <div className="flex flex-col gap-2">
+              {equipesProfilChef.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setEtapeBR("precreees")}
+                  className={`flex items-center gap-3 p-3.5 text-left ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}
+                >
+                  <div className="flex-1">
+                    <div className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>Utiliser une équipe pré-créée</div>
+                    <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                      {equipesProfilChef.length} ÉQUIPE{equipesProfilChef.length > 1 ? "S" : ""} DANS TON PROFIL
+                    </div>
+                  </div>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setEtapeBR("creer")}
@@ -639,6 +671,31 @@ export function CtaInscription({
               >
                 Continuer
               </button>
+            </div>
+          )}
+
+          {etapeBR === "precreees" && (
+            <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+              {equipesProfilChef.map((ep) => (
+                <button
+                  key={ep.id}
+                  type="button"
+                  onClick={() => utiliserEquipeProfil(ep)}
+                  className={`flex items-center gap-3 p-2.5 text-left ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+                >
+                  <EcussonEquipe initiales={ep.nom.slice(0, 2).toUpperCase()} style="accent" largeur={40} hauteur={46} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{ep.nom}</div>
+                    <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                      {ep.membres.length} membre{ep.membres.length > 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold shrink-0" style={{ color: "var(--ds-accent-300)" }}>
+                    Utiliser
+                  </span>
+                </button>
+              ))}
             </div>
           )}
 

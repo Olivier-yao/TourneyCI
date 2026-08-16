@@ -51,7 +51,7 @@ export default function RetirerPage() {
   if (verifie === false) {
     return (
       <div className="min-h-screen flex flex-col px-6 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-        <AppBar retour titre="Retirer mes gains" onRetour={() => router.push("/profil/solde")} />
+        <AppBar retour titre="Retirer mes gains" onRetour={() => router.back()} />
         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center px-4">
           <ShieldAlert size={36} style={{ color: "var(--ds-danger)" }} />
           <p className="text-base font-medium">Identité non vérifiée</p>
@@ -81,7 +81,7 @@ export default function RetirerPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Retirer mes gains" onRetour={() => router.push("/profil/solde")} />
+      <AppBar retour titre="Retirer mes gains" onRetour={() => router.back()} />
 
       <div className="p-4" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
         <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>

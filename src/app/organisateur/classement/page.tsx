@@ -32,7 +32,7 @@ export default function ClassementOrganisateursPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-4 pb-8" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Meilleurs organisateurs" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Meilleurs organisateurs" onRetour={() => router.back()} />
 
       {premier && (
         <Link

@@ -105,7 +105,7 @@ export default function RoomTournoiPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5 pb-10" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Infos de room" onRetour={() => router.push(`/organisateur/${params.id}/gestion`)} />
+      <AppBar retour titre="Infos de room" onRetour={() => router.back()} />
 
       <div className="flex flex-col gap-3">
         <Field label="Lien ou code de la room" value={lien} onChange={(e) => setLien(e.target.value)} placeholder="Ex: room.tourney.gg/AB12" />

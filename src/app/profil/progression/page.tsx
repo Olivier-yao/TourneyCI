@@ -33,7 +33,7 @@ export default function ProgressionPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Ma progression" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Ma progression" onRetour={() => router.back()} />
 
       <div
         className="p-[18px] flex flex-col gap-3.5"

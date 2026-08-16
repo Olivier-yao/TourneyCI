@@ -92,7 +92,7 @@ export default function VerificationIdentitePage() {
   if (certifie) {
     return (
       <div className="min-h-screen flex flex-col px-6 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-        <AppBar retour titre="Vérification d'identité" onRetour={() => router.push("/profil")} />
+        <AppBar retour titre="Vérification d'identité" onRetour={() => router.back()} />
         <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center px-4">
           <CheckCircle2 size={40} style={{ color: "var(--ds-accent-300)" }} />
           <p className="text-base font-medium">Identité vérifiée</p>
@@ -108,7 +108,7 @@ export default function VerificationIdentitePage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Vérification d'identité" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Vérification d'identité" onRetour={() => router.back()} />
       <p className="text-[10px] uppercase tracking-wide -mt-3" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
         Organisateur · étape 1 sur 2
       </p>

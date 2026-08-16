@@ -94,7 +94,7 @@ export default function StreamTournoiPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5 pb-10" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Stream du tournoi" onRetour={() => router.push(`/organisateur/${params.id}/gestion`)} />
+      <AppBar retour titre="Stream du tournoi" onRetour={() => router.back()} />
 
       <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
         Application compagnon PC

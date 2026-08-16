@@ -52,7 +52,7 @@ export default function RechargerPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Recharger" onRetour={() => router.push("/profil/solde")} />
+      <AppBar retour titre="Recharger" onRetour={() => router.back()} />
 
       <div className="p-4" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
         <div className="text-[11px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>

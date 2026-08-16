@@ -24,6 +24,13 @@ function ecrire(cle: string) {
 export const estOnboarde = () => lire(CLE_ONBOARDE);
 export const marquerOnboarde = () => ecrire(CLE_ONBOARDE);
 
+const CLE_PROFIL_INITIAL_COMPLET = "tourney-profil-initial-complet";
+
+/** Point 142 : pseudo + photo obligatoires avant d'atteindre l'accueil, une
+ * seule fois par appareil (pas à chaque connexion) — cf. /bienvenue-profil. */
+export const profilInitialComplet = () => lire(CLE_PROFIL_INITIAL_COMPLET);
+export const marquerProfilInitialComplet = () => ecrire(CLE_PROFIL_INITIAL_COMPLET);
+
 export const estConnecte = () => lire(CLE_CONNECTE);
 
 export function marquerConnecte(source: SourceConnexion, identifiant: string) {

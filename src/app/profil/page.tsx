@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck, Heart, HeartCrack, Users, Trophy, Plus } from "lucide-react";
+import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck, Heart, HeartCrack, Users, Trophy, Plus, LifeBuoy } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { Button } from "@/components/ds/Button";
 import { lireProfil, estActif, mesPointsCumules, palierActuel } from "@/lib/mockProfil";
@@ -12,8 +12,10 @@ import { lireSolde } from "@/lib/mockWallet";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
 import { equipesDuJoueur } from "@/lib/mockEquipesBR";
+import { equipesProfilDontChef } from "@/lib/mockEquipesProfil";
 import { tournoiParId, estTermine, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
+import { estOrganisateurApprouve } from "@/lib/mockDemandesOrganisateur";
 import { compteurFollowers } from "@/lib/mockSuiviOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { rolePrefere, definirRole, type Role } from "@/lib/mockAuth";
@@ -31,6 +33,7 @@ export default function ProfilPage() {
   const [role, setRole] = useState<Role>("joueur");
   const [vueOrga, setVueOrga] = useState<{
     onboardingOk: boolean;
+    approuve: boolean;
     nom: string;
     tag?: string;
     coeurs: number;
@@ -49,7 +52,8 @@ export default function ProfilPage() {
     }).length;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSolde(lireSolde());
-    setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesDuJoueur(lireProfil().pseudo).length });
+    const moi = lireProfil().pseudo;
+    setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
     setOrganisateur({ estOrganisateur: mesTournoisOrganises().length > 0, certifie: estCertifie() });
     setRole(rolePrefere());
 
@@ -59,6 +63,7 @@ export default function ProfilPage() {
     const classement = classementOrganisateurs();
     setVueOrga({
       onboardingOk,
+      approuve: estOrganisateurApprouve(),
       nom: nomOrga,
       tag: tagOrganisateur(),
       coeurs: stats.coeurs,
@@ -182,6 +187,22 @@ export default function ProfilPage() {
         </div>
       </div>
 
+      {!organisateur.certifie && (
+        <div className="px-5 mb-1">
+          <Link
+            href="/verification-identite"
+            className="flex items-center gap-2.5 p-3"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)" }}
+          >
+            <ShieldCheck size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+            <span className="flex-1 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+              Vérifie ton identité
+            </span>
+            <ChevronRight size={15} style={{ color: "var(--ds-accent-300)" }} />
+          </Link>
+        </div>
+      )}
+
       {role === "joueur" && (
       <>
       <div className="px-5">
@@ -269,20 +290,6 @@ export default function ProfilPage() {
           <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
         </Link>
 
-        {!organisateur.certifie && (
-          <Link
-            href="/verification-identite"
-            className="flex items-center gap-2.5 p-3 mt-2"
-            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)" }}
-          >
-            <ShieldCheck size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-            <span className="flex-1 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
-              Vérifie ton identité pour pouvoir retirer tes gains
-            </span>
-            <ChevronRight size={15} style={{ color: "var(--ds-accent-300)" }} />
-          </Link>
-        )}
-
         {organisateur.estOrganisateur && (
           <Link
             href="/organisateur/classement"
@@ -319,10 +326,10 @@ export default function ProfilPage() {
                   <div className="text-lg font-medium">{vueOrga.nom}</div>
                   {vueOrga.tag && <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>@{vueOrga.tag}</div>}
                 </div>
-                <Link href="/organisateur/nouveau">
+                <Link href={vueOrga.approuve ? "/organisateur/nouveau" : "/organisateur"}>
                   <Button variante="secondary">
                     <Plus size={15} strokeWidth={2} />
-                    Créer
+                    {vueOrga.approuve ? "Créer" : "Statut en attente"}
                   </Button>
                 </Link>
               </div>
@@ -392,6 +399,15 @@ export default function ProfilPage() {
           )}
         </div>
       )}
+
+      <a
+        href="mailto:support@tourney-ci.app?subject=Signalement%20—%20app%20Tourney"
+        className="flex items-center justify-center gap-1.5 px-5 pt-4 pb-24 text-xs"
+        style={{ color: "var(--ds-muted)" }}
+      >
+        <LifeBuoy size={13} strokeWidth={2} />
+        Service client
+      </a>
 
       <TabBar />
     </div>

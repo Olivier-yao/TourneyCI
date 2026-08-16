@@ -14,6 +14,8 @@ import { PAYS } from "@/lib/mockGeographie";
 import { deconnecter } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
+const TOUS_LES_LIEUX = PAYS.flatMap((p) => p.villes.flatMap((v) => [v.nom, ...(v.communes ?? [])]));
+
 function ParametresInterne() {
   const connecte = useExigerConnexion();
   const router = useRouter();
@@ -55,7 +57,7 @@ function ParametresInterne() {
       className="min-h-screen flex flex-col px-6 py-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar retour titre="Réglages" onRetour={() => router.push("/profil")} />
+      <AppBar retour titre="Réglages" onRetour={() => router.back()} />
 
       <div className="flex flex-col gap-8 mt-4 max-w-sm">
         <div className="flex flex-col gap-3">
@@ -100,12 +102,15 @@ function ParametresInterne() {
               className="h-11 px-3.5 text-sm outline-none cursor-pointer"
               style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)", fontFamily: "var(--ds-font-mono)" }}
             >
-              {!PAYS.some((p) => p.villes.includes(profil.ville)) && <option value={profil.ville}>{profil.ville}</option>}
+              {!TOUS_LES_LIEUX.includes(profil.ville) && <option value={profil.ville}>{profil.ville}</option>}
               {PAYS.map((pays) => (
                 <optgroup key={pays.id} label={pays.nom}>
-                  {pays.villes.map((ville) => (
-                    <option key={ville} value={ville}>{ville}</option>
-                  ))}
+                  {pays.villes.flatMap((ville) => [
+                    <option key={ville.nom} value={ville.nom}>{ville.nom}</option>,
+                    ...(ville.communes ?? []).map((commune) => (
+                      <option key={commune} value={commune}>{`-- ${commune}`}</option>
+                    )),
+                  ])}
                 </optgroup>
               ))}
             </select>

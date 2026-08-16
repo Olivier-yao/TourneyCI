@@ -245,7 +245,7 @@ export default function GestionTournoiPage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 py-4 gap-6" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-      <AppBar retour titre="Gestion en direct" onRetour={() => router.push(`/tournois/${params.id}`)} />
+      <AppBar retour titre="Gestion en direct" onRetour={() => router.back()} />
 
       <div>
         <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>

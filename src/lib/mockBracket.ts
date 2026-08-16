@@ -261,6 +261,43 @@ export function mettreAJourScoreMatch(
   localStorage.setItem(CLE_BRACKETS_GENERES, JSON.stringify({ ...existants, [tournoiId]: actuels }));
 }
 
+/** Point 150 : l'organisateur choisit manuellement quel match démarre, plutôt
+ * qu'un ordre de round fixe/imposé — un seul match "en_cours" à la fois par
+ * tournoi (un bracket 1v1 n'a qu'un plateau/stream), donc démarrer un match
+ * repasse tout autre match "en_cours" à "a_venir". Sans effet si les deux
+ * joueurs ne sont pas encore connus (pas encore qualifié). */
+export function demarrerMatch(tournoiId: string, matchId: string) {
+  if (typeof window === "undefined") return;
+  const actuels = matchsDuTournoi(tournoiId).map((m) => ({ ...m }));
+  const cible = actuels.find((m) => m.id === matchId);
+  if (!cible || !cible.joueur1 || !cible.joueur2 || cible.statut !== "a_venir") return;
+
+  actuels.forEach((m) => {
+    if (m.statut === "en_cours") m.statut = "a_venir";
+  });
+  cible.statut = "en_cours";
+
+  const existants = lireBracketsGeneres();
+  localStorage.setItem(CLE_BRACKETS_GENERES, JSON.stringify({ ...existants, [tournoiId]: actuels }));
+}
+
+/** Point 151 : met à jour le score affiché aux spectateurs SANS clôturer le
+ * match (pas de passage à "termine", pas de propagation du vainqueur au tour
+ * suivant) — action distincte de mettreAJourScoreMatch, qui reste la seule à
+ * clôturer réellement le match. */
+export function mettreAJourScoreEnDirect(tournoiId: string, matchId: string, score1: number, score2: number) {
+  if (typeof window === "undefined") return;
+  const actuels = matchsDuTournoi(tournoiId).map((m) => ({ ...m }));
+  const match = actuels.find((m) => m.id === matchId);
+  if (!match || match.statut !== "en_cours") return;
+
+  match.score1 = score1;
+  match.score2 = score2;
+
+  const existants = lireBracketsGeneres();
+  localStorage.setItem(CLE_BRACKETS_GENERES, JSON.stringify({ ...existants, [tournoiId]: actuels }));
+}
+
 /** Ajoute un événement au fil du match en direct (point 107), visible par
  * les spectateurs et participants — sans toucher au score ni au statut du
  * match. Matérialise le bracket en localStorage comme mettreAJourScoreMatch. */
