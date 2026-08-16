@@ -7,7 +7,7 @@ import { CheckCircle2, XCircle, Settings2, Users, ListChecks, Flag, Zap, Clock, 
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { Modal } from "@/components/ds/Modal";
-import { tournoiParId, inscriptionsFermees, terminerTournoi } from "@/lib/mockTournaments";
+import { tournoiParId, inscriptionsFermees, terminerTournoi, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
 import { classementFinalBR, manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
@@ -215,15 +215,20 @@ function CarteActionRequise({
 export default function GestionTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
   const [, setRafraichir] = useState(0);
 
   useEffect(() => {
+    const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+    setTournoi(t);
+    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setPret(true);
   }, [params.id]);
 
-  const tournoi = tournoiParId(params.id);
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

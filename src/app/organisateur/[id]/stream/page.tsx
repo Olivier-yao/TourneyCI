@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Monitor, Radio, Check, Wifi, MoreVertical, Eye, Lock } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
-import { tournoiParId, modifierTournoi } from "@/lib/mockTournaments";
+import { tournoiParId, modifierTournoi, type Tournoi } from "@/lib/mockTournaments";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 /** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
@@ -32,15 +32,20 @@ function formatDuree(secondes: number): string {
 export default function StreamTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
-  const tournoi = tournoiParId(params.id);
-  const [streamActif, setStreamActif] = useState(tournoi?.streamActif ?? false);
+  const [streamActif, setStreamActif] = useState(false);
   const [pcConnecte, setPcConnecte] = useState(false);
   const [dureeSec, setDureeSec] = useState(0);
 
   useEffect(() => {
+    const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+    setTournoi(t);
+    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setStreamActif(t?.streamActif ?? false);
+    setPret(true);
   }, [params.id]);
 
   useEffect(() => {
@@ -48,6 +53,8 @@ export default function StreamTournoiPage() {
     const id = setInterval(() => setDureeSec((d) => d + 1), 1000);
     return () => clearInterval(id);
   }, [streamActif]);
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

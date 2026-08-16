@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { GestionMatches } from "../gestion/GestionMatches";
@@ -17,15 +17,20 @@ import { GestionManchesBR } from "../gestion/GestionManchesBR";
 export default function QualificationTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
   const [, setRafraichir] = useState(0);
 
   useEffect(() => {
+    const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+    setTournoi(t);
+    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setPret(true);
   }, [params.id]);
 
-  const tournoi = tournoiParId(params.id);
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

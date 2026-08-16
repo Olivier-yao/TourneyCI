@@ -7,7 +7,7 @@ import { Send, Users, Lock as LockIcon } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { PRESS } from "@/components/ds/Button";
-import { tournoiParId, inscriptionsFermees } from "@/lib/mockTournaments";
+import { tournoiParId, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
 import { participantsBR } from "@/lib/mockBattleRoyale";
 import { infosRoomDuTournoi, definirInfosRoom } from "@/lib/mockRoomInfo";
@@ -23,19 +23,25 @@ import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 export default function RoomTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const tournoi = tournoiParId(params.id);
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
   const [lien, setLien] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [envoiConfirme, setEnvoiConfirme] = useState<string | null>(null);
 
   useEffect(() => {
+    const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+    setTournoi(t);
+    setAutorise(t?.organisateur === nomOrganisateurActuel());
     const infos = infosRoomDuTournoi(params.id);
     setLien(infos.lien);
     setMotDePasse(infos.motDePasse);
+    setPret(true);
   }, [params.id]);
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

@@ -7,7 +7,7 @@ import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { SelecteurSymbole } from "@/components/ds/SelecteurSymbole";
-import { tournoiParId, modifierTournoi } from "@/lib/mockTournaments";
+import { tournoiParId, modifierTournoi, type Tournoi } from "@/lib/mockTournaments";
 import { SYMBOLE_DEFAUT } from "@/lib/mockSymboles";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
@@ -16,22 +16,33 @@ import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 export default function ParametresTournoiPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
   const [enregistre, setEnregistre] = useState(false);
 
-  const tournoi = tournoiParId(params.id);
-
-  const [titre, setTitre] = useState(tournoi?.titre ?? "");
-  const [ville, setVille] = useState(tournoi?.ville ?? "");
-  const [checkin, setCheckin] = useState(tournoi?.checkin ?? "");
-  const [reglement, setReglement] = useState(tournoi?.reglement ?? "");
-  const [informations, setInformations] = useState(tournoi?.informations ?? "");
-  const [symboleId, setSymboleId] = useState(tournoi?.symboleId ?? SYMBOLE_DEFAUT);
+  const [titre, setTitre] = useState("");
+  const [ville, setVille] = useState("");
+  const [checkin, setCheckin] = useState("");
+  const [reglement, setReglement] = useState("");
+  const [informations, setInformations] = useState("");
+  const [symboleId, setSymboleId] = useState(SYMBOLE_DEFAUT);
 
   useEffect(() => {
+    const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAutorise(tournoiParId(params.id)?.organisateur === nomOrganisateurActuel());
+    setTournoi(t);
+    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setTitre(t?.titre ?? "");
+    setVille(t?.ville ?? "");
+    setCheckin(t?.checkin ?? "");
+    setReglement(t?.reglement ?? "");
+    setInformations(t?.informations ?? "");
+    setSymboleId(t?.symboleId ?? SYMBOLE_DEFAUT);
+    setPret(true);
   }, [params.id]);
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (
