@@ -515,6 +515,25 @@ export default function ProfilOrganisateurPage() {
           </label>
         )}
 
+        {!cestMoi && (
+          <button
+            type="button"
+            onClick={() => {
+              setSuivi(basculerSuiviOrganisateur(nom));
+              setNbFollowers(compteurFollowers(nom));
+            }}
+            className={`h-[46px] text-sm font-medium ${PRESS}`}
+            style={{
+              borderRadius: "var(--ds-radius-md)",
+              border: `1px solid ${suivi ? "var(--ds-border)" : "var(--ds-accent)"}`,
+              background: suivi ? "transparent" : "var(--ds-accent-900)",
+              color: suivi ? "var(--ds-muted)" : "var(--ds-accent-300)",
+            }}
+          >
+            {suivi ? "Suivi ✓" : "Suivre cet organisateur"}
+          </button>
+        )}
+
         {editionBio ? (
           <div className="flex flex-col gap-2">
             <textarea
@@ -566,29 +585,40 @@ export default function ProfilOrganisateurPage() {
                 Ajoute tes réseaux pour que les visiteurs de ton profil puissent te suivre.
               </p>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 {reseaux.map((r) => {
                   const meta = PLATEFORMES_SOCIALES.find((p) => p.id === r.plateforme);
                   if (!meta) return null;
                   return (
-                    <div
+                    <a
                       key={r.plateforme}
-                      className="flex items-center gap-2.5 p-2.5"
-                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                      href={r.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex flex-col gap-2.5 p-3 ${PRESS}`}
+                      style={{
+                        borderRadius: "var(--ds-radius-md)",
+                        background: "var(--ds-surface)",
+                        border: "1px solid var(--ds-border)",
+                        borderLeft: `3px solid ${meta.couleur}`,
+                      }}
                     >
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.couleur }} />
-                      <span className="flex-1 text-sm truncate">{meta.label}</span>
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold shrink-0 ${PRESS}`}
-                        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
-                      >
-                        Suivre
-                        <ExternalLink size={11} strokeWidth={2} />
-                      </a>
-                    </div>
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="w-8 h-8 rounded-full flex items-center justify-center"
+                          style={{ background: `color-mix(in srgb, ${meta.couleur} 20%, transparent)` }}
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ background: meta.couleur }} />
+                        </span>
+                        <ExternalLink size={12} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">{meta.label}</div>
+                        <div className="text-[10px] font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                          Suivre →
+                        </div>
+                      </div>
+                    </a>
                   );
                 })}
               </div>
@@ -771,23 +801,6 @@ export default function ProfilOrganisateurPage() {
           )}
         </div>
 
-        {!cestMoi && (
-          <button
-            type="button"
-            onClick={() => {
-              setSuivi(basculerSuiviOrganisateur(nom));
-              setNbFollowers(compteurFollowers(nom));
-            }}
-            className={`h-[46px] text-sm font-medium mb-2 ${PRESS}`}
-            style={{
-              borderRadius: "var(--ds-radius-md)",
-              border: `1px solid ${suivi ? "var(--ds-border)" : "var(--ds-accent)"}`,
-              color: suivi ? "var(--ds-muted)" : "var(--ds-accent-300)",
-            }}
-          >
-            {suivi ? "Suivi ✓" : "Suivre cet organisateur"}
-          </button>
-        )}
       </div>
 
       <Modal ouvert={modaleFollowersOuverte} titre={`${nbFollowers} followers`} onFermer={() => setModaleFollowersOuverte(false)}>

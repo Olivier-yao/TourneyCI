@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Minus, Plus } from "lucide-react";
 import { mettreAJourScoreMatch, mettreAJourScoreEnDirect, demarrerMatch, type MatchTournoi } from "@/lib/mockBracket";
 import { notifierParticipants } from "@/lib/mockNotifications";
+import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
 
 function nomRound(round: number, totalRounds: number): string {
@@ -31,25 +32,25 @@ function ScoreStepper({
   onPlus: () => void;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
         onClick={onMoins}
-        className={`flex items-center justify-center w-[22px] h-[22px] cursor-pointer ${PRESS}`}
+        className={`flex items-center justify-center w-[34px] h-[34px] cursor-pointer ${PRESS}`}
         style={{ borderRadius: "var(--ds-radius-sm)", border: `1px solid ${accent ? "var(--ds-accent)" : "var(--ds-border)"}`, color: "var(--ds-muted)" }}
       >
-        <Minus size={10} strokeWidth={2} />
+        <Minus size={13} strokeWidth={2.5} />
       </button>
-      <span className="w-5 text-center text-sm" style={{ fontFamily: "var(--ds-font-mono)", color: couleur ?? "var(--ds-text)" }}>
+      <span className="w-6 text-center text-base" style={{ fontFamily: "var(--ds-font-mono)", color: couleur ?? "var(--ds-text)" }}>
         {valeur}
       </span>
       <button
         type="button"
         onClick={onPlus}
-        className={`flex items-center justify-center w-[22px] h-[22px] cursor-pointer ${PRESS}`}
+        className={`flex items-center justify-center w-[34px] h-[34px] cursor-pointer ${PRESS}`}
         style={{ borderRadius: "var(--ds-radius-sm)", border: `1px solid ${accent ? "var(--ds-accent)" : "var(--ds-border)"}`, color: "var(--ds-muted)" }}
       >
-        <Plus size={10} strokeWidth={2} />
+        <Plus size={13} strokeWidth={2.5} />
       </button>
     </div>
   );
@@ -67,6 +68,7 @@ export function GestionMatches({
   onEnregistre: () => void;
 }) {
   const [saisies, setSaisies] = useState<Record<string, { s1: number; s2: number }>>({});
+  const [confirmationCloture, setConfirmationCloture] = useState<MatchTournoi | null>(null);
 
   if (matches.length === 0) {
     return (
@@ -114,6 +116,12 @@ export function GestionMatches({
     mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
     notifierParticipants(tournoiId, tournoiTitre, `Score final : ${match.joueur1} ${s1} - ${s2} ${match.joueur2}`);
     onEnregistre();
+  }
+
+  function confirmerCloture() {
+    if (!confirmationCloture) return;
+    cloturer(confirmationCloture);
+    setConfirmationCloture(null);
   }
 
   function modifierTermine(match: MatchTournoi) {
@@ -190,7 +198,7 @@ export function GestionMatches({
                             <button
                               type="button"
                               onClick={() => modifierTermine(m)}
-                              className={`w-[62px] h-[54px] text-xs font-medium shrink-0 ${PRESS}`}
+                              className={`w-[72px] h-[72px] text-xs font-medium shrink-0 ${PRESS}`}
                               style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
                             >
                               Modifier
@@ -198,15 +206,15 @@ export function GestionMatches({
                           </>
                         ) : enCours ? (
                           <>
-                            <div className="flex flex-col gap-1 shrink-0">
+                            <div className="flex flex-col gap-2 shrink-0">
                               <ScoreStepper accent valeur={s1Val} onMoins={() => ajuster(m, "s1", -1)} onPlus={() => ajuster(m, "s1", 1)} />
                               <ScoreStepper accent valeur={s2Val} onMoins={() => ajuster(m, "s2", -1)} onPlus={() => ajuster(m, "s2", 1)} />
                             </div>
-                            <div className="flex flex-col gap-1 shrink-0">
+                            <div className="flex flex-col gap-2 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => validerScoreEnDirect(m)}
-                                className={`w-[62px] h-[26px] text-[10px] font-medium ${PRESS}`}
+                                className={`w-[72px] h-[32px] text-[11px] font-medium ${PRESS}`}
                                 style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
                                 title="Met à jour le score affiché aux spectateurs, sans clôturer le match"
                               >
@@ -214,9 +222,9 @@ export function GestionMatches({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => cloturer(m)}
+                                onClick={() => setConfirmationCloture(m)}
                                 disabled={s1Val === s2Val}
-                                className={`w-[62px] h-[26px] text-[10px] font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+                                className={`w-[72px] h-[32px] text-[11px] font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
                                 style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
                                 title="Termine le match et qualifie le vainqueur pour le tour suivant"
                               >
@@ -255,6 +263,32 @@ export function GestionMatches({
       <p className="text-xs text-center" style={{ color: "var(--ds-muted)" }}>
         Choisis quel match démarrer ensuite — l&apos;ordre n&apos;est pas imposé, un seul match en direct à la fois.
       </p>
+
+      <Modal ouvert={confirmationCloture !== null} titre="Clôturer ce match ?" onFermer={() => setConfirmationCloture(null)}>
+        {confirmationCloture && (
+          <p className="text-sm not-italic" style={{ whiteSpace: "normal", color: "var(--ds-text-muted)" }}>
+            Score final : <b style={{ color: "var(--ds-text)" }}>{confirmationCloture.joueur1} {saisie(confirmationCloture).s1} - {saisie(confirmationCloture).s2} {confirmationCloture.joueur2}</b>. Le vainqueur sera qualifié pour le tour suivant et les participants seront notifiés — vérifie le score avant de continuer.
+          </p>
+        )}
+        <div className="flex gap-2 pt-3">
+          <button
+            type="button"
+            onClick={() => setConfirmationCloture(null)}
+            className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={confirmerCloture}
+            className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+          >
+            Confirmer
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
