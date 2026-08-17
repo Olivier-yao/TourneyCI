@@ -18,12 +18,28 @@ import {
   Goal,
   Hand,
   X,
+  Flag,
+  ShieldCheck,
+  Target,
+  Square,
+  Ban,
+  Handshake,
+  FlagTriangleRight,
+  Bomb,
+  Cross,
+  Zap,
+  Star,
+  RotateCcw,
+  TrendingUp,
+  Package,
+  type LucideIcon,
 } from "lucide-react";
 import { mettreAJourScoreMatch, ajouterEvenementMatch, matchsDuTournoi, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { litigeDuMatch, resoudreLitige, type Litige } from "@/lib/mockLitige";
 import { tournoiParId, genreDuJeu } from "@/lib/mockTournaments";
-import { mappeGenre, evenementsPredefinis, type CategorieEvenement } from "@/lib/mockEvenementsJeu";
+import { mappeGenre, texteEvenement, CATEGORIES, EVENEMENTS, type CategorieEvenement, type IconeEvenement } from "@/lib/mockEvenementsJeu";
+import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
 
 function initiales(nom: string): string {
@@ -36,7 +52,13 @@ function initiales(nom: string): string {
     .toUpperCase();
 }
 
-const ICONES_EVENEMENT = { ko: Swords, manche: Trophy, elimine: Crosshair, terre: ArrowDown, but: Goal, arret: Hand };
+const ICONES: Record<IconeEvenement, LucideIcon> = {
+  goal: Goal, flag: Flag, "shield-check": ShieldCheck, target: Target, square: Square,
+  crosshair: Crosshair, ban: Ban, hand: Hand, handshake: Handshake,
+  "flag-triangle-right": FlagTriangleRight, bomb: Bomb, cross: Cross, zap: Zap,
+  "arrow-down": ArrowDown, swords: Swords, trophy: Trophy, star: Star,
+  "rotate-ccw": RotateCcw, "trending-up": TrendingUp, package: Package,
+};
 
 const LABEL_STATUT_LITIGE: Record<Litige["statut"], string> = {
   en_attente: "EN ATTENTE",
@@ -65,8 +87,9 @@ export function VueOrganisateurMatch({
   const [s2, setS2] = useState(matchInitial.score2 ?? 0);
   const [litige, setLitige] = useState<Litige | undefined>(undefined);
   const [enregistre, setEnregistre] = useState(false);
-  const [categorie, setCategorie] = useState<CategorieEvenement>("combat");
-  const [acteur, setActeur] = useState<"joueur1" | "joueur2">("joueur1");
+  const [categorie, setCategorie] = useState<CategorieEvenement>("fps");
+  const [acteurIndex, setActeurIndex] = useState<0 | 1>(0);
+  const [evenementId, setEvenementId] = useState<string | null>(null);
   const [roundLabel, setRoundLabel] = useState("");
 
   useEffect(() => {
@@ -83,9 +106,13 @@ export function VueOrganisateurMatch({
   const modifie = s1 !== (matchInitial.score1 ?? 0) || s2 !== (matchInitial.score2 ?? 0);
   const j1EnTete = s1 > s2;
   const j2EnTete = s2 > s1;
-  const nomActeur = acteur === "joueur1" ? matchInitial.joueur1 : matchInitial.joueur2;
-  const nomCible = acteur === "joueur1" ? matchInitial.joueur2 : matchInitial.joueur1;
-  const presets = nomActeur && nomCible ? evenementsPredefinis(categorie, nomActeur, nomCible) : [];
+  const nomsActeurs = [matchInitial.joueur1 ?? "", matchInitial.joueur2 ?? ""];
+  const nomActeur = nomsActeurs[acteurIndex];
+  const nomCible = nomsActeurs[acteurIndex === 0 ? 1 : 0];
+  const eventsCategorie = EVENEMENTS[categorie];
+  const eventSelectionne = eventsCategorie.find((e) => e.id === evenementId) ?? null;
+  const besoinCible = eventSelectionne ? eventSelectionne.gabarit.includes("{B}") : false;
+  const previewTexte = eventSelectionne ? texteEvenement(eventSelectionne.gabarit, nomActeur, nomCible) : "";
   const derniersEvenements = (matchInitial.evenements ?? []).slice(0, 2);
 
   function valider() {
@@ -102,8 +129,15 @@ export function VueOrganisateurMatch({
     setLitige({ ...litige, statut });
   }
 
-  function ajouterEvenement(texte: string) {
-    ajouterEvenementMatch(tournoiId, matchInitial.id, texte);
+  function choisirCategorie(id: CategorieEvenement) {
+    setCategorie(id);
+    setEvenementId(null);
+  }
+
+  function validerEvenement() {
+    if (!eventSelectionne) return;
+    ajouterEvenementMatch(tournoiId, matchInitial.id, texteEvenement(eventSelectionne.gabarit, nomActeur, nomCible));
+    setEvenementId(null);
     onMaj();
   }
 
@@ -232,42 +266,96 @@ export function VueOrganisateurMatch({
         {pretAJouer && matchInitial.statut !== "termine" && (
           <div className="p-[11px] flex flex-col" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "var(--ds-shadow-sm, 0 1px 2px rgba(0,0,0,.3))" }}>
             <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Alimenter le fil</span>
-            <div className="mt-2.5 flex p-[3px] gap-[3px]" style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}>
-              <button
-                type="button"
-                onClick={() => setActeur("joueur1")}
-                className={`flex-1 h-[30px] text-xs font-medium ${PRESS}`}
-                style={{ borderRadius: "var(--ds-radius-sm)", background: acteur === "joueur1" ? "var(--ds-accent-800)" : "transparent", color: acteur === "joueur1" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
-              >
-                {matchInitial.joueur1}
-              </button>
-              <button
-                type="button"
-                onClick={() => setActeur("joueur2")}
-                className={`flex-1 h-[30px] text-xs font-medium ${PRESS}`}
-                style={{ borderRadius: "var(--ds-radius-sm)", background: acteur === "joueur2" ? "var(--ds-accent-800)" : "transparent", color: acteur === "joueur2" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
-              >
-                {matchInitial.joueur2}
-              </button>
-            </div>
-            <div className="mt-2.5 flex flex-col gap-1.5">
-              {presets.map((p) => {
-                const Icone = ICONES_EVENEMENT[p.icone];
+
+            <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+              {CATEGORIES.map((c) => {
+                const CatIcone = ICONES[c.icone];
+                const actif = categorie === c.id;
                 return (
                   <button
-                    key={p.id}
+                    key={c.id}
                     type="button"
-                    onClick={() => ajouterEvenement(p.texte)}
-                    className={`flex items-center gap-2.5 px-2.5 py-2.5 text-left ${PRESS}`}
-                    style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}
+                    onClick={() => choisirCategorie(c.id)}
+                    className={`flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium ${PRESS}`}
+                    style={{
+                      borderRadius: "var(--ds-radius-sm)",
+                      background: actif ? "var(--ds-accent-800)" : "transparent",
+                      color: actif ? "var(--ds-accent-300)" : "var(--ds-muted)",
+                      border: `1px solid ${actif ? "var(--ds-accent)" : "var(--ds-border)"}`,
+                    }}
                   >
-                    <Icone size={14} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0" />
-                    <span className="flex-1 text-xs min-w-0">{p.texte}</span>
-                    <Plus size={12} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
+                    <CatIcone size={15} strokeWidth={2} />
+                    {c.labelCourt}
                   </button>
                 );
               })}
             </div>
+
+            <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+              {eventsCategorie.map((e) => {
+                const EvIcone = ICONES[e.icone];
+                return (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => setEvenementId(e.id)}
+                    className={`flex flex-col items-start gap-1.5 p-2 text-left ${PRESS}`}
+                    style={{
+                      borderRadius: "var(--ds-radius-md)",
+                      border: `1px solid ${e.penalite ? "var(--ds-danger)" : "var(--ds-border)"}`,
+                    }}
+                  >
+                    <EvIcone size={15} strokeWidth={2} style={{ color: e.penalite ? "var(--ds-danger)" : "var(--ds-accent-400)" }} />
+                    <span className="text-[11px] font-medium leading-tight">{e.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <Modal ouvert={evenementId !== null} titre={eventSelectionne?.label ?? ""} onFermer={() => setEvenementId(null)}>
+              <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+                <div className="flex p-[3px] gap-[3px]" style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" }}>
+                  {nomsActeurs.map((nom, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActeurIndex(i as 0 | 1)}
+                      className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
+                      style={{ borderRadius: "var(--ds-radius-sm)", background: acteurIndex === i ? "var(--ds-accent-800)" : "transparent", color: acteurIndex === i ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
+                    >
+                      {nom}
+                    </button>
+                  ))}
+                </div>
+
+                {besoinCible && (
+                  <div className="flex items-center gap-2 p-2.5 text-xs" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface-2)", color: "var(--ds-muted)" }}>
+                    <ArrowRight size={13} strokeWidth={2} className="shrink-0" />
+                    <span>Cible : <span style={{ color: "var(--ds-text)" }}>{nomCible}</span></span>
+                    <span className="ml-auto shrink-0" style={{ fontFamily: "var(--ds-font-mono)", fontSize: 9 }}>AUTO</span>
+                  </div>
+                )}
+
+                <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", boxShadow: eventSelectionne?.penalite ? "0 0 0 1px var(--ds-danger)" : "0 0 0 1px var(--ds-accent-700)" }}>
+                  <div className="text-[9px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Aperçu de la ligne</div>
+                  <p className="mt-1.5 text-sm" style={{ color: eventSelectionne?.penalite ? "var(--ds-danger)" : "var(--ds-text)" }}>{previewTexte}</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={validerEvenement}
+                  className={`h-11 text-sm font-medium ${PRESS}`}
+                  style={{
+                    borderRadius: "var(--ds-radius-md)",
+                    border: `1px solid ${eventSelectionne?.penalite ? "var(--ds-danger)" : "var(--ds-accent)"}`,
+                    color: eventSelectionne?.penalite ? "var(--ds-danger)" : "var(--ds-accent-300)",
+                  }}
+                >
+                  Ajouter au fil
+                </button>
+              </div>
+            </Modal>
+
             {derniersEvenements.length > 0 && (
               <div className="mt-2.5 pt-2.5" style={{ borderTop: "1px solid var(--ds-border)" }}>
                 <span className="text-[9px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Derniers événements</span>
