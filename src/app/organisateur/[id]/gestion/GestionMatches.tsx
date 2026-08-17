@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Minus, Plus } from "lucide-react";
 import { mettreAJourScoreMatch, mettreAJourScoreEnDirect, demarrerMatch, type MatchTournoi } from "@/lib/mockBracket";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { PRESS } from "@/components/ds/Button";
@@ -11,6 +12,47 @@ function nomRound(round: number, totalRounds: number): string {
   if (round === totalRounds - 1) return "Demies";
   if (round === totalRounds - 2) return "Quarts";
   return `Round ${round}`;
+}
+
+/** Score par +1/-1 plutôt qu'un champ texte libre : au clavier mobile, corriger
+ * un chiffre déjà saisi (ex: remplacer 2 par 3) est peu fiable — même logique
+ * que les éliminations Battle Royale (GestionManchesBR). */
+function ScoreStepper({
+  valeur,
+  accent,
+  couleur,
+  onMoins,
+  onPlus,
+}: {
+  valeur: number;
+  accent?: boolean;
+  couleur?: string;
+  onMoins: () => void;
+  onPlus: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onMoins}
+        className={`flex items-center justify-center w-[22px] h-[22px] cursor-pointer ${PRESS}`}
+        style={{ borderRadius: "var(--ds-radius-sm)", border: `1px solid ${accent ? "var(--ds-accent)" : "var(--ds-border)"}`, color: "var(--ds-muted)" }}
+      >
+        <Minus size={10} strokeWidth={2} />
+      </button>
+      <span className="w-5 text-center text-sm" style={{ fontFamily: "var(--ds-font-mono)", color: couleur ?? "var(--ds-text)" }}>
+        {valeur}
+      </span>
+      <button
+        type="button"
+        onClick={onPlus}
+        className={`flex items-center justify-center w-[22px] h-[22px] cursor-pointer ${PRESS}`}
+        style={{ borderRadius: "var(--ds-radius-sm)", border: `1px solid ${accent ? "var(--ds-accent)" : "var(--ds-border)"}`, color: "var(--ds-muted)" }}
+      >
+        <Plus size={10} strokeWidth={2} />
+      </button>
+    </div>
+  );
 }
 
 export function GestionMatches({
@@ -24,7 +66,7 @@ export function GestionMatches({
   matches: MatchTournoi[];
   onEnregistre: () => void;
 }) {
-  const [saisies, setSaisies] = useState<Record<string, { s1: string; s2: string }>>({});
+  const [saisies, setSaisies] = useState<Record<string, { s1: number; s2: number }>>({});
 
   if (matches.length === 0) {
     return (
@@ -39,12 +81,19 @@ export function GestionMatches({
     );
   }
 
-  function saisie(matchId: string): { s1: string; s2: string } {
-    return saisies[matchId] ?? { s1: "", s2: "" };
+  function valeurInitiale(match: MatchTournoi): { s1: number; s2: number } {
+    return { s1: match.score1 ?? 0, s2: match.score2 ?? 0 };
   }
 
-  function setSaisie(matchId: string, patch: Partial<{ s1: string; s2: string }>) {
-    setSaisies((v) => ({ ...v, [matchId]: { ...saisie(matchId), ...patch } }));
+  function saisie(match: MatchTournoi): { s1: number; s2: number } {
+    return saisies[match.id] ?? valeurInitiale(match);
+  }
+
+  function ajuster(match: MatchTournoi, cote: "s1" | "s2", delta: number) {
+    setSaisies((v) => {
+      const actuel = v[match.id] ?? valeurInitiale(match);
+      return { ...v, [match.id]: { ...actuel, [cote]: Math.max(0, actuel[cote] + delta) } };
+    });
   }
 
   function demarrer(match: MatchTournoi) {
@@ -54,30 +103,23 @@ export function GestionMatches({
   }
 
   function validerScoreEnDirect(match: MatchTournoi) {
-    const { s1, s2 } = saisie(match.id);
-    const n1 = Number(s1);
-    const n2 = Number(s2);
-    if (!Number.isFinite(n1) || !Number.isFinite(n2)) return;
-    mettreAJourScoreEnDirect(tournoiId, match.id, n1, n2);
+    const { s1, s2 } = saisie(match);
+    mettreAJourScoreEnDirect(tournoiId, match.id, s1, s2);
     onEnregistre();
   }
 
   function cloturer(match: MatchTournoi) {
-    const { s1, s2 } = saisie(match.id);
-    const n1 = Number(s1 || (match.score1 ?? 0));
-    const n2 = Number(s2 || (match.score2 ?? 0));
-    if (!Number.isFinite(n1) || !Number.isFinite(n2) || n1 === n2) return;
-    mettreAJourScoreMatch(tournoiId, match.id, n1, n2);
-    notifierParticipants(tournoiId, tournoiTitre, `Score final : ${match.joueur1} ${n1} - ${n2} ${match.joueur2}`);
+    const { s1, s2 } = saisie(match);
+    if (s1 === s2) return;
+    mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
+    notifierParticipants(tournoiId, tournoiTitre, `Score final : ${match.joueur1} ${s1} - ${s2} ${match.joueur2}`);
     onEnregistre();
   }
 
   function modifierTermine(match: MatchTournoi) {
-    const { s1, s2 } = saisie(match.id);
-    const n1 = Number(s1);
-    const n2 = Number(s2);
-    if (!Number.isFinite(n1) || !Number.isFinite(n2) || n1 === n2) return;
-    mettreAJourScoreMatch(tournoiId, match.id, n1, n2);
+    const { s1, s2 } = saisie(match);
+    if (s1 === s2) return;
+    mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
     onEnregistre();
   }
 
@@ -107,9 +149,7 @@ export function GestionMatches({
                   const enCours = m.statut === "en_cours";
                   const pretAJouer = Boolean(m.joueur1 && m.joueur2);
                   const peutDemarrer = m.statut === "a_venir" && pretAJouer && !matchEnCoursId;
-                  const { s1, s2 } = saisie(m.id);
-                  const s1Val = s1 || (termine || enCours ? String(m.score1 ?? "") : "");
-                  const s2Val = s2 || (termine || enCours ? String(m.score2 ?? "") : "");
+                  const { s1: s1Val, s2: s2Val } = saisie(m);
                   const gagnant1 = termine && (m.score1 ?? 0) > (m.score2 ?? 0);
                   const gagnant2 = termine && (m.score2 ?? 0) > (m.score1 ?? 0);
                   return (
@@ -134,26 +174,23 @@ export function GestionMatches({
                         {termine ? (
                           <>
                             <div className="flex flex-col gap-1 shrink-0">
-                              <input
-                                value={s1Val}
-                                onChange={(e) => setSaisie(m.id, { s1: e.target.value.replace(/[^0-9]/g, "") })}
-                                inputMode="numeric"
-                                className="w-9 h-[26px] text-center text-sm"
-                                style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-bg)", border: "1px solid var(--ds-border)", color: gagnant1 ? "var(--ds-accent-300)" : "var(--ds-text)" }}
+                              <ScoreStepper
+                                valeur={s1Val}
+                                couleur={gagnant1 ? "var(--ds-accent-300)" : undefined}
+                                onMoins={() => ajuster(m, "s1", -1)}
+                                onPlus={() => ajuster(m, "s1", 1)}
                               />
-                              <input
-                                value={s2Val}
-                                onChange={(e) => setSaisie(m.id, { s2: e.target.value.replace(/[^0-9]/g, "") })}
-                                inputMode="numeric"
-                                className="w-9 h-[26px] text-center text-sm"
-                                style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-bg)", border: "1px solid var(--ds-border)", color: gagnant2 ? "var(--ds-accent-300)" : "var(--ds-text)" }}
+                              <ScoreStepper
+                                valeur={s2Val}
+                                couleur={gagnant2 ? "var(--ds-accent-300)" : undefined}
+                                onMoins={() => ajuster(m, "s2", -1)}
+                                onPlus={() => ajuster(m, "s2", 1)}
                               />
                             </div>
                             <button
                               type="button"
                               onClick={() => modifierTermine(m)}
-                              disabled={s1Val === "" || s2Val === ""}
-                              className={`w-[62px] h-[54px] text-xs font-medium shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+                              className={`w-[62px] h-[54px] text-xs font-medium shrink-0 ${PRESS}`}
                               style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
                             >
                               Modifier
@@ -162,27 +199,14 @@ export function GestionMatches({
                         ) : enCours ? (
                           <>
                             <div className="flex flex-col gap-1 shrink-0">
-                              <input
-                                value={s1Val}
-                                onChange={(e) => setSaisie(m.id, { s1: e.target.value.replace(/[^0-9]/g, "") })}
-                                inputMode="numeric"
-                                className="w-9 h-[26px] text-center text-sm"
-                                style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-bg)", border: "1px solid var(--ds-accent)", color: "var(--ds-text)" }}
-                              />
-                              <input
-                                value={s2Val}
-                                onChange={(e) => setSaisie(m.id, { s2: e.target.value.replace(/[^0-9]/g, "") })}
-                                inputMode="numeric"
-                                className="w-9 h-[26px] text-center text-sm"
-                                style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-bg)", border: "1px solid var(--ds-accent)", color: "var(--ds-text)" }}
-                              />
+                              <ScoreStepper accent valeur={s1Val} onMoins={() => ajuster(m, "s1", -1)} onPlus={() => ajuster(m, "s1", 1)} />
+                              <ScoreStepper accent valeur={s2Val} onMoins={() => ajuster(m, "s2", -1)} onPlus={() => ajuster(m, "s2", 1)} />
                             </div>
                             <div className="flex flex-col gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => validerScoreEnDirect(m)}
-                                disabled={s1Val === "" || s2Val === ""}
-                                className={`w-[62px] h-[26px] text-[10px] font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+                                className={`w-[62px] h-[26px] text-[10px] font-medium ${PRESS}`}
                                 style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
                                 title="Met à jour le score affiché aux spectateurs, sans clôturer le match"
                               >
@@ -191,7 +215,7 @@ export function GestionMatches({
                               <button
                                 type="button"
                                 onClick={() => cloturer(m)}
-                                disabled={s1Val === "" || s2Val === "" || s1Val === s2Val}
+                                disabled={s1Val === s2Val}
                                 className={`w-[62px] h-[26px] text-[10px] font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
                                 style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
                                 title="Termine le match et qualifie le vainqueur pour le tour suivant"
