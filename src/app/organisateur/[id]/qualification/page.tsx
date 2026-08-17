@@ -8,6 +8,7 @@ import { AppBar } from "@/components/ds/AppBar";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { GestionMatches } from "../gestion/GestionMatches";
 import { GestionManchesBR } from "../gestion/GestionManchesBR";
 
@@ -26,7 +27,7 @@ export default function QualificationTournoiPage() {
     const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTournoi(t);
-    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
     setPret(true);
   }, [params.id]);
 

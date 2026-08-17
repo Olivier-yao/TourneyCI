@@ -11,6 +11,7 @@ import { tournoiParId, inscriptionsFermees, terminerTournoi, type Tournoi } from
 import { matchsDuTournoi, classementFinalBracket } from "@/lib/mockBracket";
 import { classementFinalBR, manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { creerDemandeAnnulation, demandeAnnulationPourTournoi, type DemandeAnnulation } from "@/lib/mockDemandesAnnulation";
 
 /** La clôture n'est plus déclenchée manuellement (point 119) : dès que le
@@ -25,6 +26,7 @@ function SectionCloture({
   type,
   brSousType,
   termine,
+  peutAnnuler,
   onTermine,
   onAnnule,
 }: {
@@ -34,6 +36,7 @@ function SectionCloture({
   type: "1v1" | "equipes" | "battle_royale";
   brSousType?: "solo" | "duo" | "trio" | "squad";
   termine: boolean;
+  peutAnnuler: boolean;
   onTermine: () => void;
   onAnnule: () => void;
 }) {
@@ -112,7 +115,7 @@ function SectionCloture({
             Demande d&apos;annulation envoyée à l&apos;administration, en attente d&apos;examen.
           </span>
         </div>
-      ) : (
+      ) : peutAnnuler ? (
         <button
           type="button"
           onClick={() => setDemandeOuverte(true)}
@@ -122,6 +125,10 @@ function SectionCloture({
           <XCircle size={15} strokeWidth={2} />
           Demander l&apos;annulation du tournoi
         </button>
+      ) : (
+        <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+          Seul l&apos;organisateur propriétaire peut demander l&apos;annulation du tournoi.
+        </p>
       )}
 
       <Modal ouvert={demandeOuverte} titre="Demande d'annulation" onFermer={() => setDemandeOuverte(false)}>
@@ -228,6 +235,7 @@ export default function GestionTournoiPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
+  const [estProprietaire, setEstProprietaire] = useState(false);
 
   function rafraichirTournoi() {
     setTournoi(tournoiParId(params.id));
@@ -237,7 +245,8 @@ export default function GestionTournoiPage() {
     const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTournoi(t);
-    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+    setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
     setPret(true);
   }, [params.id]);
 
@@ -324,19 +333,21 @@ export default function GestionTournoiPage() {
             </div>
           </div>
         </Link>
-        <Link
-          href={`/organisateur/${params.id}/parametres`}
-          className={`flex flex-col gap-2 p-3 ${PRESS}`}
-          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
-        >
-          <Info size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
-          <div>
-            <div className="text-[13px] font-medium">Infos du tournoi</div>
-            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              Titre, règlement...
+        {estProprietaire && (
+          <Link
+            href={`/organisateur/${params.id}/parametres`}
+            className={`flex flex-col gap-2 p-3 ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+          >
+            <Info size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+            <div>
+              <div className="text-[13px] font-medium">Infos du tournoi</div>
+              <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                Titre, règlement...
+              </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+        )}
         <Link
           href={`/organisateur/${params.id}/stream`}
           className={`flex flex-col gap-2 p-3 ${PRESS}`}
@@ -405,6 +416,7 @@ export default function GestionTournoiPage() {
           type={tournoi.type}
           brSousType={tournoi.brSousType}
           termine={Boolean(tournoi.termine)}
+          peutAnnuler={estProprietaire}
           onTermine={rafraichirTournoi}
           onAnnule={rafraichirTournoi}
         />

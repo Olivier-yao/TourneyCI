@@ -13,6 +13,7 @@ import { participantsBR } from "@/lib/mockBattleRoyale";
 import { infosRoomDuTournoi, definirInfosRoom } from "@/lib/mockRoomInfo";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 
 /** Interface d'envoi des infos de room (point 121), accessible une fois les
  * inscriptions closes : lien + mot de passe modifiables, bracket ou liste de
@@ -34,7 +35,7 @@ export default function RoomTournoiPage() {
     const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTournoi(t);
-    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
     const infos = infosRoomDuTournoi(params.id);
     setLien(infos.lien);
     setMotDePasse(infos.motDePasse);

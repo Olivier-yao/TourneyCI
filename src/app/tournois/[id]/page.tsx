@@ -24,6 +24,7 @@ import { matchsDuTournoi, codeRound, type MatchTournoi } from "@/lib/mockBracket
 import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleRoyale";
 import { estOrganisateur } from "@/lib/mockAuth";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { lireProfil } from "@/lib/mockProfil";
@@ -384,7 +385,7 @@ function DetailTournoiInterne() {
     const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTournoi(t);
-    const monTournoi = Boolean(t) && t?.organisateur === nomOrganisateurActuel();
+    const monTournoi = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
     setEstMonTournoi(monTournoi);
     setAccesChat(estInscrit(params.id) || estOrganisateur());
     if (t) setFermeInscriptions(inscriptionsFermees(t));

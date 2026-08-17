@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff, ExternalLink, Plus, Trash2, ShieldCheck, Check, X } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, estAnnule, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
@@ -44,6 +44,14 @@ import {
   type PlateformeSociale,
   type ReseauSocial,
 } from "@/lib/mockOrganisateur";
+import {
+  inviterAdjoint,
+  adjointsDe,
+  invitationsRecues,
+  accepterInvitation,
+  retirerAdjoint,
+  type Adjoint,
+} from "@/lib/mockAdjointsOrganisateur";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { compterAvis, monAvisPourOrganisateur, laisserAvisOrganisateur, retirerAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -105,6 +113,11 @@ export default function ProfilOrganisateurPage() {
   const [plateformeAjout, setPlateformeAjout] = useState<PlateformeSociale>(PLATEFORMES_SOCIALES[0].id);
   const [urlAjout, setUrlAjout] = useState("");
   const [erreurReseau, setErreurReseau] = useState<string | null>(null);
+  const [adjoints, setAdjoints] = useState<Adjoint[]>([]);
+  const [invitationsEnAttente, setInvitationsEnAttente] = useState<Adjoint[]>([]);
+  const [modaleAdjointsOuverte, setModaleAdjointsOuverte] = useState(false);
+  const [nomAdjointAjout, setNomAdjointAjout] = useState("");
+  const [erreurAdjoint, setErreurAdjoint] = useState<string | null>(null);
 
   const affluence = useMemo(() => {
     if (tournois.length === 0) return 0;
@@ -140,8 +153,12 @@ export default function ProfilOrganisateurPage() {
       setBanniere(banniereOrganisateur());
       setPhoto(photoOrganisateur());
       setReseaux(reseauxSociauxOrganisateur());
+      setAdjoints(adjointsDe(nom));
+      setInvitationsEnAttente(invitationsRecues(nom));
     } else {
       setReseaux([]);
+      setAdjoints([]);
+      setInvitationsEnAttente([]);
     }
   }
 
@@ -249,6 +266,28 @@ export default function ProfilOrganisateurPage() {
   function supprimerReseau(plateforme: PlateformeSociale) {
     retirerReseauSocial(plateforme);
     setReseaux(reseauxSociauxOrganisateur());
+  }
+
+  function ajouterAdjoint() {
+    const erreur = inviterAdjoint(nom, nomAdjointAjout);
+    if (erreur) {
+      setErreurAdjoint(erreur);
+      return;
+    }
+    setAdjoints(adjointsDe(nom));
+    setNomAdjointAjout("");
+    setErreurAdjoint(null);
+  }
+
+  function retirerAdjointAccepte(nomAdjoint: string) {
+    retirerAdjoint(nom, nomAdjoint);
+    setAdjoints(adjointsDe(nom));
+  }
+
+  function repondreInvitation(proprietaire: string, accepte: boolean) {
+    if (accepte) accepterInvitation(proprietaire, nom);
+    else retirerAdjoint(proprietaire, nom);
+    setInvitationsEnAttente(invitationsRecues(nom));
   }
 
   async function partager() {
@@ -675,6 +714,128 @@ export default function ProfilOrganisateurPage() {
                 style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
               >
                 Ajouter
+              </button>
+            </div>
+          </div>
+        </Modal>
+
+        {cestMoi && invitationsEnAttente.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Invitations reçues
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {invitationsEnAttente.map((inv) => (
+                <div
+                  key={inv.proprietaire}
+                  className="flex items-center gap-2.5 p-2.5"
+                  style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                >
+                  <ShieldCheck size={15} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-300)" }} />
+                  <span className="flex-1 text-sm truncate min-w-0">
+                    <b>{inv.proprietaire}</b> t&apos;invite comme adjoint
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => repondreInvitation(inv.proprietaire, true)}
+                    aria-label="Accepter"
+                    className={`w-7 h-7 flex items-center justify-center shrink-0 ${PRESS}`}
+                    style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+                  >
+                    <Check size={13} strokeWidth={2.5} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => repondreInvitation(inv.proprietaire, false)}
+                    aria-label="Refuser"
+                    className={`w-7 h-7 flex items-center justify-center shrink-0 ${PRESS}`}
+                    style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                  >
+                    <X size={13} strokeWidth={2.5} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {cestMoi && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                Adjoints
+              </div>
+              <button
+                type="button"
+                onClick={() => setModaleAdjointsOuverte(true)}
+                className={`flex items-center gap-1 text-xs font-medium ${PRESS}`}
+                style={{ color: "var(--ds-accent-300)" }}
+              >
+                <Plus size={12} strokeWidth={2} />
+                Gérer
+              </button>
+            </div>
+            {adjoints.filter((a) => a.statut === "accepte").length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                Invite un autre organisateur pour t&apos;aider à superviser tes tournois en direct.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {adjoints.filter((a) => a.statut === "accepte").map((a) => (
+                  <div
+                    key={a.adjoint}
+                    className="flex items-center gap-2.5 p-2.5"
+                    style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                  >
+                    <ShieldCheck size={15} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-300)" }} />
+                    <span className="flex-1 text-sm truncate">{a.adjoint}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <Modal ouvert={modaleAdjointsOuverte} titre="Adjoints" onFermer={() => setModaleAdjointsOuverte(false)}>
+          <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+              Un adjoint peut t&apos;aider à gérer tes tournois en direct (scores, room, stream) — jamais les réglages
+              ni l&apos;annulation, réservés à toi seul.
+            </p>
+            {adjoints.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {adjoints.map((a) => (
+                  <div key={a.adjoint} className="flex items-center gap-2.5 p-2.5" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface-2)" }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{a.adjoint}</div>
+                      <div className="text-[11px]" style={{ color: a.statut === "accepte" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}>
+                        {a.statut === "accepte" ? "Adjoint actif" : "Invitation en attente"}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => retirerAdjointAccepte(a.adjoint)} aria-label={`Retirer ${a.adjoint}`} className={PRESS}>
+                      <Trash2 size={13} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Inviter un organisateur</label>
+              <input
+                value={nomAdjointAjout}
+                onChange={(e) => { setNomAdjointAjout(e.target.value); setErreurAdjoint(null); }}
+                placeholder="Nom de l'organisateur"
+                className="h-10 px-3 text-sm outline-none"
+                style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)" }}
+              />
+              {erreurAdjoint && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreurAdjoint}</p>}
+              <button
+                type="button"
+                onClick={ajouterAdjoint}
+                className={`h-10 text-sm font-medium ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+              >
+                Inviter
               </button>
             </div>
           </div>

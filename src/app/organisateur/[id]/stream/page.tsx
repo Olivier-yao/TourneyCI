@@ -8,6 +8,7 @@ import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, modifierTournoi, type Tournoi } from "@/lib/mockTournaments";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 
 /** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
  * dans ce mock) — stable entre le rendu serveur et client. */
@@ -43,7 +44,7 @@ export default function StreamTournoiPage() {
     const t = tournoiParId(params.id);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTournoi(t);
-    setAutorise(t?.organisateur === nomOrganisateurActuel());
+    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
     setStreamActif(t?.streamActif ?? false);
     setPret(true);
   }, [params.id]);
