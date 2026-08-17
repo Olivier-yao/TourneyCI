@@ -76,12 +76,12 @@ export default function ServiceClientPage() {
       </Button>
 
       <a
-        href="mailto:support@tourney-ci.app"
+        href="mailto:supporttourney.ci.app@gmail.com"
         className="flex items-center justify-center gap-1.5 text-xs"
         style={{ color: "var(--ds-muted)" }}
       >
         <Mail size={12} strokeWidth={2} />
-        Ou par email : support@tourney-ci.app
+        Ou par email : supporttourney.ci.app@gmail.com
       </a>
     </div>
   );
