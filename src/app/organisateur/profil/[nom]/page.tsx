@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, estAnnule, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
@@ -37,6 +37,12 @@ import {
   photoOrganisateur,
   definirPhotoOrganisateur,
   peutChangerPhotoOrganisateur,
+  reseauxSociauxOrganisateur,
+  definirReseauSocial,
+  retirerReseauSocial,
+  PLATEFORMES_SOCIALES,
+  type PlateformeSociale,
+  type ReseauSocial,
 } from "@/lib/mockOrganisateur";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { compterAvis, monAvisPourOrganisateur, laisserAvisOrganisateur, retirerAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
@@ -94,6 +100,11 @@ export default function ProfilOrganisateurPage() {
   const [brouillonNom, setBrouillonNom] = useState("");
   const [erreurNom, setErreurNom] = useState<string | null>(null);
   const [suggestionsNom, setSuggestionsNom] = useState<string[]>([]);
+  const [reseaux, setReseaux] = useState<ReseauSocial[]>([]);
+  const [modaleReseauxOuverte, setModaleReseauxOuverte] = useState(false);
+  const [plateformeAjout, setPlateformeAjout] = useState<PlateformeSociale>(PLATEFORMES_SOCIALES[0].id);
+  const [urlAjout, setUrlAjout] = useState("");
+  const [erreurReseau, setErreurReseau] = useState<string | null>(null);
 
   const affluence = useMemo(() => {
     if (tournois.length === 0) return 0;
@@ -128,6 +139,9 @@ export default function ProfilOrganisateurPage() {
       setBio(bioOrganisateur());
       setBanniere(banniereOrganisateur());
       setPhoto(photoOrganisateur());
+      setReseaux(reseauxSociauxOrganisateur());
+    } else {
+      setReseaux([]);
     }
   }
 
@@ -219,6 +233,22 @@ export default function ProfilOrganisateurPage() {
     definirBioOrganisateur(brouillonBio);
     setBio(brouillonBio.trim() || undefined);
     setEditionBio(false);
+  }
+
+  function ajouterReseau() {
+    if (!urlAjout.trim()) {
+      setErreurReseau("Ajoute le lien direct de ton profil.");
+      return;
+    }
+    definirReseauSocial(plateformeAjout, urlAjout);
+    setReseaux(reseauxSociauxOrganisateur());
+    setUrlAjout("");
+    setErreurReseau(null);
+  }
+
+  function supprimerReseau(plateforme: PlateformeSociale) {
+    retirerReseauSocial(plateforme);
+    setReseaux(reseauxSociauxOrganisateur());
   }
 
   async function partager() {
@@ -512,6 +542,113 @@ export default function ProfilOrganisateurPage() {
             </button>
           )
         )}
+
+        {(reseaux.length > 0 || cestMoi) && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                Réseaux sociaux
+              </div>
+              {cestMoi && (
+                <button
+                  type="button"
+                  onClick={() => setModaleReseauxOuverte(true)}
+                  className={`flex items-center gap-1 text-xs font-medium ${PRESS}`}
+                  style={{ color: "var(--ds-accent-300)" }}
+                >
+                  <Plus size={12} strokeWidth={2} />
+                  Gérer
+                </button>
+              )}
+            </div>
+            {reseaux.length === 0 ? (
+              <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+                Ajoute tes réseaux pour que les visiteurs de ton profil puissent te suivre.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {reseaux.map((r) => {
+                  const meta = PLATEFORMES_SOCIALES.find((p) => p.id === r.plateforme);
+                  if (!meta) return null;
+                  return (
+                    <div
+                      key={r.plateforme}
+                      className="flex items-center gap-2.5 p-2.5"
+                      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+                    >
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.couleur }} />
+                      <span className="flex-1 text-sm truncate">{meta.label}</span>
+                      <a
+                        href={r.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold shrink-0 ${PRESS}`}
+                        style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+                      >
+                        Suivre
+                        <ExternalLink size={11} strokeWidth={2} />
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        <Modal ouvert={modaleReseauxOuverte} titre="Réseaux sociaux" onFermer={() => setModaleReseauxOuverte(false)}>
+          <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+            {reseaux.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {reseaux.map((r) => {
+                  const meta = PLATEFORMES_SOCIALES.find((p) => p.id === r.plateforme);
+                  if (!meta) return null;
+                  return (
+                    <div key={r.plateforme} className="flex items-center gap-2.5 p-2.5" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface-2)" }}>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.couleur }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{meta.label}</div>
+                        <div className="text-[11px] truncate" style={{ color: "var(--ds-muted)" }}>{r.url}</div>
+                      </div>
+                      <button type="button" onClick={() => supprimerReseau(r.plateforme)} aria-label={`Retirer ${meta.label}`} className={PRESS}>
+                        <Trash2 size={13} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Ajouter un réseau</label>
+              <select
+                value={plateformeAjout}
+                onChange={(e) => setPlateformeAjout(e.target.value as PlateformeSociale)}
+                className="h-10 px-3 text-sm outline-none cursor-pointer"
+                style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)" }}
+              >
+                {PLATEFORMES_SOCIALES.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+              <input
+                value={urlAjout}
+                onChange={(e) => { setUrlAjout(e.target.value); setErreurReseau(null); }}
+                placeholder="Lien direct (ex: instagram.com/tonprofil)"
+                className="h-10 px-3 text-sm outline-none"
+                style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)" }}
+              />
+              {erreurReseau && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreurReseau}</p>}
+              <button
+                type="button"
+                onClick={ajouterReseau}
+                className={`h-10 text-sm font-medium ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         <div className="flex items-stretch gap-2.5">
           <div className="flex-1 flex items-center gap-2.5 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>

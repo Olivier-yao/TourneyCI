@@ -248,6 +248,68 @@ export function definirBanniereOrganisateur(dataUrl: string) {
 }
 
 /**
+ * Réseaux sociaux de l'organisateur (profil organisateur) : liens directs
+ * mentionnés par l'organisateur lui-même, affichés aux visiteurs de son
+ * profil avec un bouton "Suivre" qui ouvre le réseau en question — pas un
+ * vrai suivi in-app, juste une redirection directe. Comme le TAG/bio/
+ * bannière ci-dessus, ces données ne sont connues que de l'appareil courant
+ * (pas de backend partagé tant que la phase 8 n'est pas là) : un seul lien
+ * par plateforme.
+ */
+export type PlateformeSociale = "instagram" | "tiktok" | "youtube" | "facebook" | "x" | "whatsapp" | "twitch" | "discord" | "snapchat" | "site";
+
+export const PLATEFORMES_SOCIALES: { id: PlateformeSociale; label: string; couleur: string }[] = [
+  { id: "instagram", label: "Instagram", couleur: "#E1306C" },
+  { id: "tiktok", label: "TikTok", couleur: "#25F4EE" },
+  { id: "youtube", label: "YouTube", couleur: "#FF0000" },
+  { id: "facebook", label: "Facebook", couleur: "#1877F2" },
+  { id: "x", label: "X (Twitter)", couleur: "#E8E8F0" },
+  { id: "whatsapp", label: "WhatsApp", couleur: "#25D366" },
+  { id: "twitch", label: "Twitch", couleur: "#9146FF" },
+  { id: "discord", label: "Discord", couleur: "#5865F2" },
+  { id: "snapchat", label: "Snapchat", couleur: "#FFFC00" },
+  { id: "site", label: "Site web", couleur: "#9C9CB8" },
+];
+
+export type ReseauSocial = { plateforme: PlateformeSociale; url: string };
+
+const CLE_RESEAUX_SOCIAUX = "tourney-reseaux-sociaux-organisateur";
+
+function normaliserUrlReseau(url: string): string {
+  const cible = url.trim();
+  if (!cible) return cible;
+  return /^https?:\/\//i.test(cible) ? cible : `https://${cible}`;
+}
+
+export function reseauxSociauxOrganisateur(): ReseauSocial[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const brut = localStorage.getItem(CLE_RESEAUX_SOCIAUX);
+    return brut ? (JSON.parse(brut) as ReseauSocial[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Ajoute ou remplace le lien d'une plateforme (un seul lien par plateforme). */
+export function definirReseauSocial(plateforme: PlateformeSociale, url: string) {
+  if (typeof window === "undefined" || !url.trim()) return;
+  const existants = reseauxSociauxOrganisateur().filter((r) => r.plateforme !== plateforme);
+  localStorage.setItem(
+    CLE_RESEAUX_SOCIAUX,
+    JSON.stringify([...existants, { plateforme, url: normaliserUrlReseau(url) }]),
+  );
+}
+
+export function retirerReseauSocial(plateforme: PlateformeSociale) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    CLE_RESEAUX_SOCIAUX,
+    JSON.stringify(reseauxSociauxOrganisateur().filter((r) => r.plateforme !== plateforme)),
+  );
+}
+
+/**
  * Réputation & modération anti-triche (mock) — basée sur les avis
  * cœur/cœur brisé laissés en fin de tournoi (cf. mockAvis). Un organisateur
  * qui accumule trop de cœurs brisés voit sa capacité à créer des tournois
