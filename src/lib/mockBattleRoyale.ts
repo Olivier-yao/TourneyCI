@@ -170,12 +170,47 @@ export function manchesBR(tournoiId: string): MancheBR[] {
   return lireOverlayManches()[tournoiId] ?? [];
 }
 
+const CLE_MANCHE_EN_COURS_BR = "tourney-manche-en-cours-br";
+
+function lireManchesEnCours(): Record<string, ResultatManche[]> {
+  if (typeof window === "undefined") return {};
+  try {
+    const brut = localStorage.getItem(CLE_MANCHE_EN_COURS_BR);
+    return brut ? (JSON.parse(brut) as Record<string, ResultatManche[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Point 205 : aperçu provisoire de la manche en cours de saisie, poussé par
+ * "Valider" — visible immédiatement des spectateurs (classement en direct)
+ * sans clôturer la manche. Volontairement séparé de manchesBR/
+ * classementCumuleBR (source du classement final, point 118) : un brouillon
+ * jamais clôturé ne doit jamais compter dans les points officiels. */
+export function mancheEnCoursBR(tournoiId: string): ResultatManche[] {
+  return lireManchesEnCours()[tournoiId] ?? [];
+}
+
+export function validerMancheEnDirect(tournoiId: string, resultats: ResultatManche[]) {
+  if (typeof window === "undefined") return;
+  const tout = lireManchesEnCours();
+  localStorage.setItem(CLE_MANCHE_EN_COURS_BR, JSON.stringify({ ...tout, [tournoiId]: resultats }));
+}
+
+function effacerMancheEnCours(tournoiId: string) {
+  if (typeof window === "undefined") return;
+  const tout = lireManchesEnCours();
+  delete tout[tournoiId];
+  localStorage.setItem(CLE_MANCHE_EN_COURS_BR, JSON.stringify(tout));
+}
+
 export function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]) {
   if (typeof window === "undefined") return;
   const overlay = lireOverlayManches();
   const manches = overlay[tournoiId] ?? [];
   const nouvelle: MancheBR = { numero: manches.length + 1, resultats, horodatage: Date.now() };
   localStorage.setItem(CLE_MANCHES_BR, JSON.stringify({ ...overlay, [tournoiId]: [...manches, nouvelle] }));
+  effacerMancheEnCours(tournoiId);
 }
 
 /** Classement cumulé sur toutes les manches jouées, trié par points décroissants.

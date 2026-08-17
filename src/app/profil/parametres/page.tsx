@@ -8,7 +8,9 @@ import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { ThemeProvider } from "@/components/ds/ThemeProvider";
 import { ThemeToggle } from "@/components/ds/ThemeToggle";
+import { LangueToggle } from "@/components/ds/LangueToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
+import { useLangue } from "@/lib/i18n/useLangue";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, peutChangerPseudo, marquerPseudoModifie } from "@/lib/mockProfil";
 import { PAYS, paysDeVille } from "@/lib/mockGeographie";
 import { deconnecter } from "@/lib/mockAuth";
@@ -24,6 +26,7 @@ function ParametresInterne() {
   const [erreurPseudo, setErreurPseudo] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
+  const { t } = useLangue();
 
   function enregistrer(e: React.FormEvent) {
     e.preventDefault();
@@ -79,7 +82,7 @@ function ParametresInterne() {
       className="min-h-screen flex flex-col px-6 py-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar retour titre="Réglages" onRetour={() => router.back()} />
+      <AppBar retour titre={t("parametres.titre")} onRetour={() => router.back()} />
 
       <div className="flex flex-col gap-8 mt-4 max-w-sm">
         <div className="flex flex-col gap-3">
@@ -204,6 +207,19 @@ function ParametresInterne() {
             Choisis l&apos;ambiance visuelle de l&apos;app, à tout moment.
           </p>
           <ThemeToggle />
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div
+            className="text-xs uppercase tracking-wide"
+            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+          >
+            {t("parametres.langue.section")}
+          </div>
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            {t("parametres.langue.description")}
+          </p>
+          <LangueToggle />
         </div>
 
         <button

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Info } from "lucide-react";
-import { unitesBR, manchesBR, ajouterMancheBR, LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
+import { unitesBR, manchesBR, ajouterMancheBR, mancheEnCoursBR, validerMancheEnDirect, LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
@@ -26,9 +26,11 @@ export function GestionManchesBR({
   const [placements, setPlacements] = useState<Record<string, string>>({});
   const [eliminations, setEliminations] = useState<Record<string, number>>({});
   const [confirmationOuverte, setConfirmationOuverte] = useState(false);
+  const [valide, setValide] = useState(mancheEnCoursBR(tournoiId).length > 0);
 
   function stepper(id: string, delta: number) {
     setEliminations((e) => ({ ...e, [id]: Math.max(0, (e[id] ?? 0) + delta) }));
+    setValide(false);
   }
 
   const resultatsPrets = participants
@@ -39,12 +41,22 @@ export function GestionManchesBR({
     }))
     .filter((r) => r.placement > 0 || r.eliminations > 0);
 
+  /** Point 205 : pousse un aperçu provisoire visible des spectateurs (classement
+   * en direct) sans clôturer la manche — même logique que le bouton "Valider"
+   * du point 151 pour les matchs 1v1. */
+  function valider() {
+    if (resultatsPrets.length === 0) return;
+    validerMancheEnDirect(tournoiId, resultatsPrets);
+    setValide(true);
+  }
+
   function cloturer() {
     if (resultatsPrets.length === 0) return;
     ajouterMancheBR(tournoiId, resultatsPrets);
     notifierParticipants(tournoiId, tournoiTitre, `Manche ${numeroSuivant} enregistrée — classement mis à jour`);
     setPlacements({});
     setEliminations({});
+    setValide(false);
     setConfirmationOuverte(false);
     onEnregistre();
   }
@@ -93,7 +105,10 @@ export function GestionManchesBR({
                 min={0}
                 placeholder="—"
                 value={placements[p.id] ?? ""}
-                onChange={(e) => setPlacements((v) => ({ ...v, [p.id]: e.target.value }))}
+                onChange={(e) => {
+                  setPlacements((v) => ({ ...v, [p.id]: e.target.value }));
+                  setValide(false);
+                }}
                 className="text-sm text-center shrink-0"
                 style={{
                   width: 56,
@@ -129,15 +144,18 @@ export function GestionManchesBR({
           );
         })}
       </div>
+
       <button
         type="button"
-        onClick={() => setConfirmationOuverte(true)}
+        onClick={valider}
         disabled={resultatsPrets.length === 0}
         className={`h-11 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
-        style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+        style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: valide ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
+        title="Met à jour le classement affiché aux spectateurs, sans clôturer la manche"
       >
-        Clôturer la manche
+        {valide ? "Aperçu validé — visible des spectateurs" : "Valider (aperçu en direct)"}
       </button>
+
       <Link
         href={`/tournois/${tournoiId}/battle-royale`}
         className="text-sm font-medium"
@@ -145,6 +163,22 @@ export function GestionManchesBR({
       >
         Voir le classement en direct →
       </Link>
+
+      {/* Point 203 : un seul bouton de clôture, définitif, tout en bas. */}
+      <div className="flex flex-col gap-2 pt-2">
+        <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+          La clôture fige la manche {numeroSuivant} et l&apos;ajoute au classement cumulé — irréversible, à faire une fois tous les résultats saisis.
+        </p>
+        <button
+          type="button"
+          onClick={() => setConfirmationOuverte(true)}
+          disabled={resultatsPrets.length === 0}
+          className={`h-11 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+        >
+          Clôturer la manche
+        </button>
+      </div>
 
       <Modal ouvert={confirmationOuverte} titre={`Clôturer la manche ${numeroSuivant}`} onFermer={() => setConfirmationOuverte(false)}>
         <div className="flex flex-col gap-2.5 not-italic" style={{ whiteSpace: "normal" }}>

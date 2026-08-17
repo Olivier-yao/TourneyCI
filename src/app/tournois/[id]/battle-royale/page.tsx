@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Settings2, Search } from "lucide-react";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { tournoiParId } from "@/lib/mockTournaments";
-import { manchesBR, classementCumuleBR } from "@/lib/mockBattleRoyale";
+import { manchesBR, classementCumuleBR, mancheEnCoursBR, pointsManche } from "@/lib/mockBattleRoyale";
 
 const RAFRAICHISSEMENT_MS = 15_000;
 
@@ -18,6 +18,7 @@ export default function BattleRoyalePage() {
   const [organisateur, setOrganisateur] = useState(false);
   const [manches, setManches] = useState<ReturnType<typeof manchesBR>>([]);
   const [classement, setClassement] = useState<ReturnType<typeof classementCumuleBR>>([]);
+  const [mancheEnCours, setMancheEnCours] = useState<ReturnType<typeof mancheEnCoursBR>>([]);
   const [recherche, setRecherche] = useState("");
 
   useEffect(() => {
@@ -32,7 +33,21 @@ export default function BattleRoyalePage() {
     setOrganisateur(tournoi?.organisateur === nomOrganisateurActuel());
     setManches(manchesBR(params.id));
     setClassement(classementCumuleBR(params.id, tournoi?.brSousType ?? "solo"));
+    setMancheEnCours(mancheEnCoursBR(params.id));
   }, [params.id, rafraichir, tournoi?.brSousType, tournoi?.organisateur]);
+
+  // Point 205 : aperçu en direct (validé par l'organisateur, pas encore
+  // clôturé) superposé au classement officiel — jamais persisté comme
+  // définitif, juste réordonné pour l'affichage spectateur.
+  const classementAffiche =
+    mancheEnCours.length > 0
+      ? classement
+          .map((l) => {
+            const r = mancheEnCours.find((x) => x.participantId === l.participantId);
+            return r ? { ...l, points: l.points + pointsManche(r) } : l;
+          })
+          .sort((a, b) => b.points - a.points)
+      : classement;
 
   if (!tournoi) {
     return (
@@ -49,11 +64,22 @@ export default function BattleRoyalePage() {
           <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
             {tournoi.titre} · {manches.length} manche{manches.length > 1 ? "s" : ""}
           </div>
-          <div
-            className="text-xl"
-            style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}
-          >
-            Classement en direct
+          <div className="flex items-center gap-2">
+            <div
+              className="text-xl"
+              style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}
+            >
+              Classement en direct
+            </div>
+            {mancheEnCours.length > 0 && (
+              <span
+                className="flex items-center gap-1 text-[9px] px-2 py-0.5"
+                style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--ds-accent-400)" }} />
+                MANCHE {manches.length + 1} EN COURS
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -78,7 +104,7 @@ export default function BattleRoyalePage() {
           </Link>
         )}
 
-        {classement.length > 0 && (
+        {classementAffiche.length > 0 && (
           <div
             className="flex items-center gap-2.5 h-11 px-3.5"
             style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}
@@ -94,17 +120,17 @@ export default function BattleRoyalePage() {
           </div>
         )}
 
-        {classement.every((l) => l.points === 0) ? (
+        {classementAffiche.every((l) => l.points === 0) ? (
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
             Aucune manche jouée pour l&apos;instant.
           </p>
-        ) : classement.filter((l) => l.nom.toLowerCase().includes(recherche.toLowerCase())).length === 0 ? (
+        ) : classementAffiche.filter((l) => l.nom.toLowerCase().includes(recherche.toLowerCase())).length === 0 ? (
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
             Aucun résultat pour &quot;{recherche}&quot;.
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {classement
+            {classementAffiche
               .map((l, i) => ({ ...l, rang: i + 1 }))
               .filter((l) => l.nom.toLowerCase().includes(recherche.toLowerCase()))
               .map((l) => (

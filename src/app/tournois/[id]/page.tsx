@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, ShieldCheck, XCircle } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -263,48 +263,92 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
   const tousMatchs = matchsDuTournoi(tournoi.id);
   const matchsEnCours = tousMatchs.filter((m) => m.statut === "en_cours");
   const totalRounds = tousMatchs.length > 0 ? Math.max(...tousMatchs.map((m) => m.round)) : 0;
-  const roundActuel = matchsEnCours[0] ? codeRound(matchsEnCours[0].round, totalRounds) : undefined;
+  const matchVedette = matchsEnCours[0];
+  const autresEnCours = matchsEnCours.slice(1);
+  const roundActuel = matchVedette ? codeRound(matchVedette.round, totalRounds) : undefined;
 
   return (
     <div className="flex flex-col gap-2.5">
-      <CarteOrganisateur nom={tournoi.organisateur} />
-      <div className="grid grid-cols-3 gap-2">
-        <TuileStat valeur={String(tournoi.placesInscrites)} label="joueurs" />
-        <TuileStat valeur={cashPrizeAffiche(tournoi).toLocaleString("fr-FR")} label="FCFA" accent />
-        <TuileStat valeur={roundActuel ?? "–"} label="en cours" accent />
-      </div>
-      {matchsEnCours.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-            Matchs en cours
+      {/* Point 208 : le match en cours est la priorité absolue de cette fiche
+       * en direct — score et adversaires en grand, avant toute autre info,
+       * pour qu'un spectateur ne confonde jamais ça avec un écran d'inscription. */}
+      {matchVedette ? (
+        <Link
+          href={`/matches/${matchVedette.id}`}
+          className="flex flex-col gap-4 p-4"
+          style={{ borderRadius: "var(--ds-radius-lg)", background: "linear-gradient(var(--ds-accent-900), var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              {roundActuel} · Match en direct
+            </span>
+            <LiveBadge />
           </div>
-          {matchsEnCours.slice(0, 3).map((m: MatchTournoi, i: number) => (
-            <Link
-              key={m.id}
-              href={`/matches/${m.id}`}
-              className="flex items-center gap-2.5 py-2.5 px-2.5"
-              style={{
-                borderRadius: "var(--ds-radius-md)",
-                background: i === 0 ? "var(--ds-surface)" : "transparent",
-                boxShadow: i === 0 ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)",
-              }}
-            >
-              <span className="w-[34px] shrink-0 text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                {codeRound(m.round, totalRounds)}
-              </span>
-              <span className="flex-1 min-w-0 truncate text-[13px]">{m.joueur1 ?? "?"} vs {m.joueur2 ?? "?"}</span>
-              <span className="shrink-0 text-xs" style={{ fontFamily: "var(--ds-font-mono)", color: i === 0 ? "var(--ds-accent-300)" : "var(--ds-muted)" }}>
-                {m.score1 ?? "–"} — {m.score2 ?? "–"}
-              </span>
-            </Link>
-          ))}
-        </div>
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
+              <div
+                className="flex items-center justify-center shrink-0 font-medium"
+                style={{ width: 56, height: 56, borderRadius: "var(--ds-radius-pill)", background: (matchVedette.score1 ?? 0) > (matchVedette.score2 ?? 0) ? "var(--ds-accent-800)" : "var(--ds-surface-2)", border: `1px solid ${(matchVedette.score1 ?? 0) > (matchVedette.score2 ?? 0) ? "var(--ds-accent)" : "var(--ds-border)"}`, color: "var(--ds-accent-300)" }}
+              >
+                {initiales(matchVedette.joueur1 ?? "?")}
+              </div>
+              <span className="text-[13px] font-medium text-center truncate w-full">{matchVedette.joueur1 ?? "À définir"}</span>
+            </div>
+            <div className="text-2xl font-semibold shrink-0" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>
+              {matchVedette.score1 ?? 0} — {matchVedette.score2 ?? 0}
+            </div>
+            <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
+              <div
+                className="flex items-center justify-center shrink-0 font-medium"
+                style={{ width: 56, height: 56, borderRadius: "var(--ds-radius-pill)", background: (matchVedette.score2 ?? 0) > (matchVedette.score1 ?? 0) ? "var(--ds-accent-800)" : "var(--ds-surface-2)", border: `1px solid ${(matchVedette.score2 ?? 0) > (matchVedette.score1 ?? 0) ? "var(--ds-accent)" : "var(--ds-border)"}`, color: "var(--ds-accent-300)" }}
+              >
+                {initiales(matchVedette.joueur2 ?? "?")}
+              </div>
+              <span className="text-[13px] font-medium text-center truncate w-full">{matchVedette.joueur2 ?? "À définir"}</span>
+            </div>
+          </div>
+          <span className="flex items-center justify-center gap-1 text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
+            Voir le match en direct
+            <ChevronRight size={15} strokeWidth={2} />
+          </span>
+        </Link>
       ) : (
         <div className="flex items-center gap-3 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
           <Swords size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
           <span className="flex-1 text-sm">Compétition en cours — entre deux matchs.</span>
         </div>
       )}
+
+      {autresEnCours.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            Autres matchs en cours
+          </div>
+          {autresEnCours.slice(0, 2).map((m: MatchTournoi) => (
+            <Link
+              key={m.id}
+              href={`/matches/${m.id}`}
+              className="flex items-center gap-2.5 py-2.5 px-2.5"
+              style={{ borderRadius: "var(--ds-radius-md)", boxShadow: "0 0 0 1px var(--ds-border)" }}
+            >
+              <span className="w-[34px] shrink-0 text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                {codeRound(m.round, totalRounds)}
+              </span>
+              <span className="flex-1 min-w-0 truncate text-[13px]">{m.joueur1 ?? "?"} vs {m.joueur2 ?? "?"}</span>
+              <span className="shrink-0 text-xs" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-muted)" }}>
+                {m.score1 ?? "–"} — {m.score2 ?? "–"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <CarteOrganisateur nom={tournoi.organisateur} />
+      <div className="grid grid-cols-3 gap-2">
+        <TuileStat valeur={String(tournoi.placesInscrites)} label="joueurs" />
+        <TuileStat valeur={cashPrizeAffiche(tournoi).toLocaleString("fr-FR")} label="FCFA" accent />
+        <TuileStat valeur={roundActuel ?? "–"} label="en cours" accent />
+      </div>
       {!tournoi.streamActif && (
         <div className="flex items-center gap-2.5 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
           <Radio size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
@@ -511,6 +555,18 @@ function DetailTournoiInterne() {
             {tournoi.code}
           </span>
         </div>
+
+        {tournoi.annule && (
+          <div
+            className="flex items-center gap-2.5 p-3"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "color-mix(in srgb, var(--ds-danger) 12%, var(--ds-surface))", border: "1px solid var(--ds-danger)" }}
+          >
+            <XCircle size={16} strokeWidth={2} style={{ color: "var(--ds-danger)" }} className="shrink-0" />
+            <span className="text-sm" style={{ color: "var(--ds-danger)" }}>
+              Tournoi annulé par l&apos;organisateur — les inscrits payants ont été remboursés.
+            </span>
+          </div>
+        )}
 
         <p className="text-[13px]" style={{ color: "var(--ds-muted)" }}>
           Organisé par{" "}

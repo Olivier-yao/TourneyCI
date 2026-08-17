@@ -21,6 +21,7 @@ import {
   commissionEstimee,
   capaciteLobbyMax,
   repartitionAutomatique,
+  formatsDisponiblesPourJeu,
   COMMISSION_PCT,
   FRAIS_CREATION_TOURNOI_PAYANT_XOF,
   type TypeCompetition,
@@ -34,6 +35,17 @@ type ModeFinalistes = "1" | "3" | "perso";
 /** Point 184 : le check-in ne peut jamais être fixé après ou au même moment
  * que le début du tournoi — 10 minutes est le minimum autorisé avant. */
 const DELAI_CHECKIN_MIN_MS = 10 * 60 * 1000;
+/** Point 201 : délai par défaut entre check-in et début, tant que
+ * l'organisateur n'a pas ajusté l'heure de check-in lui-même. */
+const DELAI_CHECKIN_DEFAUT_MIN = 15;
+
+function soustraireMinutes(heure: string, minutes: number): string {
+  const [h, m] = (heure || "00:00").split(":").map(Number);
+  const total = Math.max(0, (h || 0) * 60 + (m || 0) - minutes);
+  const hh = Math.floor(total / 60).toString().padStart(2, "0");
+  const mm = (total % 60).toString().padStart(2, "0");
+  return `${hh}:${mm}`;
+}
 
 const TYPES: { id: TypeCompetition; label: string }[] = [
   { id: "1v1", label: "1v1" },
@@ -168,7 +180,17 @@ export default function NouveauTournoiPage() {
   const [nbFinalistesPerso, setNbFinalistesPerso] = useState("5");
   const [dateJour, setDateJour] = useState("");
   const [dateHeure, setDateHeure] = useState("20:00");
-  const [checkinHeure, setCheckinHeure] = useState("19:30");
+  const [checkinHeure, setCheckinHeure] = useState(() => soustraireMinutes("20:00", DELAI_CHECKIN_DEFAUT_MIN));
+  const [checkinAjusteManuellement, setCheckinAjusteManuellement] = useState(false);
+
+  // Point 201 : le check-in suit automatiquement l'heure de début (15 min
+  // avant) tant que l'organisateur ne l'a pas lui-même ajusté — dès qu'il le
+  // fait, ses choix sont respectés même si la date/heure change ensuite.
+  useEffect(() => {
+    if (checkinAjusteManuellement) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCheckinHeure(soustraireMinutes(dateHeure, DELAI_CHECKIN_DEFAUT_MIN));
+  }, [dateHeure, checkinAjusteManuellement]);
   const [debutInscJour, setDebutInscJour] = useState("");
   const [debutInscHeure, setDebutInscHeure] = useState("");
   const [finInscJour, setFinInscJour] = useState("");
@@ -195,6 +217,16 @@ export default function NouveauTournoiPage() {
   const jeuIdFinal = jeuId === "autre" ? jeuPersonnalise.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : jeuId;
   const jeuLabelFinal = jeuId === "autre" ? jeuPersonnalise.trim() : (jeu?.label ?? "");
   const capaciteMax = capaciteLobbyMax(jeuIdFinal);
+  // Point 200 : formats réellement proposés pour ce jeu (ex. NBA 2K, genre
+  // Sport, n'a pas de Battle Royale) — bascule automatiquement sur un format
+  // valide si le jeu change et que le format sélectionné n'est plus proposé.
+  const formatsAutorises = formatsDisponiblesPourJeu(jeuId);
+  const typesDisponibles = TYPES.filter((t) => formatsAutorises.includes(t.id));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!formatsAutorises.includes(type)) setType(formatsAutorises[0] ?? "1v1");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jeuId]);
   const places =
     type === "battle_royale" ? Math.min(Number(placesBR) || 0, capaciteMax) : Number(placesTotal) || 0;
   const commissionXof = payant && commissionActivee ? commissionEstimee(Number(fraisXof) || 0, places) : 0;
@@ -237,6 +269,10 @@ export default function NouveauTournoiPage() {
     }
     if (!dateLabel.trim()) {
       setErreur("La date est obligatoire.");
+      return;
+    }
+    if (!reglement.trim()) {
+      setErreur("Le règlement est obligatoire.");
       return;
     }
     if (debutTournoiTs !== undefined) {
@@ -569,7 +605,12 @@ export default function NouveauTournoiPage() {
           >
             Format de compétition
           </div>
-          <SegmentedControl options={TYPES} valeur={type} onChange={setType} />
+          <SegmentedControl options={typesDisponibles} valeur={type} onChange={setType} />
+          {typesDisponibles.length < TYPES.length && (
+            <p className="text-xs mt-1.5" style={{ color: "var(--ds-muted)" }}>
+              Formats limités à ceux réellement proposés par {jeuLabelFinal || "ce jeu"}.
+            </p>
+          )}
         </div>
 
         <MiniatureFormat
@@ -682,7 +723,20 @@ export default function NouveauTournoiPage() {
             Affiché comme : <span style={{ color: "var(--ds-accent-300)" }}>{dateLabel}</span>
           </p>
         )}
-        <Field label="Heure de check-in" type="time" value={checkinHeure} onChange={(e) => setCheckinHeure(e.target.value)} />
+        <Field
+          label="Heure de check-in"
+          type="time"
+          value={checkinHeure}
+          onChange={(e) => {
+            setCheckinHeure(e.target.value);
+            setCheckinAjusteManuellement(true);
+          }}
+        />
+        <p className="text-xs -mt-3" style={{ color: "var(--ds-muted)" }}>
+          {checkinAjusteManuellement
+            ? "Réglée manuellement — ne suit plus automatiquement l'heure de début."
+            : `Synchronisée automatiquement (${DELAI_CHECKIN_DEFAUT_MIN} min avant le début).`}
+        </p>
         {(() => {
           if (debutTournoiTs === undefined) return null;
           const checkinTs = versTimestamp(dateJour, checkinHeure);
@@ -722,7 +776,7 @@ export default function NouveauTournoiPage() {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
-            Règlement
+            Règlement (obligatoire)
           </label>
           <textarea
             value={reglement}

@@ -26,6 +26,7 @@ function SectionCloture({
   brSousType,
   termine,
   onTermine,
+  onAnnule,
 }: {
   tournoiId: string;
   tournoiTitre: string;
@@ -34,6 +35,7 @@ function SectionCloture({
   brSousType?: "solo" | "duo" | "trio" | "squad";
   termine: boolean;
   onTermine: () => void;
+  onAnnule: () => void;
 }) {
   const [resultat, setResultat] = useState<{ pointsAttribues: number; gainCredite: number } | null>(null);
   const [demandeOuverte, setDemandeOuverte] = useState(false);
@@ -61,7 +63,15 @@ function SectionCloture({
   function envoyerDemande() {
     if (!motif.trim()) return;
     const d = creerDemandeAnnulation(tournoiId, tournoiTitre, organisateur, motif.trim());
-    if (d) setDemandeEnAttente(d);
+    if (d) {
+      setDemandeEnAttente(d);
+      // Point 209 : tant que la validation automatique pré-backend (point
+      // 157) est active, la demande est déjà résolue à l'envoi — le tournoi
+      // est réellement annulé immédiatement, il faut donc le refléter tout
+      // de suite (pas de "en attente d'examen" trompeur) plutôt que de
+      // laisser croire que rien ne s'est passé.
+      if (d.statut === "validee") onAnnule();
+    }
     setDemandeOuverte(false);
     setMotif("");
   }
@@ -218,7 +228,10 @@ export default function GestionTournoiPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
-  const [, setRafraichir] = useState(0);
+
+  function rafraichirTournoi() {
+    setTournoi(tournoiParId(params.id));
+  }
 
   useEffect(() => {
     const t = tournoiParId(params.id);
@@ -244,6 +257,24 @@ export default function GestionTournoiPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <p>Cette page est réservée aux organisateurs.</p>
         <Link href={`/tournois/${params.id}`} style={{ color: "var(--ds-accent-300)" }}>Retour au tournoi</Link>
+      </div>
+    );
+  }
+
+  if (tournoi.annule) {
+    return (
+      <div className="min-h-screen flex flex-col px-5 py-4 gap-6" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+        <AppBar retour titre="Gestion en direct" onRetour={() => router.back()} />
+        <div
+          className="flex flex-col items-center justify-center flex-1 gap-3 text-center px-4"
+        >
+          <XCircle size={32} strokeWidth={2} style={{ color: "var(--ds-danger)" }} />
+          <p className="text-base font-medium">Tournoi annulé</p>
+          <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
+            {tournoi.titre} a été annulé suite à ta demande. Les inscrits déjà payés ont été remboursés automatiquement.
+          </p>
+          <Link href={`/tournois/${params.id}`} style={{ color: "var(--ds-accent-300)" }}>Voir la fiche du tournoi</Link>
+        </div>
       </div>
     );
   }
@@ -374,7 +405,8 @@ export default function GestionTournoiPage() {
           type={tournoi.type}
           brSousType={tournoi.brSousType}
           termine={Boolean(tournoi.termine)}
-          onTermine={() => setRafraichir((n) => n + 1)}
+          onTermine={rafraichirTournoi}
+          onAnnule={rafraichirTournoi}
         />
       </div>
     </div>

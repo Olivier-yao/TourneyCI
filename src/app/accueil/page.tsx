@@ -186,7 +186,7 @@ export default function AccueilV2Page() {
                               className="w-full text-left p-2.5 cursor-pointer"
                               style={{ borderBottom: "1px solid var(--ds-border)" }}
                             >
-                              <div className="text-[13px]">{n.texte}</div>
+                              <div className="text-[13px] line-clamp-2">{n.texte}</div>
                               <div className="text-[11px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
                             </button>
                           ))}

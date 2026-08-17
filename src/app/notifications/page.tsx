@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, Trophy, Ticket, MessageCircle } from "lucide-react";
+import { ArrowLeft, Bell, Trophy, Ticket, MessageCircle, ChevronRight } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
-import { PRESS } from "@/components/ds/Button";
+import { Modal } from "@/components/ds/Modal";
+import { PRESS, Button } from "@/components/ds/Button";
 import {
   mesNotifications,
   estLue,
@@ -41,6 +42,7 @@ export default function NotificationsPage() {
   const [lues, setLues] = useState<Set<string>>(new Set());
   const [filtre, setFiltre] = useState<Filtre>("Tout");
   const [nonLues, setNonLues] = useState(0);
+  const [notifSelectionnee, setNotifSelectionnee] = useState<NotificationApp | null>(null);
 
   useEffect(() => {
     const liste = mesNotifications();
@@ -52,11 +54,20 @@ export default function NotificationsPage() {
 
   if (!connecte) return null;
 
+  // Point 207 : la liste n'affiche qu'un aperçu tronqué (2 lignes max) — le
+  // clic ouvre la vue détaillée (point 48) avec le message complet, plutôt
+  // que de rediriger immédiatement vers le tournoi lié.
   function ouvrir(n: NotificationApp) {
     marquerLue(n.id);
     setLues((prev) => new Set(prev).add(n.id));
     setNonLues((v) => Math.max(0, v - (lues.has(n.id) ? 0 : 1)));
-    if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
+    setNotifSelectionnee(n);
+  }
+
+  function allerAuTournoi(n: NotificationApp) {
+    if (!n.tournoiId) return;
+    setNotifSelectionnee(null);
+    router.push(`/tournois/${n.tournoiId}`);
   }
 
   function toutMarquer() {
@@ -128,8 +139,7 @@ export default function NotificationsPage() {
                 key={n.id}
                 type="button"
                 onClick={() => ouvrir(n)}
-                disabled={!n.tournoiId}
-                className={`flex items-start gap-2.5 p-2.5 -mx-2.5 text-left ${n.tournoiId ? PRESS : ""}`}
+                className={`flex items-start gap-2.5 p-2.5 -mx-2.5 text-left ${PRESS}`}
                 style={{ borderRadius: "var(--ds-radius-md)", background: lue ? "transparent" : "var(--ds-accent-900)" }}
               >
                 <div
@@ -140,11 +150,12 @@ export default function NotificationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
-                    <div className="text-[13px]" style={{ fontWeight: lue ? 400 : 500 }}>{n.texte}</div>
+                    <div className="text-[13px] line-clamp-2" style={{ fontWeight: lue ? 400 : 500 }}>{n.texte}</div>
                     <div className="text-[10px] shrink-0" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{n.temps}</div>
                   </div>
                 </div>
                 {!lue && <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: "var(--ds-accent-400)" }} />}
+                <ChevronRight size={14} strokeWidth={2} className="shrink-0 mt-1" style={{ color: "var(--ds-muted)" }} />
               </button>
             );
           })
@@ -156,6 +167,20 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+      <Modal ouvert={notifSelectionnee !== null} titre="Notification" onFermer={() => setNotifSelectionnee(null)}>
+        {notifSelectionnee && (
+          <div className="flex flex-col gap-3 not-italic" style={{ whiteSpace: "normal" }}>
+            <p className="text-sm leading-relaxed">{notifSelectionnee.texte}</p>
+            <p className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{notifSelectionnee.temps}</p>
+            {notifSelectionnee.tournoiId && (
+              <Button variante="primary" bloc onClick={() => allerAuTournoi(notifSelectionnee)}>
+                Voir le tournoi
+              </Button>
+            )}
+          </div>
+        )}
+      </Modal>
 
       <TabBar />
     </div>

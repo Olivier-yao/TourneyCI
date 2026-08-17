@@ -124,16 +124,24 @@ function Podium({ top3, monPhotoUrl }: { top3: ClassementEntree[]; monPhotoUrl?:
   );
 }
 
-/** Point 169 : apparition progressive ligne par ligne (reste du classement,
- * à partir de la 4e position) — décalée par index, distincte de la mise en
- * scène du podium ci-dessus. */
-function LigneClassement({ entree, index = 0, monBadgeActif, monPhotoUrl }: { entree: ClassementEntree; index?: number; monBadgeActif: boolean; monPhotoUrl?: string }) {
+/** Point 206 : durée totale de l'animation du podium (dernière marche
+ * révélée à (n-1)*0.45s + temps de stabilisation du ressort) — le reste du
+ * classement n'attaque son apparition qu'une fois ce délai écoulé, pour ne
+ * jamais chevaucher les deux mises en scène. */
+function delaiApresPodium(nbMarches: number): number {
+  return nbMarches > 0 ? (nbMarches - 1) * 0.45 + 0.55 : 0;
+}
+
+/** Point 169+206 : apparition progressive ligne par ligne (reste du
+ * classement, à partir de la 4e position) — décalée par index, et retardée
+ * dans son ensemble tant que l'animation du podium n'est pas terminée. */
+function LigneClassement({ entree, index = 0, delaiBase = 0, monBadgeActif, monPhotoUrl }: { entree: ClassementEntree; index?: number; delaiBase?: number; monBadgeActif: boolean; monPhotoUrl?: string }) {
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, delay: Math.min(index, 12) * 0.035, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.22, delay: delaiBase + Math.min(index, 12) * 0.035, ease: [0.16, 1, 0.3, 1] }}
     >
       <Link
         href={`/joueur/${encodeURIComponent(entree.nom)}`}
@@ -259,14 +267,14 @@ export function Classement() {
 
           <div className="flex flex-col">
             {reste.map((entree, index) => (
-              <LigneClassement key={entree.position} entree={entree} index={index} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
+              <LigneClassement key={entree.position} entree={entree} index={index} delaiBase={delaiApresPodium(top3.length)} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
             ))}
             {!moiVisible && moi && (
               <>
                 <div className="text-center text-xs py-1" style={{ color: "var(--ds-muted)" }}>
                   ···
                 </div>
-                <LigneClassement entree={moi} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
+                <LigneClassement entree={moi} delaiBase={delaiApresPodium(top3.length)} monBadgeActif={monBadgeActif} monPhotoUrl={monPhotoUrl} />
               </>
             )}
             {classement.length === 0 && (

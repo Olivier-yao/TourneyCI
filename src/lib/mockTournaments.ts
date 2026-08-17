@@ -231,9 +231,39 @@ export const JEUX: { id: string; label: string; genre: GenreJeu }[] = [
   { id: "clashroyale", label: "Clash Royale", genre: "Combat" },
   { id: "efootball", label: "eFootball", genre: "Sport" },
   { id: "nba2k", label: "NBA 2K", genre: "Sport" },
+  // Point 200 : bibliothèque élargie, chaque ajout associé à un genre
+  // existant pour hériter automatiquement des formats pertinents.
+  { id: "standoff2", label: "Standoff 2", genre: "FPS" },
+  { id: "criticalops", label: "Critical Ops", genre: "FPS" },
+  { id: "aov", label: "Arena of Valor", genre: "TPS" },
+  { id: "marvelsuperwar", label: "Marvel Super War", genre: "TPS" },
+  { id: "mortalkombat", label: "Mortal Kombat", genre: "Combat" },
+  { id: "shadowfight3", label: "Shadow Fight 3", genre: "Combat" },
+  { id: "streetfighter", label: "Street Fighter Duel", genre: "Combat" },
+  { id: "basketballstars", label: "Basketball Stars", genre: "Sport" },
+  { id: "headsoccer", label: "Head Soccer", genre: "Sport" },
+  { id: "newstate", label: "New State Mobile", genre: "Battle Royale" },
+  { id: "rulesofsurvival", label: "Rules of Survival", genre: "Battle Royale" },
 ];
 
 export const TYPES_JEU: GenreJeu[] = ["FPS", "TPS", "Combat", "Sport", "Battle Royale"];
+
+/** Point 200 : formats de compétition réellement proposés selon le genre du
+ * jeu (ex. NBA 2K, genre Sport, n'a pas de mode Battle Royale) — utilisé par
+ * le formulaire de création pour ne montrer que les formats pertinents. Un
+ * jeu "Autre" (genre inconnu) garde volontairement tous les formats. */
+export const FORMATS_PAR_GENRE: Record<GenreJeu, TypeCompetition[]> = {
+  Sport: ["1v1", "equipes"],
+  Combat: ["1v1"],
+  FPS: ["1v1", "equipes", "battle_royale"],
+  TPS: ["1v1", "equipes", "battle_royale"],
+  "Battle Royale": ["equipes", "battle_royale"],
+};
+
+export function formatsDisponiblesPourJeu(jeuId: string): TypeCompetition[] {
+  const genre = JEUX.find((j) => j.id === jeuId)?.genre;
+  return genre ? FORMATS_PAR_GENRE[genre] : ["1v1", "equipes", "battle_royale"];
+}
 
 /** Capacité technique maximale d'une lobby par jeu (Battle Royale) : plafond
  * que l'organisateur ne peut pas dépasser en choisissant son effectif. */
