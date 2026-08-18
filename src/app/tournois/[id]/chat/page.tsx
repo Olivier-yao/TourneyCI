@@ -6,7 +6,8 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Send, Lock } from "lucide-react";
 import { tournoiParId } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { lireProfil } from "@/lib/mockProfil";
 import { messagesChat, envoyerMessageChat, type MessageChat } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -27,11 +28,12 @@ export default function ChatTournoiPage() {
   const [texte, setTexte] = useState("");
 
   useEffect(() => {
+    const org = Boolean(tournoi) && peutSuperviser(tournoi!.organisateur, nomOrganisateurActuel());
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateur(estOrganisateur());
+    setOrganisateur(org);
     // Accessible dès l'inscription (pas besoin d'attendre la clôture des
     // inscriptions ni le début de la compétition).
-    setAutorise(estInscrit(params.id) || estOrganisateur());
+    setAutorise(estInscrit(params.id) || org);
     setMessages(messagesChat(params.id));
     const id = setInterval(() => setMessages(messagesChat(params.id)), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);

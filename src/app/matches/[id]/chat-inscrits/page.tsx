@@ -8,7 +8,8 @@ import { CLIP_HEXAGONE } from "@/components/ds/Palier";
 import { matchParId } from "@/lib/mockBracket";
 import { tournoiParId } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { lireProfil } from "@/lib/mockProfil";
 import { presentsDuTournoi } from "@/lib/mockCheckin";
 import { messagesChat, envoyerMessageChat, type MessageChat } from "@/lib/mockChat";
@@ -49,7 +50,7 @@ export default function ChatInscritsMatchPage() {
 
   useEffect(() => {
     if (!match) return;
-    const estOrg = estOrganisateur();
+    const estOrg = Boolean(tournoi) && peutSuperviser(tournoi!.organisateur, nomOrganisateurActuel());
     const suisInscrit = estInscrit(match.tournoiId);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOrganisateur(estOrg);

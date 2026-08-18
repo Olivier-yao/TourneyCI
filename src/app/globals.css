@@ -203,6 +203,15 @@
   --ds-radius-input: var(--ds-radius-md);
 }
 
+/* --ds-accent-700 / -800 comblent le palier manquant entre -600 et -900 de
+ * chaque thème (badges de certification, bordures d'accent, dégradés) — ils
+ * étaient utilisés dans une cinquantaine d'endroits sans jamais être définis,
+ * ce qui les rendait transparents (fond "creux" au lieu de plein). */
+:root[data-theme] {
+  --ds-accent-700: color-mix(in srgb, var(--ds-accent-600) 55%, var(--ds-accent-900) 45%);
+  --ds-accent-800: color-mix(in srgb, var(--ds-accent-600) 20%, var(--ds-accent-900) 80%);
+}
+
 :root {
   --background: var(--color-cream-100);
   --foreground: var(--color-ink-900);

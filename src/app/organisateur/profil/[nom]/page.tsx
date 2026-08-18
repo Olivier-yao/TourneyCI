@@ -753,7 +753,7 @@ export default function ProfilOrganisateurPage() {
                   border: `1px solid ${actifBrise ? "var(--ds-danger)" : "var(--ds-border)"}`,
                 }}
               >
-                <HeartCrack size={17} strokeWidth={2} fill={actifBrise ? "currentColor" : "none"} style={{ color: actifBrise ? "var(--ds-danger)" : "var(--ds-muted)" }} />
+                <HeartCrack size={17} strokeWidth={2} fill="none" style={{ color: actifBrise ? "var(--ds-danger)" : "var(--ds-muted)" }} />
                 <div className="text-lg" style={{ color: actifBrise ? "var(--ds-danger)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{stats.coeursBrises}</div>
               </Composant>
             );

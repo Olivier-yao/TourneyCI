@@ -59,11 +59,14 @@ function ParametresInterne() {
     deconnecter();
     setDeconnexionEnCours(true);
     // Navigation complète (pas le routeur client) : décharge tout l'état JS
-    // en mémoire et remplace l'entrée d'historique courante par "/", pour
-    // qu'un retour arrière ne puisse jamais réafficher une page authentifiée
+    // en mémoire et remplace l'entrée d'historique courante, pour qu'un
+    // retour arrière ne puisse jamais réafficher une page authentifiée
     // encore montée — chaque page authentifiée revérifie de toute façon la
-    // session au montage (garde useExigerConnexion).
-    window.location.replace("/");
+    // session au montage (garde useExigerConnexion). On renvoie vers le tout
+    // premier écran (carrousel + connexion/inscription), pas directement
+    // vers /verify : estOnboarde() reste vrai après déconnexion (persistant),
+    // donc / redirigerait sinon tout droit sur /verify en sautant l'accueil.
+    window.location.replace("/onboarding");
   }
 
   if (deconnexionEnCours) {

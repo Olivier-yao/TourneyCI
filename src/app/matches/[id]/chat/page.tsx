@@ -8,7 +8,8 @@ import { CLIP_HEXAGONE } from "@/components/ds/Palier";
 import { matchParId, spectateursDerives } from "@/lib/mockBracket";
 import { tournoiParId } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { lireProfil } from "@/lib/mockProfil";
 import { messagesChat, envoyerMessageChat, type MessageChat } from "@/lib/mockChat";
 
@@ -44,7 +45,7 @@ export default function ChatSpectateursMatchPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setInscrit(match ? estInscrit(match.tournoiId) : false);
-    setOrganisateur(estOrganisateur());
+    setOrganisateur(Boolean(tournoi) && peutSuperviser(tournoi!.organisateur, nomOrganisateurActuel()));
     setMessages(messagesChat(cleSpectateurs(params.id)));
     const id = setInterval(() => setMessages(messagesChat(cleSpectateurs(params.id))), RAFRAICHISSEMENT_MS);
     return () => {

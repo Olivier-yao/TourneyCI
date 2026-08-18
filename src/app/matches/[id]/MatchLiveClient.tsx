@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { matchParId, type MatchTournoi } from "@/lib/mockBracket";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { estOrganisateur } from "@/lib/mockAuth";
+import { tournoiParId } from "@/lib/mockTournaments";
+import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { lireProfil } from "@/lib/mockProfil";
 import { VueSpectateurMatch } from "./VueSpectateurMatch";
 import { VueParticipantMatch } from "./VueParticipantMatch";
@@ -39,7 +41,8 @@ export function MatchLiveClient({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonPseudo(lireProfil().pseudo);
     rafraichir();
-    if (estOrganisateur()) setRole("organisateur");
+    const tournoi = tournoiParId(tournoiId);
+    if (tournoi && peutSuperviser(tournoi.organisateur, nomOrganisateurActuel())) setRole("organisateur");
     else if (estInscrit(tournoiId)) setRole("participant");
     else setRole("spectateur");
     // eslint-disable-next-line react-hooks/exhaustive-deps

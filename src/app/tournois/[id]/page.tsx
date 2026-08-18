@@ -22,7 +22,6 @@ import {
 } from "@/lib/mockTournaments";
 import { matchsDuTournoi, codeRound, type MatchTournoi } from "@/lib/mockBracket";
 import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleRoyale";
-import { estOrganisateur } from "@/lib/mockAuth";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
@@ -387,7 +386,7 @@ function DetailTournoiInterne() {
     setTournoi(t);
     const monTournoi = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
     setEstMonTournoi(monTournoi);
-    setAccesChat(estInscrit(params.id) || estOrganisateur());
+    setAccesChat(estInscrit(params.id) || monTournoi);
     if (t) setFermeInscriptions(inscriptionsFermees(t));
     // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
     // tournoi terminé (point 62/67, clarifie le point 51) — jamais à

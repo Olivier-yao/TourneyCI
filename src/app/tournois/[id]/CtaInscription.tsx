@@ -360,6 +360,11 @@ export function CtaInscription({
             />
           </div>
         )}
+        {equipeInscrite && tournoiCommence && !renommage && (
+          <p className="text-[11px]" style={{ color: "var(--ds-muted)" }}>
+            Le nom de l&apos;équipe ne peut plus être modifié : le tournoi a déjà commencé.
+          </p>
+        )}
         <div className="flex items-center gap-3">
           <Link
             href={`/tournois/${tournoiId}/inscrits`}

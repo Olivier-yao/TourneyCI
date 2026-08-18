@@ -23,8 +23,19 @@ export function GestionManchesBR({
   const participants = unitesBR(tournoiId, sousType);
   const manches = manchesBR(tournoiId);
   const numeroSuivant = manches.length + 1;
-  const [placements, setPlacements] = useState<Record<string, string>>({});
-  const [eliminations, setEliminations] = useState<Record<string, number>>({});
+  // Réhydrate depuis le dernier aperçu validé (point 205) : sans ça, revenir
+  // sur cet écran après avoir quitté remet les points à zéro alors que
+  // l'aperçu en direct affiché aux spectateurs, lui, reste correct.
+  const [placements, setPlacements] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const r of mancheEnCoursBR(tournoiId)) if (r.placement > 0) init[r.participantId] = String(r.placement);
+    return init;
+  });
+  const [eliminations, setEliminations] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    for (const r of mancheEnCoursBR(tournoiId)) if (r.eliminations > 0) init[r.participantId] = r.eliminations;
+    return init;
+  });
   const [confirmationOuverte, setConfirmationOuverte] = useState(false);
   const [valide, setValide] = useState(mancheEnCoursBR(tournoiId).length > 0);
 
