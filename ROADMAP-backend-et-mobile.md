@@ -1,21 +1,25 @@
 # Feuille de route — Backend puis App mobile
 
-> **Avancement** : Prisma est installé et un premier schéma est écrit
-> (`prisma/schema.prisma`) couvrant auth, profils joueur/organisateur,
-> tournois, inscriptions, équipes pré-créées + invitations, adjoints,
-> demandes d'annulation. Il est validé (`npx prisma validate`) et le client
-> est généré. La base réelle est **Supabase** (projet existant, 34 tables +
-> RLS déjà en place) — `DATABASE_URL` pointe vers le Transaction Pooler
-> (seule connexion joignable en IPv4 depuis cet environnement) et
-> l'adaptateur Prisma est `@prisma/adapter-pg`. Ce qui reste bloqué : lancer
-> `npx prisma db pull` pour introspecter les 34 tables réelles et remplacer
-> le schéma ci-dessus (dessiné à la main, donc probablement pas 1:1 avec le
-> vrai schéma Supabase) — la commande se lance sans erreur mais reste
-> bloquée sans jamais aboutir depuis ce bac à sable, sans doute un blocage
-> réseau supplémentaire côté pooler. À relancer depuis ta machine ou depuis
-> Vercel (où l'egress réseau est probablement moins restreint), ou
-> partage-moi un export du schéma Supabase (SQL ou capture de l'éditeur de
-> tables) pour que je le reconcilie manuellement.
+> **Avancement** : le vrai schéma Supabase est introspecté —
+> `prisma/schema.prisma` reflète maintenant les **62 modèles réels** (34
+> tables applicatives dans `public` + tables internes de Supabase Auth dans
+> `auth`, ex. `auth.users`), plus les modèles internes que Supabase gère
+> lui-même (RLS, contraintes). Client Prisma régénéré (`npx prisma
+> generate`), tout compile (`npx tsc --noEmit`). Rien dans `src/lib/mock*.ts`
+> n'utilise encore ce client — c'est la base pour la prochaine étape : écrire
+> les premières routes API et migrer les modules mock un par un.
+>
+> **Ce qui a débloqué l'introspection** (pour référence si ça se reproduit
+> sur un autre projet Supabase) : le pooler "Transaction" (port 6543,
+> `DATABASE_URL`) ne supporte pas les *prepared statements* — `npx prisma db
+> pull`/`migrate` s'y connectent mais restent bloqués indéfiniment, sans
+> jamais retourner d'erreur. Il faut utiliser le pooler "Session" (port
+> 5432, `DIRECT_URL` dans `.env`) pour ces commandes CLI uniquement, en
+> écrasant temporairement `DATABASE_URL` :
+> `DATABASE_URL="$DIRECT_URL" npx prisma db pull`. Il a aussi fallu ajouter
+> `schemas = ["public", "auth"]` au bloc `datasource` du schéma, car
+> `public.profiles` référence `auth.users` par clé étrangère (Supabase
+> gère l'auth dans son propre schéma, pas dans `public`).
 >
 > Côté auth applicative (frontend) : le flux numéro de téléphone/SMS/Twilio a
 > été retiré du produit — `/verify` ne propose plus que Google (bouton
@@ -46,17 +50,11 @@ pour la migration à venir.
 
 ## 1.5 Ce dont j'ai besoin de toi pour continuer
 
-1. **Débloquer l'introspection Supabase** : soit tu relances toi-même
-   `npm run prisma:pull --workspace` (ou directement `npx prisma db pull`
-   depuis ta machine), soit tu me colles un export du schéma (SQL depuis
-   l'éditeur Supabase, ou juste la liste des 34 tables avec leurs colonnes)
-   pour que je reconcilie `prisma/schema.prisma` à la main sans dépendre de
-   la connexion réseau de cet environnement.
-2. **Confirmer le choix de stack API** : je pars sur des Route Handlers
+1. **Confirmer le choix de stack API** : je pars sur des Route Handlers
    Next.js (`src/app/api/**/route.ts`) plutôt qu'un service Express séparé,
    pour rester dans le même déploiement Vercel que le frontend actuel —
    dis-moi si tu préfères découpler dès maintenant.
-3. **Activer Supabase Auth** : dans le dashboard Supabase, onglet
+2. **Activer Supabase Auth** : dans le dashboard Supabase, onglet
    **Authentication → Providers**, active Google (client ID/secret Google
    Cloud à créer si pas déjà fait) et Email/mot de passe, désactive le
    reste (pas de téléphone/SMS). Le frontend est déjà prêt côté UI
@@ -64,8 +62,9 @@ pour la migration à venir.
    reste qu'à remplacer `src/lib/mockAuth.ts` par le SDK `@supabase/ssr` une
    fois les clés du projet (`NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`) confirmées dans `.env`.
-4. Rien d'autre n'est requis pour que je continue à modéliser les domaines
-   suivants (chat, wallet, notifications...) en parallèle.
+3. Rien d'autre n'est requis pour que je continue à modéliser les domaines
+   suivants (chat, wallet, notifications...) ou à commencer les premières
+   routes API en parallèle.
 
 ## 2. Reste à faire : backend
 
