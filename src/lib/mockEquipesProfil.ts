@@ -9,6 +9,7 @@
 import { peutModifierMensuel } from "./limiteMensuelle";
 import { joueurParTag } from "./mockProfil";
 import { ajouterNotification } from "./mockNotifications";
+import { ajouterMessageSystemeEquipe } from "./mockChatEquipe";
 
 export type EquipeProfil = {
   id: string;
@@ -203,6 +204,7 @@ export function repondreInvitationEquipeProfil(id: string, accepter: boolean): s
     const err = ajouterMembreEquipeProfil(invitation.equipeId, invitation.destinataire);
     if (err) return err;
     ajouterNotification(`${invitation.destinataire} a rejoint l'équipe « ${invitation.equipeNom} ».`);
+    ajouterMessageSystemeEquipe(invitation.equipeId, `${invitation.destinataire} a rejoint l'équipe`);
   } else {
     ajouterNotification(`${invitation.destinataire} a refusé de rejoindre l'équipe « ${invitation.equipeNom} ».`);
   }

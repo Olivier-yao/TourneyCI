@@ -3,16 +3,26 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, Clock, Radio, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, Radio, AlertTriangle, Trophy, Share2, Check } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
-import { Modal } from "@/components/ds/Modal";
-import { tournoiParId, terminerTournoi, type Tournoi } from "@/lib/mockTournaments";
-import { classementFinalBracket } from "@/lib/mockBracket";
+import { hexagoneStyle } from "@/components/ds/Palier";
+import {
+  tournoiParId,
+  terminerTournoi,
+  cashPrizeAffiche,
+  repartitionAutomatique,
+  commissionEstimee,
+  paiementsEnAttente,
+  type Tournoi,
+} from "@/lib/mockTournaments";
+import { classementFinalBracket, matchsDuTournoi } from "@/lib/mockBracket";
 import { classementFinalBR, manchesBR } from "@/lib/mockBattleRoyale";
-import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { nomOrganisateurActuel, estCertifie } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
-import { creerDemandeAnnulation, demandeAnnulationPourTournoi, type DemandeAnnulation } from "@/lib/mockDemandesAnnulation";
+import { demandeAnnulationPourTournoi, type DemandeAnnulation } from "@/lib/mockDemandesAnnulation";
+import { mesLitiges } from "@/lib/mockLitige";
+import { formatXof } from "@/lib/formatXof";
 
 /** Écran dédié de clôture (revu suite au retour utilisateur : la clôture et
  * ses informations doivent vivre derrière leur propre bouton "Clôture" avec
@@ -31,9 +41,8 @@ export default function ClotureTournoiPage() {
   const [autorise, setAutorise] = useState(false);
   const [estProprietaire, setEstProprietaire] = useState(false);
   const [resultat, setResultat] = useState<{ pointsAttribues: number; gainCredite: number } | null>(null);
-  const [demandeOuverte, setDemandeOuverte] = useState(false);
-  const [motif, setMotif] = useState("");
   const [demandeEnAttente, setDemandeEnAttente] = useState<DemandeAnnulation | undefined>(undefined);
+  const [copie, setCopie] = useState(false);
 
   function rafraichirTournoi() {
     setTournoi(tournoiParId(params.id));
@@ -63,6 +72,78 @@ export default function ClotureTournoiPage() {
       : classement.length > 0
     : false;
 
+  // Matchs "réels" du bracket (les deux places remplies) : sert de base à la
+  // barre d'avancement et exclut les places vides encore en attente de tour
+  // précédent.
+  const matchsBracket = tournoi && tournoi.type !== "battle_royale" ? matchsDuTournoi(params.id) : [];
+  const matchsBracketReels = matchsBracket.filter((m) => m.joueur1 && m.joueur2);
+  const matchsBracketTermines = matchsBracketReels.filter((m) => m.statut === "termine").length;
+
+  const pourcentAvancement = tournoi
+    ? tournoi.type === "battle_royale"
+      ? Math.min(100, Math.round((manchesJouees / (tournoi.manchesPrevues ?? 1)) * 100))
+      : matchsBracketReels.length > 0
+        ? Math.round((matchsBracketTermines / matchsBracketReels.length) * 100)
+        : 0
+    : 0;
+
+  const litigesOuverts = tournoi ? mesLitiges().filter((l) => l.tournoiId === tournoi.id && l.statut === "en_attente").length : 0;
+  const sequestreXof = tournoi ? cashPrizeAffiche(tournoi) : 0;
+  const nbFinalistes = tournoi?.repartitionCashPrize?.length ?? 0;
+  const previsionVersements = tournoi && nbFinalistes > 0 ? repartitionAutomatique(sequestreXof, nbFinalistes) : [];
+
+  const checklist = tournoi
+    ? [
+        tournoi.type === "battle_royale"
+          ? {
+              label: "Manches jouées",
+              valeur: `${manchesJouees} / ${tournoi.manchesPrevues ?? 1}`,
+              ok: manchesJouees >= (tournoi.manchesPrevues ?? 1),
+            }
+          : {
+              label: "Matchs du bracket joués",
+              valeur: matchsBracketReels.length > 0 ? `${matchsBracketTermines} / ${matchsBracketReels.length}` : "—",
+              ok: matchsBracketReels.length > 0 && matchsBracketTermines === matchsBracketReels.length,
+            },
+        {
+          label: "Aucun litige ouvert",
+          valeur: litigesOuverts > 0 ? `${litigesOuverts} ouvert${litigesOuverts > 1 ? "s" : ""}` : "OK",
+          ok: litigesOuverts === 0,
+        },
+        { label: "Séquestre à provisionner", valeur: formatXof(sequestreXof), ok: true },
+      ]
+    : [];
+
+  // Le gain en séquestre reste lisible même après un rechargement de page
+  // (resultat, lui, ne survit pas au remount) tant qu'il n'a pas encore été
+  // libéré par reevaluerPaiementsEnAttente().
+  const gainSequestreXof = tournoi ? paiementsEnAttente().find((p) => p.tournoiId === tournoi.id)?.montantXof : undefined;
+  const confirmationItems = tournoi
+    ? [
+        { label: "Points attribués", valeur: resultat ? `${resultat.pointsAttribues} pts` : "Attribués" },
+        ...(gainSequestreXof ? [{ label: "Ton gain (en séquestre)", valeur: formatXof(gainSequestreXof) }] : []),
+        ...(estProprietaire && tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()
+          ? [{ label: "Commission organisateur", valeur: formatXof(commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites)) }]
+          : []),
+        { label: "Scores", valeur: "Verrouillés définitivement" },
+      ]
+    : [];
+
+  async function partager() {
+    const url = window.location.origin + `/tournois/${params.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ url, title: tournoi?.titre });
+        return;
+      } catch {
+        // annulé ou indisponible : on retombe sur la copie
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    setCopie(true);
+    setTimeout(() => setCopie(false), 1800);
+  }
+
   useEffect(() => {
     if (tournoi && cloturePret && !tournoi.termine && !resultat) {
       const r = terminerTournoi(params.id);
@@ -72,22 +153,6 @@ export default function ClotureTournoiPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloturePret, tournoi?.termine]);
-
-  function envoyerDemande() {
-    if (!motif.trim() || !tournoi) return;
-    const d = creerDemandeAnnulation(params.id, tournoi.titre, tournoi.organisateur, motif.trim());
-    if (d) {
-      setDemandeEnAttente(d);
-      // Point 209 : tant que la validation automatique pré-backend (point
-      // 157) est active, la demande est déjà résolue à l'envoi — le tournoi
-      // est réellement annulé immédiatement, il faut donc le refléter tout
-      // de suite (pas de "en attente d'examen" trompeur) plutôt que de
-      // laisser croire que rien ne s'est passé.
-      if (d.statut === "validee") rafraichirTournoi();
-    }
-    setDemandeOuverte(false);
-    setMotif("");
-  }
 
   if (!pret) return null;
 
@@ -143,29 +208,120 @@ export default function ClotureTournoiPage() {
       </div>
 
       {tournoi.termine || resultat ? (
-        <div
-          className="flex items-center gap-2 p-3"
-          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-900)", color: "var(--ds-accent-300)" }}
-        >
-          <CheckCircle2 size={17} strokeWidth={2} />
-          <span className="text-sm">
-            Tournoi clôturé automatiquement — points attribués{resultat && resultat.gainCredite > 0 ? `, ${resultat.gainCredite.toLocaleString("fr-FR")} F en attente de vérification (séquestre le temps de recueillir les avis)` : ""}.
-          </span>
+        <div className="flex flex-col items-center gap-3 py-4">
+          <div
+            className="flex items-center justify-center shrink-0"
+            style={{
+              ...hexagoneStyle,
+              width: 72,
+              height: 78,
+              background: "var(--ds-accent-800)",
+              boxShadow: "0 0 32px color-mix(in srgb, var(--ds-accent-500) 45%, transparent)",
+            }}
+          >
+            <CheckCircle2 size={30} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          </div>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <p className="text-base font-semibold">Points attribués, gains versés</p>
+            <p className="text-xs" style={{ color: "var(--ds-text-muted)" }}>{tournoi.titre}</p>
+          </div>
+
+          <div
+            className="w-full flex flex-col gap-2 p-3.5"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+          >
+            {confirmationItems.map((item) => (
+              <div key={item.label} className="flex items-center justify-between text-sm">
+                <span style={{ color: "var(--ds-text-muted)" }}>{item.label}</span>
+                <span className="font-medium">{item.valeur}</span>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-center max-w-xs" style={{ color: "var(--ds-muted)" }}>
+            En cas de désaccord après clôture, seule l&apos;administration peut encore intervenir (litige post-clôture).
+          </p>
+
+          <div className="w-full flex gap-2 pt-1">
+            <Link
+              href="/classement"
+              className={`flex-1 h-10 flex items-center justify-center text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+            >
+              Classement
+            </Link>
+            <button
+              type="button"
+              onClick={partager}
+              className={`flex-1 h-10 flex items-center justify-center gap-1.5 text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
+            >
+              {copie ? <Check size={14} strokeWidth={2} /> : <Share2 size={14} strokeWidth={2} />}
+              {copie ? "Copié" : "Partager"}
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-2.5">
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            {cloturePret ? (
-              <span className="flex items-center gap-2">
-                <Radio size={14} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-300)" }} />
-                Classement final prêt — clôture automatique en cours.
+        <div className="flex flex-col gap-3">
+          <div
+            className="flex flex-col gap-2.5 p-3.5"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+                {cloturePret ? (
+                  <span className="flex items-center gap-1.5">
+                    <Radio size={12} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-300)" }} />
+                    Clôture automatique en cours
+                  </span>
+                ) : (
+                  "Avancement"
+                )}
               </span>
-            ) : tournoi.type === "battle_royale" ? (
-              `Le tournoi se clôturera automatiquement une fois ${tournoi.manchesPrevues ?? 1} manche${(tournoi.manchesPrevues ?? 1) > 1 ? "s" : ""} jouée${(tournoi.manchesPrevues ?? 1) > 1 ? "s" : ""} (${manchesJouees}/${tournoi.manchesPrevues ?? 1} pour l'instant).`
-            ) : (
-              "Le tournoi se clôturera automatiquement une fois la finale du bracket jouée."
-            )}
-          </p>
+              <span className="text-xs" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>{pourcentAvancement}%</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden" style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)" }}>
+              <div
+                className="h-full"
+                style={{ width: `${pourcentAvancement}%`, background: "var(--ds-accent-400)", borderRadius: "var(--ds-radius-pill)" }}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 pt-1">
+              {checklist.map((item) => (
+                <div key={item.label} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5" style={{ color: "var(--ds-text-muted)" }}>
+                    {item.ok ? (
+                      <CheckCircle2 size={12} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+                    ) : (
+                      <Clock size={12} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
+                    )}
+                    {item.label}
+                  </span>
+                  <span style={{ color: item.ok ? "var(--ds-accent-300)" : "var(--ds-text)" }}>{item.valeur}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {previsionVersements.length > 0 && (
+            <div
+              className="flex flex-col gap-2 p-3.5"
+              style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+                <Trophy size={12} strokeWidth={2} />
+                Ce qui sera versé
+              </span>
+              <div className="flex flex-col gap-1.5">
+                {previsionVersements.map((p) => (
+                  <div key={p.label} className="flex items-center justify-between text-sm">
+                    <span style={{ color: "var(--ds-text-muted)" }}>{p.label}</span>
+                    <span className="font-medium" style={{ color: "var(--ds-accent-300)" }}>{formatXof(p.montantXof)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {demandeEnAttente ? (
             <div className="flex items-center gap-2 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
@@ -175,15 +331,14 @@ export default function ClotureTournoiPage() {
               </span>
             </div>
           ) : estProprietaire ? (
-            <button
-              type="button"
-              onClick={() => setDemandeOuverte(true)}
+            <Link
+              href={`/organisateur/${params.id}/cloture/annulation`}
               className={`self-start flex items-center gap-1.5 px-3 py-2 text-sm ${PRESS}`}
               style={{ color: "var(--ds-danger)" }}
             >
               <XCircle size={15} strokeWidth={2} />
               Demander l&apos;annulation du tournoi
-            </button>
+            </Link>
           ) : (
             <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
               Seul l&apos;organisateur propriétaire peut demander l&apos;annulation du tournoi.
@@ -191,45 +346,6 @@ export default function ClotureTournoiPage() {
           )}
         </div>
       )}
-
-      <Modal ouvert={demandeOuverte} titre="Demande d'annulation" onFermer={() => setDemandeOuverte(false)}>
-        <div className="flex flex-col gap-2.5 not-italic" style={{ whiteSpace: "normal" }}>
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            Explique pourquoi ce tournoi doit être annulé. La demande part à l&apos;administration pour inspection —
-            le tournoi reste actif tant qu&apos;elle n&apos;est pas validée, et ça compte contre ta réputation d&apos;organisateur.
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>Motif (obligatoire)</label>
-            <textarea
-              value={motif}
-              onChange={(e) => setMotif(e.target.value)}
-              rows={4}
-              placeholder="Ex : nombre d'inscrits insuffisant, problème de salle, incident..."
-              className="px-3 py-2.5 text-sm outline-none resize-none"
-              style={{ borderRadius: "var(--ds-radius-input)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
-            />
-          </div>
-        </div>
-        <div className="flex gap-2 pt-3">
-          <button
-            type="button"
-            onClick={() => setDemandeOuverte(false)}
-            className={`flex-1 h-10 text-sm font-medium ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
-          >
-            Annuler
-          </button>
-          <button
-            type="button"
-            onClick={envoyerDemande}
-            disabled={!motif.trim()}
-            className={`flex-1 h-10 text-sm font-medium disabled:opacity-40 ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-btn-primary-bg)", color: "var(--ds-btn-primary-text)" }}
-          >
-            Envoyer la demande
-          </button>
-        </div>
-      </Modal>
     </div>
   );
 }
