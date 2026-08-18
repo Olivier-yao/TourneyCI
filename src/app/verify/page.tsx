@@ -244,7 +244,11 @@ function VerifyInterne() {
       className="min-h-screen flex flex-col px-6 py-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar retour onRetour={() => router.back()} titre={mode === "creer" ? "Créer mon compte" : "Se connecter"} />
+      <AppBar
+        retour
+        onRetour={() => router.replace("/onboarding")}
+        titre={mode === "creer" ? "Créer mon compte" : "Se connecter"}
+      />
 
       <div className="flex flex-col gap-5 mt-8 max-w-sm">
         <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
