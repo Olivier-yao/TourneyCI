@@ -77,7 +77,7 @@ export function GestionMatches({
           Le bracket n&apos;a pas encore été généré.
         </p>
         <Link href={`/tournois/${tournoiId}/bracket`} className="text-sm font-medium" style={{ color: "var(--ds-accent-300)" }}>
-          Générer le bracket →
+          Voir l&apos;arbre →
         </Link>
       </div>
     );
