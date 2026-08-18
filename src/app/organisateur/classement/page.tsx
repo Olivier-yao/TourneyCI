@@ -7,6 +7,7 @@ import { Crown, ShieldCheck, Star } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { classementOrganisateurs, type OrganisateurClasse } from "@/lib/mockClassementOrganisateurs";
+import { photoOrganisateur } from "@/lib/mockOrganisateur";
 
 function initiales(nom: string): string {
   return nom
@@ -21,10 +22,15 @@ function initiales(nom: string): string {
 export default function ClassementOrganisateursPage() {
   const router = useRouter();
   const [classement, setClassement] = useState<OrganisateurClasse[]>([]);
+  // Mock mono-appareil : on ne connaît la photo que de "moi", pas des
+  // autres organisateurs (pas de vrai registre partagé tant qu'il n'y a
+  // pas de backend) — les autres lignes restent aux initiales.
+  const [maPhoto, setMaPhoto] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setClassement(classementOrganisateurs());
+    setMaPhoto(photoOrganisateur());
   }, []);
 
   const premier = classement[0];
@@ -42,10 +48,15 @@ export default function ClassementOrganisateursPage() {
         >
           <div className="relative shrink-0">
             <div
-              className="flex items-center justify-center w-14 h-14 text-lg font-semibold"
+              className="flex items-center justify-center w-14 h-14 text-lg font-semibold overflow-hidden"
               style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-accent-800)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)", boxShadow: "0 0 26px color-mix(in srgb, var(--ds-accent) 30%, transparent)" }}
             >
-              {initiales(premier.nom)}
+              {premier.moi && maPhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={maPhoto} alt={premier.nom} className="w-full h-full object-cover" />
+              ) : (
+                initiales(premier.nom)
+              )}
             </div>
             {premier.certifie && (
               <div
@@ -97,10 +108,15 @@ export default function ClassementOrganisateursPage() {
             </span>
             <div className="relative shrink-0">
               <div
-                className="flex items-center justify-center w-8 h-8 text-[11px] font-medium"
+                className="flex items-center justify-center w-8 h-8 text-[11px] font-medium overflow-hidden"
                 style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", color: "var(--ds-text)" }}
               >
-                {initiales(o.nom)}
+                {o.moi && maPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={maPhoto} alt={o.nom} className="w-full h-full object-cover" />
+                ) : (
+                  initiales(o.nom)
+                )}
               </div>
               {o.certifie && (
                 <div

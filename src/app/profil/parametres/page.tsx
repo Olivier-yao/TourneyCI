@@ -8,7 +8,6 @@ import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { ThemeProvider } from "@/components/ds/ThemeProvider";
 import { ThemeToggle } from "@/components/ds/ThemeToggle";
-import { LangueToggle } from "@/components/ds/LangueToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { useLangue } from "@/lib/i18n/useLangue";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, peutChangerPseudo, marquerPseudoModifie } from "@/lib/mockProfil";
@@ -210,19 +209,6 @@ function ParametresInterne() {
             Choisis l&apos;ambiance visuelle de l&apos;app, à tout moment.
           </p>
           <ThemeToggle />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div
-            className="text-xs uppercase tracking-wide"
-            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
-          >
-            {t("parametres.langue.section")}
-          </div>
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            {t("parametres.langue.description")}
-          </p>
-          <LangueToggle />
         </div>
 
         <button

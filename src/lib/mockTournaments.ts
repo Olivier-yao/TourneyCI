@@ -69,6 +69,10 @@ export type Tournoi = {
   modeEquipe?: ModeEquipe;
   /** Sous-type Battle Royale (obligatoire quand type === "battle_royale"). */
   brSousType?: "solo" | "duo" | "trio" | "squad";
+  /** Nombre de manches choisi par l'organisateur à la création (obligatoire
+   * quand type === "battle_royale") — la clôture automatique attend que ce
+   * nombre de manches soit joué, pas juste la première. */
+  manchesPrevues?: number;
   /** Sous-type Équipes (taille cible, point 177, escouade ajoutée au point
    * 198) — facultatif : "libre" sans sous-type précisé reste possible. */
   equipeSousType?: EquipeSousType;

@@ -128,6 +128,7 @@ export default function NouveauTournoiPage() {
   const [titre, setTitre] = useState("");
   const [type, setType] = useState<TypeCompetition>("1v1");
   const [brSousType, setBrSousType] = useState<"solo" | "duo" | "trio" | "squad">("solo");
+  const [manchesPrevues, setManchesPrevues] = useState("3");
   const [equipeSousType, setEquipeSousType] = useState<EquipeSousType>("squad");
   const [modalite, setModalite] = useState<Modalite>("presentiel");
   const [ville, setVille] = useState("");
@@ -344,6 +345,7 @@ export default function NouveauTournoiPage() {
       equipes,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       brSousType: type === "battle_royale" ? brSousType : undefined,
+      manchesPrevues: type === "battle_royale" ? Math.max(1, Number(manchesPrevues) || 1) : undefined,
       equipeSousType: type === "equipes" ? equipeSousType : undefined,
       repartitionCashPrize:
         (payant || financeParOrganisateur) && cashPrizeEffectif > 0 ? repartitionCalculee : undefined,
@@ -710,6 +712,16 @@ export default function NouveauTournoiPage() {
             />
             <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
               Capacité maximale de lobby pour ce jeu : {capaciteMax} joueurs.
+            </p>
+            <Field
+              label="Nombre de manches"
+              type="number"
+              min={1}
+              value={manchesPrevues}
+              onChange={(e) => setManchesPrevues(e.target.value)}
+            />
+            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+              Le tournoi se clôturera automatiquement une fois ce nombre de manches joué.
             </p>
           </div>
         )}

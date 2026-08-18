@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Search, CheckCircle2, Flame, Lock } from "lucide-react";
 import { Avatar } from "@/components/ds/Avatar";
 import { EmptyState } from "@/components/ds/EmptyState";
@@ -19,6 +19,7 @@ function tagDe(nom: string): string {
 
 export default function InscritsPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const tournoi = tournoiParId(params.id);
   const [requete, setRequete] = useState("");
   const [monPseudo, setMonPseudo] = useState<{ nom: string; actif: boolean; photoUrl?: string } | null>(null);
@@ -65,9 +66,9 @@ export default function InscritsPage() {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <div className="sticky top-0 z-10 px-5 pt-[22px] pb-3 flex items-center gap-3" style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}>
-          <Link href={`/tournois/${params.id}`} className={PRESS} style={{ color: "var(--ds-muted)" }}>
+          <button type="button" onClick={() => router.back()} className={PRESS} style={{ color: "var(--ds-muted)" }}>
             <ArrowLeft size={19} strokeWidth={2} />
-          </Link>
+          </button>
           <div className="text-lg" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
             Inscrits
           </div>
@@ -85,9 +86,9 @@ export default function InscritsPage() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
       <div className="sticky top-0 z-10 px-5 pt-[22px] pb-3 flex items-center gap-3" style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}>
-        <Link href={`/tournois/${params.id}`} style={{ color: "var(--ds-muted)" }}>
+        <button type="button" onClick={() => router.back()} style={{ color: "var(--ds-muted)" }}>
           <ArrowLeft size={19} strokeWidth={2} />
-        </Link>
+        </button>
         <div>
           <div className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{tournoi.titre}</div>
           <div className="text-lg" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>

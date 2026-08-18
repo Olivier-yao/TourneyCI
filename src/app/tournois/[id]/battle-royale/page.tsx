@@ -84,7 +84,7 @@ export default function BattleRoyalePage() {
         </div>
         <button
           type="button"
-          onClick={() => router.push(`/tournois/${params.id}`)}
+          onClick={() => router.back()}
           className="flex items-center justify-center w-9 h-9 cursor-pointer"
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
         >

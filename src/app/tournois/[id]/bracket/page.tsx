@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { tournoiParId, bracketVerrouillee } from "@/lib/mockTournaments";
 import { matchsDuTournoi } from "@/lib/mockBracket";
@@ -12,6 +12,7 @@ import { GenerationBracket } from "./GenerationBracket";
 
 export default function BracketPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const tournoi = tournoiParId(params.id);
   const [, setRafraichir] = useState(0);
 
@@ -56,13 +57,14 @@ export default function BracketPage() {
             Arbre
           </div>
         </div>
-        <Link
-          href={`/tournois/${params.id}`}
+        <button
+          type="button"
+          onClick={() => router.back()}
           className="flex items-center justify-center w-9 h-9"
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
         >
           <ArrowLeft size={17} strokeWidth={2} />
-        </Link>
+        </button>
       </div>
 
       {verrouillee ? (
