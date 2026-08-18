@@ -178,16 +178,13 @@ function ParametresInterne() {
             >
               {(() => {
                 const villesDuPaysActuel = PAYS.find((p) => p.id === paysId)?.villes ?? [];
-                const lieuConnu = villesDuPaysActuel.some((v) => v.nom === profil.ville || v.communes?.includes(profil.ville));
+                const lieuConnu = villesDuPaysActuel.some((v) => v.nom === profil.ville);
                 return (
                   <>
                     {!lieuConnu && <option value={profil.ville}>{profil.ville}</option>}
-                    {villesDuPaysActuel.flatMap((ville) => [
-                      <option key={ville.nom} value={ville.nom}>{ville.nom}</option>,
-                      ...(ville.communes ?? []).map((commune) => (
-                        <option key={commune} value={commune}>{`-- ${commune}`}</option>
-                      )),
-                    ])}
+                    {villesDuPaysActuel.map((ville) => (
+                      <option key={ville.nom} value={ville.nom}>{ville.nom}</option>
+                    ))}
                   </>
                 );
               })()}

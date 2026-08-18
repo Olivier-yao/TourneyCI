@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2, CheckCircle2, XCircle, CreditCard, ArrowLeft, LockKeyhole } from "lucide-react";
-import { Field } from "@/components/ds/Input";
+import { ShieldCheck, CheckCircle2, CreditCard, ArrowLeft, LockKeyhole } from "lucide-react";
 import { Button, PRESS } from "@/components/ds/Button";
-import { identifiantConnexion } from "@/lib/mockAuth";
 import { formatXof } from "@/lib/formatXof";
 import { incrementerInscrits } from "@/lib/mockTournaments";
 import { enregistrerInscription } from "@/lib/mockInscriptions";
@@ -14,23 +12,9 @@ import { lireSolde, debiter } from "@/lib/mockWallet";
 import { marquerPaiementCouvert } from "@/lib/mockEquipesBR";
 import type { Tournoi } from "@/lib/mockTournaments";
 
-type Etape = "moyen" | "attente" | "succes" | "echec";
-
-const MOYENS_MOBILE_MONEY = [
-  { id: "orange", label: "Orange Money", indice: "07 ••" },
-  { id: "mtn", label: "MTN MoMo", indice: "05 ••" },
-  { id: "moov", label: "Moov Money", indice: "01 ••" },
-  { id: "wave", label: "Wave", indice: "01 ••" },
-] as const;
-
-type MoyenPaiement = (typeof MOYENS_MOBILE_MONEY)[number]["id"] | "tourneycard";
-
-function numeroInitial(): string {
-  const identifiant = identifiantConnexion();
-  if (identifiant && !identifiant.includes("@")) return identifiant;
-  return "";
-}
-
+/** Paiement d'inscription — uniquement via TourneyCard (retrait du Mobile
+ * Money direct à l'inscription) : recharger sa carte se fait séparément
+ * depuis /profil/solde/recharger, où le numéro Mobile Money est demandé. */
 export function FluxPaiement({
   tournoi,
   equipe,
@@ -50,9 +34,7 @@ export function FluxPaiement({
 }) {
   const router = useRouter();
   const montantDu = montant ?? tournoi.fraisXof;
-  const [etape, setEtape] = useState<Etape>("moyen");
-  const [moyen, setMoyen] = useState<MoyenPaiement>("orange");
-  const [telephone, setTelephone] = useState(numeroInitial);
+  const [succes, setSucces] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [soldeCarte, setSoldeCarte] = useState(0);
 
@@ -60,6 +42,8 @@ export function FluxPaiement({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSoldeCarte(lireSolde());
   }, []);
+
+  const soldeInsuffisant = soldeCarte < montantDu;
 
   function inscriptionReussie() {
     enregistrerInscription(tournoi.id, tag, equipe);
@@ -69,77 +53,30 @@ export function FluxPaiement({
 
   function payer(e: React.FormEvent) {
     e.preventDefault();
-
-    if (moyen === "tourneycard") {
-      const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id);
-      if (!ok) {
-        setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
-        return;
-      }
-      setErreur(null);
-      inscriptionReussie();
-      setEtape("succes");
-      return;
-    }
-
-    if (telephone.replace(/\D/g, "").length < 8) {
-      setErreur("Numéro invalide.");
+    const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id);
+    if (!ok) {
+      setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
       return;
     }
     setErreur(null);
-    setEtape("attente");
-    // Simulation : le vrai flux attendrait la confirmation USSD de l'agrégateur.
-    setTimeout(() => {
-      const reussi = !telephone.includes("0000");
-      if (reussi) inscriptionReussie();
-      setEtape(reussi ? "succes" : "echec");
-    }, 2200);
+    inscriptionReussie();
+    setSucces(true);
   }
 
-  if (etape === "attente") {
+  if (succes) {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center"
         style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
       >
-        <Loader2 size={32} className="animate-spin" style={{ color: "var(--ds-accent)" }} />
-        <p className="text-base font-medium">Validation en cours...</p>
+        <CheckCircle2 size={40} style={{ color: "var(--ds-accent-300)" }} />
+        <p className="text-lg font-medium">Paiement confirmé</p>
         <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-          Compose le code USSD reçu par SMS sur {telephone} pour confirmer le paiement.
+          Ton inscription à {tournoi.titre} est validée. À bientôt sur le terrain !
         </p>
-      </div>
-    );
-  }
-
-  if (etape === "succes" || etape === "echec") {
-    const reussi = etape === "succes";
-    return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center"
-        style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
-      >
-        {reussi ? (
-          <CheckCircle2 size={40} style={{ color: "var(--ds-accent-300)" }} />
-        ) : (
-          <XCircle size={40} style={{ color: "var(--ds-danger)" }} />
-        )}
-        <p className="text-lg font-medium">
-          {reussi ? "Paiement confirmé" : "Le paiement a échoué"}
-        </p>
-        <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-          {reussi
-            ? `Ton inscription à ${tournoi.titre} est validée. À bientôt sur le terrain !`
-            : "Vérifie ton solde Mobile Money ou réessaie avec un autre numéro."}
-        </p>
-        {reussi ? (
-          <Link href="/accueil">
-            <Button variante="primary">Retour à l&apos;accueil</Button>
-          </Link>
-        ) : (
-          <Button variante="primary" onClick={() => setEtape("moyen")}>
-            Réessayer
-          </Button>
-        )}
+        <Link href="/accueil">
+          <Button variante="primary">Retour à l&apos;accueil</Button>
+        </Link>
       </div>
     );
   }
@@ -199,81 +136,34 @@ export function FluxPaiement({
           )}
         </div>
 
-        <div>
-          <div
-            className="text-[11px] uppercase tracking-wide mb-2.5"
-            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
-          >
-            Moyen de paiement
-          </div>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setMoyen("tourneycard")}
-              className="flex items-center gap-3 p-3.5 text-left cursor-pointer"
-              style={{
-                borderRadius: "var(--ds-radius-md)",
-                background: "var(--ds-surface)",
-                border: `1px solid ${moyen === "tourneycard" ? "var(--ds-accent)" : "var(--ds-border)"}`,
-              }}
-            >
-              <CreditCard size={18} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-              <span className="flex-1 text-sm font-medium">TourneyCard</span>
-              <span className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                {soldeCarte.toLocaleString("fr-FR")} F
-              </span>
-            </button>
-            {MOYENS_MOBILE_MONEY.map((m) => {
-              const actif = moyen === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setMoyen(m.id)}
-                  className="flex items-center gap-3 p-3.5 text-left cursor-pointer"
-                  style={{
-                    borderRadius: "var(--ds-radius-md)",
-                    background: "var(--ds-surface)",
-                    border: `1px solid ${actif ? "var(--ds-accent)" : "var(--ds-border)"}`,
-                  }}
-                >
-                  <span
-                    className="flex items-center justify-center w-[18px] h-[18px] shrink-0"
-                    style={{
-                      borderRadius: "var(--ds-radius-pill)",
-                      border: `1px solid ${actif ? "var(--ds-accent)" : "var(--ds-border-strong)"}`,
-                    }}
-                  >
-                    {actif && (
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ background: "var(--ds-accent-300)" }}
-                      />
-                    )}
-                  </span>
-                  <span className="flex-1 text-sm font-medium">{m.label}</span>
-                  <span
-                    className="text-xs"
-                    style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
-                  >
-                    {m.indice}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div
+          className="flex items-center gap-3 p-3.5"
+          style={{
+            borderRadius: "var(--ds-radius-md)",
+            background: "var(--ds-surface)",
+            border: `1px solid ${soldeInsuffisant ? "var(--ds-danger)" : "var(--ds-accent)"}`,
+          }}
+        >
+          <CreditCard size={18} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+          <span className="flex-1 text-sm font-medium">TourneyCard</span>
+          <span className="text-xs" style={{ color: soldeInsuffisant ? "var(--ds-danger)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            {soldeCarte.toLocaleString("fr-FR")} F
+          </span>
         </div>
 
-        {moyen === "tourneycard" ? (
-          erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>
+        {soldeInsuffisant ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs" style={{ color: "var(--ds-danger)" }}>Solde TourneyCard insuffisant pour cette inscription.</p>
+            <Link
+              href="/profil/solde/recharger"
+              className={`h-11 flex items-center justify-center text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-btn)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
+            >
+              Recharger ma TourneyCard
+            </Link>
+          </div>
         ) : (
-          <Field
-            label="Numéro à débiter"
-            placeholder="07 58 42 19 06"
-            value={telephone}
-            onChange={(e) => setTelephone(e.target.value)}
-            erreur={erreur ?? undefined}
-          />
+          erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>
         )}
 
         <div
@@ -281,15 +171,11 @@ export function FluxPaiement({
           style={{ color: "var(--ds-muted)" }}
         >
           <ShieldCheck size={15} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent)" }} />
-          <span>
-            {moyen === "tourneycard"
-              ? "Paiement instantané depuis ton solde."
-              : "Tu recevras un code USSD pour valider."}
-          </span>
+          <span>Paiement instantané depuis ton solde.</span>
         </div>
 
         <div className="flex flex-col gap-2">
-          <Button variante="primary" bloc type="submit">
+          <Button variante="primary" bloc type="submit" disabled={soldeInsuffisant}>
             Payer {formatXof(montantDu)}
           </Button>
           <p className="flex items-center justify-center gap-1.5 text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>

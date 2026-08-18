@@ -7,6 +7,7 @@ import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { lireSolde, fraisRetrait, montantNetRetrait, retirer } from "@/lib/mockWallet";
+import { identifiantConnexion } from "@/lib/mockAuth";
 
 const DESTINATIONS = [
   { id: "wave", label: "Wave", indice: "01 •• 42" },
@@ -15,11 +16,18 @@ const DESTINATIONS = [
   { id: "moov", label: "Moov Money", indice: "01 •• 88" },
 ] as const;
 
+function numeroInitial(): string {
+  const identifiant = identifiantConnexion();
+  return identifiant && !identifiant.includes("@") ? identifiant : "";
+}
+
 export default function RetirerPage() {
   const router = useRouter();
   const [solde, setSolde] = useState(0);
   const [montantSaisi, setMontantSaisi] = useState("40000");
   const [destination, setDestination] = useState<(typeof DESTINATIONS)[number]["id"]>("wave");
+  const [telephone, setTelephone] = useState(numeroInitial);
+  const [erreurTelephone, setErreurTelephone] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [fait, setFait] = useState(false);
 
@@ -31,10 +39,16 @@ export default function RetirerPage() {
   const montant = Number(montantSaisi) || 0;
   const frais = fraisRetrait(montant);
   const net = montantNetRetrait(montant);
+  const telephoneValide = telephone.replace(/\D/g, "").length >= 8;
 
   function confirmer() {
+    if (!telephoneValide) {
+      setErreurTelephone("Numéro invalide.");
+      return;
+    }
+    setErreurTelephone(null);
     const libelle = DESTINATIONS.find((d) => d.id === destination)?.label ?? destination;
-    const resultat = retirer(montant, libelle);
+    const resultat = retirer(montant, `${libelle} · ${telephone}`);
     if (!resultat.ok) {
       setErreur(resultat.erreur ?? "Retrait impossible.");
       return;
@@ -102,6 +116,17 @@ export default function RetirerPage() {
         </div>
       </div>
 
+      <Field
+        label="Numéro de réception"
+        placeholder="07 58 42 19 06"
+        value={telephone}
+        onChange={(e) => {
+          setTelephone(e.target.value);
+          setErreurTelephone(null);
+        }}
+        erreur={erreurTelephone ?? undefined}
+      />
+
       {montant > 0 && (
         <div className="p-3 flex flex-col gap-1.5 text-sm" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
           <div className="flex justify-between">
@@ -120,7 +145,7 @@ export default function RetirerPage() {
       )}
 
       <div className="mt-auto">
-        <Button variante="primary" bloc onClick={confirmer} disabled={montant < 1000}>
+        <Button variante="primary" bloc onClick={confirmer} disabled={montant < 1000 || !telephoneValide}>
           Retirer {montant > 0 ? `${montant.toLocaleString("fr-FR")} F` : ""}
         </Button>
       </div>

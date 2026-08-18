@@ -7,6 +7,7 @@ import { AppBar } from "@/components/ds/AppBar";
 import { Button } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { recharger } from "@/lib/mockWallet";
+import { identifiantConnexion } from "@/lib/mockAuth";
 
 const MONTANTS = [5000, 10000, 25000, 50000];
 const MONTANT_MIN_XOF = 500;
@@ -18,22 +19,35 @@ const MOYENS = [
   { id: "wave", label: "Wave", indice: "01 ••" },
 ] as const;
 
+function numeroInitial(): string {
+  const identifiant = identifiantConnexion();
+  return identifiant && !identifiant.includes("@") ? identifiant : "";
+}
+
 export default function RechargerPage() {
   const router = useRouter();
   const [montant, setMontant] = useState(10000);
   const [personnalise, setPersonnalise] = useState(false);
   const [montantPerso, setMontantPerso] = useState("");
   const [moyen, setMoyen] = useState<(typeof MOYENS)[number]["id"]>("orange");
+  const [telephone, setTelephone] = useState(numeroInitial);
+  const [erreurTelephone, setErreurTelephone] = useState<string | null>(null);
   const [fait, setFait] = useState(false);
 
   const montantSaisi = personnalise ? Number(montantPerso) || 0 : montant;
   const montantInvalide = personnalise && montantSaisi > 0 && montantSaisi < MONTANT_MIN_XOF;
   const montantValide = montantSaisi >= MONTANT_MIN_XOF;
+  const telephoneValide = telephone.replace(/\D/g, "").length >= 8;
 
   function confirmer() {
     if (!montantValide) return;
+    if (!telephoneValide) {
+      setErreurTelephone("Numéro invalide.");
+      return;
+    }
+    setErreurTelephone(null);
     const libelleMoyen = MOYENS.find((m) => m.id === moyen)?.label ?? moyen;
-    recharger(montantSaisi, libelleMoyen);
+    recharger(montantSaisi, `${libelleMoyen} · ${telephone}`);
     setFait(true);
     setTimeout(() => router.push("/profil/solde"), 1400);
   }
@@ -142,13 +156,24 @@ export default function RechargerPage() {
         </div>
       </div>
 
+      <Field
+        label="Numéro à débiter"
+        placeholder="07 58 42 19 06"
+        value={telephone}
+        onChange={(e) => {
+          setTelephone(e.target.value);
+          setErreurTelephone(null);
+        }}
+        erreur={erreurTelephone ?? undefined}
+      />
+
       <div className="flex items-start gap-2 text-xs" style={{ color: "var(--ds-muted)" }}>
         <Info size={15} strokeWidth={2} className="shrink-0 mt-0.5" style={{ color: "var(--ds-accent)" }} />
         <span>Recharge instantanée, sans frais. Le solde sert à payer les inscriptions dans toute l&apos;app.</span>
       </div>
 
       <div className="mt-auto">
-        <Button variante="primary" bloc onClick={confirmer} disabled={!montantValide}>
+        <Button variante="primary" bloc onClick={confirmer} disabled={!montantValide || !telephoneValide}>
           Recharger {montantSaisi.toLocaleString("fr-FR")} F
         </Button>
       </div>

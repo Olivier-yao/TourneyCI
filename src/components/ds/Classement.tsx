@@ -36,8 +36,6 @@ function construireClassement(paysActif: string, villeActif: string): Classement
   }
   let fusionne = Array.from(parNom.values());
   if (villeActif !== VILLE_TOUTES) {
-    // Une entrée dont la ville est en fait une commune (ex: "Yopougon")
-    // compte pour sa ville parente ("Abidjan") — point 141.
     fusionne = fusionne.filter((e) => lieuDansVille(e.ville, villeActif));
   } else if (paysActif !== PAYS_TOUS) {
     const villes = villesDuPays(paysActif);
