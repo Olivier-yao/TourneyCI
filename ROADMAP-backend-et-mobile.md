@@ -43,13 +43,28 @@ Pour débloquer la suite concrètement (migrations, premières routes API) :
    (`src/app/api/**/route.ts`) plutôt qu'un service Express séparé, pour
    rester dans le même déploiement Vercel que le frontend actuel — dis-moi
    si tu préfères découpler dès maintenant.
-3. **Un fournisseur SMS OTP** pour la vraie connexion par téléphone (ex.
-   Twilio, ou un agrégateur local ivoirien) — pas bloquant pour commencer
-   les tables et les premières routes, mais nécessaire avant de remplacer
-   `mockAuth.ts` pour de vrai.
+3. **Neon Auth**, activé directement dans la création du projet Neon
+   (bascule "Enable Neon Auth") — décision prise : plus de connexion par
+   téléphone/SMS/Twilio, seulement Google OAuth (bouton direct, compte créé
+   automatiquement) et email + mot de passe. Neon Auth (basé sur Stack Auth)
+   gère les deux nativement, sans service tiers à payer, et synchronise les
+   comptes dans une table `neon_auth.users_sync` de la même base — pas de
+   mot de passe à stocker ni gérer nous-mêmes. Une fois le projet créé,
+   ouvre l'onglet **Auth** du projet Neon : active Google (client
+   ID/secret Google Cloud à créer si pas déjà fait) et Email/mot de passe,
+   désactive tout le reste, puis copie le bloc `.env` que Neon fournit
+   (`DATABASE_URL`, `NEXT_PUBLIC_STACK_PROJECT_ID`,
+   `NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY`, `STACK_SECRET_SERVER_KEY`)
+   dans `.env` — tu peux me les coller directement ici, ce sont des clés de
+   dev/test, pas des identifiants de paiement.
 4. Rien d'autre n'est requis pour que je continue à modéliser les domaines
    suivants (chat, wallet, notifications...) pendant que tu récupères la
    base — je peux avancer le schéma sans connexion active.
+
+Une fois ces clés fournies, je installe `@stackframe/stack` (SDK Neon
+Auth/Stack pour Next.js), câble le bouton Google + le formulaire
+email/mot de passe, et vérifie le flux de connexion directement dans le
+navigateur de prévisualisation.
 
 ## 2. Reste à faire : backend
 
@@ -64,9 +79,9 @@ Pour débloquer la suite concrètement (migrations, premières routes API) :
   équipes (pré-créées et éphémères BR), matchs/manches, messages de chat,
   notifications, transactions wallet, demandes (adjoint, annulation,
   certification), litiges, avis (cœur/cœur brisé), abonnements/follows.
-- **Auth réelle** — remplace `mockAuth.ts` : vraie vérification SMS OTP
-  (ou Google), session/JWT, plus de "connecté" simulé par un flag
-  localStorage.
+- **Auth réelle** — remplace `mockAuth.ts` par Neon Auth (Google OAuth +
+  email/mot de passe, plus de téléphone/SMS/Twilio) : sessions gérées par
+  Stack Auth, plus de "connecté" simulé par un flag localStorage.
 - **Stockage fichiers** — les photos/bannières sont aujourd'hui des
   data URLs en localStorage ; il faut un object storage (S3, Cloudflare R2,
   Supabase Storage) + redimensionnement serveur.

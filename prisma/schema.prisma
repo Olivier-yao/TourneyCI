@@ -21,9 +21,13 @@ datasource db {
 // suivantes, une fois cette base validée.
 // ---------------------------------------------------------------------------
 
+/// Reflète un utilisateur Neon Auth (Google OAuth + email/mot de passe —
+/// plus de téléphone/SMS/Twilio). `id` est l'id Stack Auth synchronisé par
+/// Neon Auth (table neon_auth.users_sync), pas un cuid généré ici : jamais
+/// de mot de passe stocké dans ce schéma, l'auth est entièrement déléguée.
 model User {
-  id           String              @id @default(cuid())
-  telephone    String              @unique
+  id           String              @id
+  email        String              @unique
   createdAt    DateTime            @default(now())
   profil       Profil?
   organisateur OrganisateurProfil?
