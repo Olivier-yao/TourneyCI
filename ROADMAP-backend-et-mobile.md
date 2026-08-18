@@ -1,5 +1,12 @@
 # Feuille de route — Backend puis App mobile
 
+> **Avancement** : Prisma est installé et un premier schéma est écrit
+> (`prisma/schema.prisma`) couvrant auth, profils joueur/organisateur,
+> tournois, inscriptions, équipes pré-créées + invitations, adjoints,
+> demandes d'annulation. Il est validé (`npx prisma validate`) et le client
+> est généré, mais **aucune base réelle n'est encore connectée** — voir
+> "Ce dont j'ai besoin de toi" ci-dessous pour débloquer la suite.
+
 ## 1. État actuel (constat factuel)
 
 TourneyCI est aujourd'hui **100 % frontend** : Next.js 16 + React 19, aucune
@@ -20,6 +27,29 @@ exportées par ces modules (`tournoiParId()`, `enregistrerInscription()`,
 Le jour où ces fonctions parlent à une vraie API au lieu du localStorage,
 **les composants n'ont presque rien à changer** — c'est le principal atout
 pour la migration à venir.
+
+## 1.5 Ce dont j'ai besoin de toi pour continuer
+
+Pour débloquer la suite concrètement (migrations, premières routes API) :
+
+1. **Une base PostgreSQL.** Le plus simple et gratuit pour démarrer :
+   [neon.tech](https://neon.tech) — crée un projet, copie la chaîne de
+   connexion (`postgresql://...`) et colle-la dans `.env` sous
+   `DATABASE_URL` (voir `.env.example`, déjà mis à jour). Le client est déjà
+   câblé pour l'adaptateur Neon (`@prisma/adapter-neon`) — si tu préfères un
+   autre fournisseur (Supabase, Railway...), dis-le, il faut juste changer
+   l'adaptateur dans `src/lib/prisma.ts`.
+2. **Confirmer le choix de stack** : je pars sur des Route Handlers Next.js
+   (`src/app/api/**/route.ts`) plutôt qu'un service Express séparé, pour
+   rester dans le même déploiement Vercel que le frontend actuel — dis-moi
+   si tu préfères découpler dès maintenant.
+3. **Un fournisseur SMS OTP** pour la vraie connexion par téléphone (ex.
+   Twilio, ou un agrégateur local ivoirien) — pas bloquant pour commencer
+   les tables et les premières routes, mais nécessaire avant de remplacer
+   `mockAuth.ts` pour de vrai.
+4. Rien d'autre n'est requis pour que je continue à modéliser les domaines
+   suivants (chat, wallet, notifications...) pendant que tu récupères la
+   base — je peux avancer le schéma sans connexion active.
 
 ## 2. Reste à faire : backend
 

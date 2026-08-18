@@ -60,6 +60,14 @@ export function adjointsDe(proprietaire: string): Adjoint[] {
     .sort((a, b) => b.horodatage - a.horodatage);
 }
 
+/** Organisateurs dont nomAdjoint est un adjoint accepté — sens inverse
+ * d'adjointsDe(), pour l'onglet "Tournois à superviser" côté adjoint. */
+export function proprietairesSupervises(nomAdjoint: string): string[] {
+  return lireTout()
+    .filter((a) => a.adjoint === nomAdjoint && a.statut === "accepte")
+    .map((a) => a.proprietaire);
+}
+
 /** Invitations en attente reçues par un organisateur (à accepter/refuser). */
 export function invitationsRecues(nomOrganisateur: string): Adjoint[] {
   return lireTout()

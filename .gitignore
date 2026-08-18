@@ -40,3 +40,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# skills bundled automatiquement par `prisma init` (réf. Prisma pour agents
+# IA divers) — pas du code projet, régénérables via `npx prisma init`
+/.agents
+/.claude/skills
+/.windsurf
+skills-lock.json

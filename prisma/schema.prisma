@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Première tranche du backend réel (voir ROADMAP-backend-et-mobile.md) :
+// couvre auth, profils joueur/organisateur, tournois, inscriptions, équipes
+// pré-créées + invitations, adjoints organisateur, demandes d'annulation.
+// Les autres domaines mockés (chat, wallet, notifications, litiges,
+// battle royale manches, room info, etc.) viendront dans les tranches
+// suivantes, une fois cette base validée.
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String              @id @default(cuid())
+  telephone    String              @unique
+  createdAt    DateTime            @default(now())
+  profil       Profil?
+  organisateur OrganisateurProfil?
+}
+
+model Profil {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pseudo      String   @unique
+  tag         String?  @unique
+  ville       String
+  pays        String
+  photoUrl    String?
+  matchsJoues Int      @default(0)
+  victoires   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  inscriptions      Inscription[]
+  equipesEnChef     EquipeProfil[]            @relation("ChefEquipe")
+  equipesMembre     EquipeProfilMembre[]
+  invitationsRecues InvitationEquipeProfil[]  @relation("DestinataireInvitation")
+
+  @@index([ville])
+}
+
+model OrganisateurProfil {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nom              String   @unique
+  tag              String?
+  bio              String?
+  photoUrl         String?
+  banniereUrl      String?
+  certifie         Boolean  @default(false)
+  followersMasques Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  tournois           Tournoi[]
+  adjointsEnvoyes    AdjointOrganisateur[] @relation("Proprietaire")
+  adjointsRecus      AdjointOrganisateur[] @relation("Adjoint")
+}
+
+enum TypeCompetition {
+  UN_V_UN
+  EQUIPES
+  BATTLE_ROYALE
+}
+
+enum BrSousType {
+  SOLO
+  DUO
+  TRIO
+  SQUAD
+}
+
+enum Modalite {
+  PRESENTIEL
+  VIRTUEL
+}
+
+model Tournoi {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  organisateurId    String
+  organisateur      OrganisateurProfil @relation(fields: [organisateurId], references: [id])
+  jeuId             String
+  jeuLabel          String
+  titre             String
+  type              TypeCompetition
+  brSousType        BrSousType?
+  manchesPrevues    Int?
+  modalite          Modalite
+  ville             String
+  cashPrizeXof      Int              @default(0)
+  fraisXof          Int              @default(0)
+  placesTotal       Int
+  reglement         String
+  informations      String?
+  symboleId         String?
+  banniereUrl       String?
+  debutTournoiTs    DateTime?
+  finInscriptionsTs DateTime?
+  enDirect          Boolean          @default(false)
+  termine           Boolean          @default(false)
+  annule            Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+
+  inscriptions        Inscription[]
+  demandesAnnulation  DemandeAnnulation[]
+
+  @@index([organisateurId])
+  @@index([ville])
+}
+
+model Inscription {
+  id        String   @id @default(cuid())
+  tournoiId String
+  tournoi   Tournoi  @relation(fields: [tournoiId], references: [id], onDelete: Cascade)
+  profilId  String
+  profil    Profil   @relation(fields: [profilId], references: [id])
+  equipeNom String?
+  tag       String?
+  createdAt DateTime @default(now())
+
+  @@unique([tournoiId, profilId])
+}
+
+model EquipeProfil {
+  id           String    @id @default(cuid())
+  nom          String
+  chefId       String
+  chef         Profil    @relation("ChefEquipe", fields: [chefId], references: [id])
+  createdAt    DateTime  @default(now())
+  nomModifieLe DateTime?
+
+  membres     EquipeProfilMembre[]
+  invitations InvitationEquipeProfil[]
+
+  @@index([chefId])
+}
+
+model EquipeProfilMembre {
+  id       String       @id @default(cuid())
+  equipeId String
+  equipe   EquipeProfil @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  profilId String
+  profil   Profil       @relation(fields: [profilId], references: [id])
+
+  @@unique([equipeId, profilId])
+}
+
+enum StatutInvitation {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+}
+
+model InvitationEquipeProfil {
+  id             String            @id @default(cuid())
+  equipeId       String
+  equipe         EquipeProfil      @relation(fields: [equipeId], references: [id], onDelete: Cascade)
+  destinataireId String
+  destinataire   Profil            @relation("DestinataireInvitation", fields: [destinataireId], references: [id])
+  statut         StatutInvitation  @default(EN_ATTENTE)
+  createdAt      DateTime          @default(now())
+}
+
+enum StatutAdjoint {
+  EN_ATTENTE
+  ACCEPTE
+}
+
+model AdjointOrganisateur {
+  id             String             @id @default(cuid())
+  proprietaireId String
+  proprietaire   OrganisateurProfil @relation("Proprietaire", fields: [proprietaireId], references: [id], onDelete: Cascade)
+  adjointId      String
+  adjoint        OrganisateurProfil @relation("Adjoint", fields: [adjointId], references: [id], onDelete: Cascade)
+  statut         StatutAdjoint      @default(EN_ATTENTE)
+  createdAt      DateTime           @default(now())
+
+  @@unique([proprietaireId, adjointId])
+}
+
+model DemandeAnnulation {
+  id        String   @id @default(cuid())
+  tournoiId String
+  tournoi   Tournoi  @relation(fields: [tournoiId], references: [id], onDelete: Cascade)
+  motif     String
+  statut    String   @default("en_attente")
+  createdAt DateTime @default(now())
+}

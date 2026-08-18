@@ -15,6 +15,7 @@ import { equipesDuJoueur, demandesEnAttente, creerEquipeBR, ajouterMembresDirect
 import { tournoiParId, estTermine, type Tournoi } from "@/lib/mockTournaments";
 import {
   equipesProfilDontChef,
+  equipesProfilDontMembreNonChef,
   creerEquipeProfil,
   renommerEquipeProfil,
   retirerMembreEquipeProfil,
@@ -249,15 +250,21 @@ export default function MesEquipesPage() {
   const [pseudo, setPseudo] = useState("");
 
   const [equipesProfil, setEquipesProfil] = useState<EquipeProfil[]>([]);
+  const [equipesMembre, setEquipesMembre] = useState<EquipeProfil[]>([]);
   const [creationOuverte, setCreationOuverte] = useState(false);
   const [nomCreation, setNomCreation] = useState("");
   const [equipeSelectionnee, setEquipeSelectionnee] = useState<EquipeProfil | null>(null);
 
   const [equipesTournoi, setEquipesTournoi] = useState<EquipeAvecTournoi[]>([]);
   const [invitations, setInvitations] = useState<InvitationEquipeProfil[]>([]);
+  const [erreurInvitation, setErreurInvitation] = useState<string | null>(null);
 
   function rafraichirEquipesProfil(moi: string) {
     setEquipesProfil(equipesProfilDontChef(moi));
+    // Équipes rejointes en tant que simple membre (invitation acceptée) —
+    // sans ça, accepter une invitation ne montre jamais nulle part que
+    // l'équipe a bien été rejointe.
+    setEquipesMembre(equipesProfilDontMembreNonChef(moi));
   }
 
   function rafraichirInvitations(moi: string) {
@@ -295,8 +302,10 @@ export default function MesEquipesPage() {
   }
 
   function repondre(invitation: InvitationEquipeProfil, accepter: boolean) {
-    repondreInvitationEquipeProfil(invitation.id, accepter);
+    const err = repondreInvitationEquipeProfil(invitation.id, accepter);
+    setErreurInvitation(err);
     rafraichirInvitations(pseudo);
+    if (accepter && !err) rafraichirEquipesProfil(pseudo);
   }
 
   return (
@@ -391,38 +400,65 @@ export default function MesEquipesPage() {
 
       <div className="px-5 pt-4 flex-1 flex flex-col gap-2.5">
         {onglet === "precreees" ? (
-          equipesProfil.length === 0 ? (
+          equipesProfil.length === 0 && equipesMembre.length === 0 ? (
             <EmptyState
               titre="Aucune équipe pré-créée"
               description="Crée jusqu'à 5 équipes fixes de 4 membres max, à sélectionner directement lors d'une inscription en duo/squad."
             />
           ) : (
-            equipesProfil.map((equipe) => (
-              <button
-                key={equipe.id}
-                type="button"
-                onClick={() => setEquipeSelectionnee(equipe)}
-                className={`p-[13px] flex items-center gap-3 text-left ${PRESS}`}
-                style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}
-              >
-                <EcussonEquipe initiales={equipe.nom.slice(0, 2).toUpperCase()} style="accent" largeur={46} hauteur={52} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-[15px] font-medium truncate">{equipe.nom}</div>
-                    <Crown size={13} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-400)" }} />
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <AvatarPile initiales={equipe.membres.map((m) => m.slice(0, 2).toUpperCase())} />
-                    <div className="text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                      {equipe.membres.length}/{MAX_MEMBRES_EQUIPE_PROFIL}
+            <>
+              {equipesProfil.map((equipe) => (
+                <button
+                  key={equipe.id}
+                  type="button"
+                  onClick={() => setEquipeSelectionnee(equipe)}
+                  className={`p-[13px] flex items-center gap-3 text-left ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}
+                >
+                  <EcussonEquipe initiales={equipe.nom.slice(0, 2).toUpperCase()} style="accent" largeur={46} hauteur={52} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-[15px] font-medium truncate">{equipe.nom}</div>
+                      <Crown size={13} strokeWidth={2} className="shrink-0" style={{ color: "var(--ds-accent-400)" }} />
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <AvatarPile initiales={equipe.membres.map((m) => m.slice(0, 2).toUpperCase())} />
+                      <div className="text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                        {equipe.membres.length}/{MAX_MEMBRES_EQUIPE_PROFIL}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <span className="text-xs font-semibold shrink-0" style={{ color: "var(--ds-accent-300)" }}>
-                  Gérer
-                </span>
-              </button>
-            ))
+                  <span className="text-xs font-semibold shrink-0" style={{ color: "var(--ds-accent-300)" }}>
+                    Gérer
+                  </span>
+                </button>
+              ))}
+              {equipesMembre.length > 0 && (
+                <>
+                  <div className="text-[10px] uppercase tracking-wide mt-2" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    Équipes rejointes
+                  </div>
+                  {equipesMembre.map((equipe) => (
+                    <div
+                      key={equipe.id}
+                      className="p-[13px] flex items-center gap-3"
+                      style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}
+                    >
+                      <EcussonEquipe initiales={equipe.nom.slice(0, 2).toUpperCase()} style="neutre" largeur={46} hauteur={52} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[15px] font-medium truncate">{equipe.nom}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <AvatarPile initiales={equipe.membres.map((m) => m.slice(0, 2).toUpperCase())} />
+                          <div className="text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                            {equipe.membres.length}/{MAX_MEMBRES_EQUIPE_PROFIL} · chef {equipe.chef}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
           )
         ) : onglet === "tournoi" ? (
           equipesTournoi.length === 0 ? (
@@ -494,7 +530,13 @@ export default function MesEquipesPage() {
             description="Les invitations à rejoindre une équipe pré-créée par TAG apparaissent ici, à accepter ou refuser."
           />
         ) : (
-          invitations.map((invitation) => (
+          <>
+            {erreurInvitation && (
+              <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}>
+                <p className="text-xs">{erreurInvitation}</p>
+              </div>
+            )}
+            {invitations.map((invitation) => (
             <div
               key={invitation.id}
               className="p-[13px] flex items-center gap-3"
@@ -526,7 +568,8 @@ export default function MesEquipesPage() {
                 <X size={16} strokeWidth={2} />
               </button>
             </div>
-          ))
+            ))}
+          </>
         )}
       </div>
 

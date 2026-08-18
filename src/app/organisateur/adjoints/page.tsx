@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Check, X, Trash2, UserPlus, Info } from "lucide-react";
+import { ShieldCheck, Check, X, Trash2, UserPlus, Info, Radio } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
+import { tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
 import {
   inviterAdjoint,
   adjointsDe,
   invitationsRecues,
   accepterInvitation,
   retirerAdjoint,
+  proprietairesSupervises,
   type Adjoint,
 } from "@/lib/mockAdjointsOrganisateur";
 
@@ -36,10 +39,15 @@ export default function AdjointsPage() {
   const [invitationsEnAttente, setInvitationsEnAttente] = useState<Adjoint[]>([]);
   const [nomAjout, setNomAjout] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
+  const [tournoisASuperviser, setTournoisASuperviser] = useState<Tournoi[]>([]);
 
   function rafraichir(nomActuel: string) {
     setAdjoints(adjointsDe(nomActuel));
     setInvitationsEnAttente(invitationsRecues(nomActuel));
+    const proprietaires = proprietairesSupervises(nomActuel);
+    setTournoisASuperviser(
+      tousLesTournois().filter((t) => proprietaires.includes(t.organisateur) && !t.termine && !t.annule),
+    );
   }
 
   useEffect(() => {
@@ -99,16 +107,21 @@ export default function AdjointsPage() {
                 className="flex items-center gap-3 p-3"
                 style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}
               >
-                <div
-                  className="flex items-center justify-center shrink-0 text-xs font-semibold"
-                  style={{ width: 36, height: 36, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-800)", color: "var(--ds-accent-300)" }}
+                <Link
+                  href={`/organisateur/profil/${encodeURIComponent(inv.proprietaire)}`}
+                  className={`flex-1 min-w-0 flex items-center gap-3 ${PRESS}`}
                 >
-                  {initiales(inv.proprietaire)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{inv.proprietaire}</div>
-                  <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>t&apos;invite comme adjoint</div>
-                </div>
+                  <div
+                    className="flex items-center justify-center shrink-0 text-xs font-semibold"
+                    style={{ width: 36, height: 36, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-800)", color: "var(--ds-accent-300)" }}
+                  >
+                    {initiales(inv.proprietaire)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{inv.proprietaire}</div>
+                    <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>t&apos;invite comme adjoint · voir le profil</div>
+                  </div>
+                </Link>
                 <button
                   type="button"
                   onClick={() => repondre(inv.proprietaire, true)}
@@ -128,6 +141,37 @@ export default function AdjointsPage() {
                   <X size={15} strokeWidth={2.5} />
                 </button>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tournoisASuperviser.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            Tournois à superviser · {tournoisASuperviser.length}
+          </div>
+          <div className="flex flex-col gap-2">
+            {tournoisASuperviser.map((t) => (
+              <Link
+                key={t.id}
+                href={`/organisateur/${t.id}/gestion`}
+                className={`flex items-center gap-3 p-3 ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+              >
+                <div
+                  className="flex items-center justify-center shrink-0"
+                  style={{ width: 36, height: 36, borderRadius: "var(--ds-radius-md)", background: "var(--ds-accent-800)", color: "var(--ds-accent-300)" }}
+                >
+                  <Radio size={15} strokeWidth={2} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">{t.titre}</div>
+                  <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>
+                    {t.organisateur} · {t.jeuLabel}{t.enDirect ? " · en direct" : ""}
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
