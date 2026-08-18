@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck, Eye, EyeOff, Check } from "lucide-react";
+import { Eye, EyeOff, Check } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
@@ -27,8 +27,8 @@ function destinationApresConnexion(): string {
   return "/accueil";
 }
 
-const CODE_DEMO = "4821";
 const EMAIL_GOOGLE_DEMO = "demo@gmail.com";
+const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function evaluerMotDePasse(mdp: string) {
   return {
@@ -105,15 +105,36 @@ function ChampMotDePasse({
   );
 }
 
-function EtapeMotDePasse({ telephone, onValide }: { telephone: string; onValide: () => void }) {
-  const [mdp, setMdp] = useState("");
+function VerifyInterne() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const mode = searchParams.get("mode") === "connexion" ? "connexion" : "creer";
+
+  const [email, setEmail] = useState("");
+  const [motDePasse, setMotDePasse] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
-  const c = evaluerMotDePasse(mdp);
-  const valide = c.longueur && c.majuscule && c.chiffre && mdp === confirmation && confirmation.length > 0;
+  const [chargementGoogle, setChargementGoogle] = useState(false);
 
-  function creer(e: React.FormEvent) {
+  const c = evaluerMotDePasse(motDePasse);
+
+  function terminer(source: "email" | "google", identifiant: string) {
+    marquerOnboarde();
+    marquerConnecte(source, identifiant);
+    armerTransitionEntree();
+    router.push(destinationApresConnexion());
+  }
+
+  function creerCompte(e: React.FormEvent) {
     e.preventDefault();
+    if (!REGEX_EMAIL.test(email.trim())) {
+      setErreur("Adresse e-mail invalide.");
+      return;
+    }
+    if (aUnMotDePasse(email)) {
+      setErreur("Un compte existe déjà avec cet e-mail — connecte-toi plutôt.");
+      return;
+    }
     if (!c.longueur) {
       setErreur("10 caractères minimum.");
       return;
@@ -122,153 +143,37 @@ function EtapeMotDePasse({ telephone, onValide }: { telephone: string; onValide:
       setErreur("Une majuscule et un chiffre sont requis.");
       return;
     }
-    if (mdp !== confirmation) {
+    if (motDePasse !== confirmation) {
       setErreur("Les deux mots de passe ne correspondent pas.");
       return;
     }
     setErreur(null);
-    definirMotDePasse(telephone, mdp);
-    onValide();
+    definirMotDePasse(email, motDePasse);
+    terminer("email", email.trim());
   }
 
-  return (
-    <form onSubmit={creer} className="flex flex-col gap-5 mt-4 max-w-sm">
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--ds-border)" }}>
-          <div className="w-full h-1" style={{ background: "var(--ds-accent)" }} />
-        </div>
-        <span className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          3/3
-        </span>
-      </div>
-
-      <div>
-        <h1
-          className="text-2xl leading-tight"
-          style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}
-        >
-          Crée ton mot de passe
-        </h1>
-        <p className="text-sm mt-2" style={{ color: "var(--ds-text-muted)" }}>
-          Numéro vérifié : <span style={{ color: "var(--ds-accent-300)", fontWeight: 600 }}>{telephone}</span>. Ce mot
-          de passe te servira à te reconnecter, ici ou sur un autre appareil.
-        </p>
-      </div>
-
-      <ChampMotDePasse label="Mot de passe" valeur={mdp} onChange={setMdp} />
-      <IndicateurForce mdp={mdp} />
-      <ChampMotDePasse
-        label="Confirme le mot de passe"
-        valeur={confirmation}
-        onChange={setConfirmation}
-        erreur={erreur ?? undefined}
-      />
-
-      <div
-        className="flex flex-col gap-2 p-3.5"
-        style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-      >
-        {[
-          { label: "10 caractères ou plus", ok: c.longueur },
-          { label: "Une majuscule et un chiffre", ok: c.majuscule && c.chiffre },
-          { label: "Un caractère spécial (conseillé)", ok: c.special },
-        ].map((item) => (
-          <div key={item.label} className="flex items-center gap-2 text-xs" style={{ color: item.ok ? "var(--ds-text)" : "var(--ds-muted)" }}>
-            {item.ok ? (
-              <Check size={13} strokeWidth={2.5} style={{ color: "var(--ds-accent)" }} />
-            ) : (
-              <span className="w-[13px] text-center" style={{ color: "var(--ds-border-strong)" }}>○</span>
-            )}
-            {item.label}
-          </div>
-        ))}
-      </div>
-
-      <Button variante="primary" bloc type="submit" disabled={!valide}>
-        Créer mon compte
-      </Button>
-    </form>
-  );
-}
-
-function VerifyInterne() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const mode = searchParams.get("mode") === "connexion" ? "connexion" : "creer";
-
-  const [etape, setEtape] = useState<"telephone" | "code" | "motdepasse">("telephone");
-  const [telephone, setTelephone] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
-  const [code, setCode] = useState("");
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [chargementGoogle, setChargementGoogle] = useState(false);
-
-  function envoyerCode(e: React.FormEvent) {
+  function connexionEmail(e: React.FormEvent) {
     e.preventDefault();
-    if (telephone.replace(/\D/g, "").length < 8) {
-      setErreur("Numéro invalide.");
+    if (!REGEX_EMAIL.test(email.trim())) {
+      setErreur("Adresse e-mail invalide.");
+      return;
+    }
+    if (!aUnMotDePasse(email)) {
+      setErreur("Aucun compte avec cet e-mail. Crée un compte d'abord.");
+      return;
+    }
+    if (!verifierMotDePasse(email, motDePasse)) {
+      setErreur("E-mail ou mot de passe incorrect.");
       return;
     }
     setErreur(null);
-    setEtape("code");
-  }
-
-  function validerCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (code !== CODE_DEMO) {
-      setErreur("Code incorrect. Réessaie.");
-      return;
-    }
-    setErreur(null);
-    setEtape("motdepasse");
-  }
-
-  function connexionMotDePasse(e: React.FormEvent) {
-    e.preventDefault();
-    if (telephone.replace(/\D/g, "").length < 8) {
-      setErreur("Numéro invalide.");
-      return;
-    }
-    if (aUnMotDePasse(telephone) && !verifierMotDePasse(telephone, motDePasse)) {
-      setErreur("Numéro ou mot de passe incorrect.");
-      return;
-    }
-    if (!aUnMotDePasse(telephone)) {
-      setErreur("Aucun compte avec ce numéro. Crée un compte d'abord.");
-      return;
-    }
-    setErreur(null);
-    marquerOnboarde();
-    marquerConnecte("telephone", telephone);
-    armerTransitionEntree();
-    router.push(destinationApresConnexion());
-  }
-
-  function finInscription() {
-    marquerOnboarde();
-    marquerConnecte("telephone", telephone);
-    armerTransitionEntree();
-    router.push(destinationApresConnexion());
+    terminer("email", email.trim());
   }
 
   function connexionGoogle() {
     setChargementGoogle(true);
     // Simulation : pas de vraie fenêtre OAuth, juste un délai réaliste.
-    setTimeout(() => {
-      marquerOnboarde();
-      marquerConnecte("google", EMAIL_GOOGLE_DEMO);
-      armerTransitionEntree();
-      router.push(destinationApresConnexion());
-    }, 900);
-  }
-
-  if (mode === "creer" && etape === "motdepasse") {
-    return (
-      <div className="min-h-screen flex flex-col px-6 py-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
-        <AppBar retour onRetour={() => setEtape("code")} titre="Créer mon compte" />
-        <EtapeMotDePasse telephone={telephone} onValide={finInscription} />
-      </div>
-    );
+    setTimeout(() => terminer("google", EMAIL_GOOGLE_DEMO), 900);
   }
 
   return (
@@ -276,112 +181,79 @@ function VerifyInterne() {
       className="min-h-screen flex flex-col px-6 py-4"
       style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
     >
-      <AppBar
-        retour
-        onRetour={() => (etape === "code" ? setEtape("telephone") : router.back())}
-        titre={
-          etape === "telephone"
-            ? mode === "creer"
-              ? "Créer mon compte"
-              : "Se connecter"
-            : "Vérification"
-        }
-      />
+      <AppBar retour onRetour={() => router.back()} titre={mode === "creer" ? "Créer mon compte" : "Se connecter"} />
 
-      {mode === "connexion" ? (
-        <div className="flex flex-col gap-5 mt-8 max-w-sm">
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            Connecte-toi avec ton numéro et ton mot de passe.
-          </p>
-          <form onSubmit={connexionMotDePasse} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5 mt-8 max-w-sm">
+        <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+          {mode === "creer"
+            ? "Crée ton compte avec Google en un clic, ou avec ton e-mail et un mot de passe."
+            : "Connecte-toi avec Google, ou avec ton e-mail et ton mot de passe."}
+        </p>
+
+        <BoutonGoogle onClick={connexionGoogle} chargement={chargementGoogle} />
+
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1" style={{ background: "var(--ds-border)" }} />
+          <span className="text-xs" style={{ color: "var(--ds-muted)" }}>
+            ou
+          </span>
+          <div className="h-px flex-1" style={{ background: "var(--ds-border)" }} />
+        </div>
+
+        {mode === "creer" ? (
+          <form onSubmit={creerCompte} className="flex flex-col gap-5">
             <Field
-              label="Numéro de téléphone"
-              placeholder="07 58 42 19 06"
-              value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
+              type="email"
+              label="Adresse e-mail"
+              placeholder="toi@exemple.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              erreur={erreur ?? undefined}
+            />
+            <ChampMotDePasse label="Mot de passe" valeur={motDePasse} onChange={setMotDePasse} />
+            <IndicateurForce mdp={motDePasse} />
+            <ChampMotDePasse label="Confirme le mot de passe" valeur={confirmation} onChange={setConfirmation} />
+
+            <div
+              className="flex flex-col gap-2 p-3.5"
+              style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+            >
+              {[
+                { label: "10 caractères ou plus", ok: c.longueur },
+                { label: "Une majuscule et un chiffre", ok: c.majuscule && c.chiffre },
+                { label: "Un caractère spécial (conseillé)", ok: c.special },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2 text-xs" style={{ color: item.ok ? "var(--ds-text)" : "var(--ds-muted)" }}>
+                  {item.ok ? (
+                    <Check size={13} strokeWidth={2.5} style={{ color: "var(--ds-accent)" }} />
+                  ) : (
+                    <span className="w-[13px] text-center" style={{ color: "var(--ds-border-strong)" }}>○</span>
+                  )}
+                  {item.label}
+                </div>
+              ))}
+            </div>
+
+            <Button variante="primary" bloc type="submit">
+              Créer mon compte
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={connexionEmail} className="flex flex-col gap-5">
+            <Field
+              type="email"
+              label="Adresse e-mail"
+              placeholder="toi@exemple.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
             <ChampMotDePasse label="Mot de passe" valeur={motDePasse} onChange={setMotDePasse} erreur={erreur ?? undefined} />
             <Button variante="primary" bloc type="submit">
               Se connecter
             </Button>
           </form>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1" style={{ background: "var(--ds-border)" }} />
-            <span className="text-xs" style={{ color: "var(--ds-muted)" }}>
-              ou
-            </span>
-            <div className="h-px flex-1" style={{ background: "var(--ds-border)" }} />
-          </div>
-
-          <BoutonGoogle onClick={connexionGoogle} chargement={chargementGoogle} />
-        </div>
-      ) : etape === "telephone" ? (
-        <div className="flex flex-col gap-5 mt-8 max-w-sm">
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            On t&apos;envoie un code par SMS pour vérifier ton numéro.
-          </p>
-          <form onSubmit={envoyerCode} className="flex flex-col gap-5">
-            <Field
-              label="Numéro de téléphone"
-              placeholder="07 58 42 19 06"
-              value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
-              erreur={erreur ?? undefined}
-            />
-            <Button variante="primary" bloc type="submit">
-              Envoyer le code
-            </Button>
-          </form>
-
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1" style={{ background: "var(--ds-border)" }} />
-            <span className="text-xs" style={{ color: "var(--ds-muted)" }}>
-              ou
-            </span>
-            <div className="h-px flex-1" style={{ background: "var(--ds-border)" }} />
-          </div>
-
-          <BoutonGoogle onClick={connexionGoogle} chargement={chargementGoogle} />
-        </div>
-      ) : (
-        <form onSubmit={validerCode} className="flex flex-col gap-5 mt-8 max-w-sm">
-          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-            Code envoyé au <span style={{ color: "var(--ds-text)" }}>{telephone}</span>.
-          </p>
-          <div
-            className="flex items-center gap-2.5 px-3.5 py-3 text-xs"
-            style={{
-              borderRadius: "var(--ds-radius-md)",
-              background: "var(--ds-accent-900)",
-              color: "var(--ds-accent-300)",
-            }}
-          >
-            <ShieldCheck size={16} strokeWidth={2} className="shrink-0" />
-            Mode démo — ton code est {CODE_DEMO}
-          </div>
-          <Field
-            label="Code reçu par SMS"
-            placeholder="0000"
-            inputMode="numeric"
-            maxLength={4}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            erreur={erreur ?? undefined}
-          />
-          <Button variante="primary" bloc type="submit">
-            Valider
-          </Button>
-          <button
-            type="button"
-            onClick={() => setEtape("telephone")}
-            className="text-sm text-center cursor-pointer"
-            style={{ color: "var(--ds-accent)", fontFamily: "var(--ds-font-body)" }}
-          >
-            Changer de numéro
-          </button>
-        </form>
-      )}
+        )}
+      </div>
     </div>
   );
 }

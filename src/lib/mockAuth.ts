@@ -1,10 +1,11 @@
 /**
  * État "connexion" simulé pour la phase 2 du chantier V2 (pas de backend
- * réel : ni vraie session, ni SMS OTP envoyé). Persisté en localStorage,
- * à remplacer par une vraie auth Supabase en phase 8.
+ * réel : ni vraie session serveur). Persisté en localStorage, à remplacer
+ * par Supabase Auth (Google OAuth + email/mot de passe) en phase 8 — plus de
+ * connexion par numéro de téléphone/SMS/Twilio, retirée du produit.
  */
 
-export type SourceConnexion = "telephone" | "google";
+export type SourceConnexion = "email" | "google";
 
 const CLE_ONBOARDE = "tourney-onboarde";
 const CLE_CONNECTE = "tourney-connecte";
@@ -57,7 +58,7 @@ export function deconnecter() {
 export function sourceConnexion(): SourceConnexion | null {
   if (typeof window === "undefined") return null;
   const valeur = localStorage.getItem(CLE_SOURCE);
-  return valeur === "telephone" || valeur === "google" ? valeur : null;
+  return valeur === "email" || valeur === "google" ? valeur : null;
 }
 
 export function identifiantConnexion(): string | null {
@@ -67,8 +68,8 @@ export function identifiantConnexion(): string | null {
 
 const CLE_MOTS_DE_PASSE = "tourney-mots-de-passe";
 
-function normaliserTelephone(telephone: string): string {
-  return telephone.replace(/\D/g, "");
+function normaliserEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
 
 /** Hash non cryptographique (djb2) — évite de stocker le mot de passe en
@@ -93,20 +94,20 @@ function lireMotsDePasse(): Record<string, string> {
   }
 }
 
-export function definirMotDePasse(telephone: string, motDePasse: string) {
+export function definirMotDePasse(email: string, motDePasse: string) {
   if (typeof window === "undefined") return;
   const tous = lireMotsDePasse();
-  tous[normaliserTelephone(telephone)] = hacher(motDePasse);
+  tous[normaliserEmail(email)] = hacher(motDePasse);
   localStorage.setItem(CLE_MOTS_DE_PASSE, JSON.stringify(tous));
 }
 
-export function aUnMotDePasse(telephone: string): boolean {
-  return normaliserTelephone(telephone) in lireMotsDePasse();
+export function aUnMotDePasse(email: string): boolean {
+  return normaliserEmail(email) in lireMotsDePasse();
 }
 
-export function verifierMotDePasse(telephone: string, motDePasse: string): boolean {
+export function verifierMotDePasse(email: string, motDePasse: string): boolean {
   const tous = lireMotsDePasse();
-  return tous[normaliserTelephone(telephone)] === hacher(motDePasse);
+  return tous[normaliserEmail(email)] === hacher(motDePasse);
 }
 
 export type Role = "joueur" | "organisateur";

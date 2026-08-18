@@ -4,8 +4,24 @@
 > (`prisma/schema.prisma`) couvrant auth, profils joueur/organisateur,
 > tournois, inscriptions, équipes pré-créées + invitations, adjoints,
 > demandes d'annulation. Il est validé (`npx prisma validate`) et le client
-> est généré, mais **aucune base réelle n'est encore connectée** — voir
-> "Ce dont j'ai besoin de toi" ci-dessous pour débloquer la suite.
+> est généré. La base réelle est **Supabase** (projet existant, 34 tables +
+> RLS déjà en place) — `DATABASE_URL` pointe vers le Transaction Pooler
+> (seule connexion joignable en IPv4 depuis cet environnement) et
+> l'adaptateur Prisma est `@prisma/adapter-pg`. Ce qui reste bloqué : lancer
+> `npx prisma db pull` pour introspecter les 34 tables réelles et remplacer
+> le schéma ci-dessus (dessiné à la main, donc probablement pas 1:1 avec le
+> vrai schéma Supabase) — la commande se lance sans erreur mais reste
+> bloquée sans jamais aboutir depuis ce bac à sable, sans doute un blocage
+> réseau supplémentaire côté pooler. À relancer depuis ta machine ou depuis
+> Vercel (où l'egress réseau est probablement moins restreint), ou
+> partage-moi un export du schéma Supabase (SQL ou capture de l'éditeur de
+> tables) pour que je le reconcilie manuellement.
+>
+> Côté auth applicative (frontend) : le flux numéro de téléphone/SMS/Twilio a
+> été retiré du produit — `/verify` ne propose plus que Google (bouton
+> direct) ou e-mail + mot de passe (`src/lib/mockAuth.ts`, encore un mock
+> localStorage tant que Supabase Auth n'est pas câblé, mais le champ
+> identifiant est déjà un e-mail partout, prêt pour le vrai câblage).
 
 ## 1. État actuel (constat factuel)
 
@@ -30,41 +46,26 @@ pour la migration à venir.
 
 ## 1.5 Ce dont j'ai besoin de toi pour continuer
 
-Pour débloquer la suite concrètement (migrations, premières routes API) :
-
-1. **Une base PostgreSQL.** Le plus simple et gratuit pour démarrer :
-   [neon.tech](https://neon.tech) — crée un projet, copie la chaîne de
-   connexion (`postgresql://...`) et colle-la dans `.env` sous
-   `DATABASE_URL` (voir `.env.example`, déjà mis à jour). Le client est déjà
-   câblé pour l'adaptateur Neon (`@prisma/adapter-neon`) — si tu préfères un
-   autre fournisseur (Supabase, Railway...), dis-le, il faut juste changer
-   l'adaptateur dans `src/lib/prisma.ts`.
-2. **Confirmer le choix de stack** : je pars sur des Route Handlers Next.js
-   (`src/app/api/**/route.ts`) plutôt qu'un service Express séparé, pour
-   rester dans le même déploiement Vercel que le frontend actuel — dis-moi
-   si tu préfères découpler dès maintenant.
-3. **Neon Auth**, activé directement dans la création du projet Neon
-   (bascule "Enable Neon Auth") — décision prise : plus de connexion par
-   téléphone/SMS/Twilio, seulement Google OAuth (bouton direct, compte créé
-   automatiquement) et email + mot de passe. Neon Auth (basé sur Stack Auth)
-   gère les deux nativement, sans service tiers à payer, et synchronise les
-   comptes dans une table `neon_auth.users_sync` de la même base — pas de
-   mot de passe à stocker ni gérer nous-mêmes. Une fois le projet créé,
-   ouvre l'onglet **Auth** du projet Neon : active Google (client
-   ID/secret Google Cloud à créer si pas déjà fait) et Email/mot de passe,
-   désactive tout le reste, puis copie le bloc `.env` que Neon fournit
-   (`DATABASE_URL`, `NEXT_PUBLIC_STACK_PROJECT_ID`,
-   `NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY`, `STACK_SECRET_SERVER_KEY`)
-   dans `.env` — tu peux me les coller directement ici, ce sont des clés de
-   dev/test, pas des identifiants de paiement.
+1. **Débloquer l'introspection Supabase** : soit tu relances toi-même
+   `npm run prisma:pull --workspace` (ou directement `npx prisma db pull`
+   depuis ta machine), soit tu me colles un export du schéma (SQL depuis
+   l'éditeur Supabase, ou juste la liste des 34 tables avec leurs colonnes)
+   pour que je reconcilie `prisma/schema.prisma` à la main sans dépendre de
+   la connexion réseau de cet environnement.
+2. **Confirmer le choix de stack API** : je pars sur des Route Handlers
+   Next.js (`src/app/api/**/route.ts`) plutôt qu'un service Express séparé,
+   pour rester dans le même déploiement Vercel que le frontend actuel —
+   dis-moi si tu préfères découpler dès maintenant.
+3. **Activer Supabase Auth** : dans le dashboard Supabase, onglet
+   **Authentication → Providers**, active Google (client ID/secret Google
+   Cloud à créer si pas déjà fait) et Email/mot de passe, désactive le
+   reste (pas de téléphone/SMS). Le frontend est déjà prêt côté UI
+   (`/verify` ne propose plus que Google ou e-mail + mot de passe) — il ne
+   reste qu'à remplacer `src/lib/mockAuth.ts` par le SDK `@supabase/ssr` une
+   fois les clés du projet (`NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`) confirmées dans `.env`.
 4. Rien d'autre n'est requis pour que je continue à modéliser les domaines
-   suivants (chat, wallet, notifications...) pendant que tu récupères la
-   base — je peux avancer le schéma sans connexion active.
-
-Une fois ces clés fournies, je installe `@stackframe/stack` (SDK Neon
-Auth/Stack pour Next.js), câble le bouton Google + le formulaire
-email/mot de passe, et vérifie le flux de connexion directement dans le
-navigateur de prévisualisation.
+   suivants (chat, wallet, notifications...) en parallèle.
 
 ## 2. Reste à faire : backend
 
@@ -79,9 +80,10 @@ navigateur de prévisualisation.
   équipes (pré-créées et éphémères BR), matchs/manches, messages de chat,
   notifications, transactions wallet, demandes (adjoint, annulation,
   certification), litiges, avis (cœur/cœur brisé), abonnements/follows.
-- **Auth réelle** — remplace `mockAuth.ts` par Neon Auth (Google OAuth +
-  email/mot de passe, plus de téléphone/SMS/Twilio) : sessions gérées par
-  Stack Auth, plus de "connecté" simulé par un flag localStorage.
+- **Auth réelle** — remplace `mockAuth.ts` par Supabase Auth (Google OAuth +
+  email/mot de passe, plus de téléphone/SMS/Twilio, déjà retiré côté UI) :
+  sessions gérées côté serveur, plus de "connecté" simulé par un flag
+  localStorage.
 - **Stockage fichiers** — les photos/bannières sont aujourd'hui des
   data URLs en localStorage ; il faut un object storage (S3, Cloudflare R2,
   Supabase Storage) + redimensionnement serveur.
