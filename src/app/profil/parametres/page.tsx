@@ -53,10 +53,10 @@ function ParametresInterne() {
     setEnregistre(true);
   }
 
-  function seDeconnecter() {
+  async function seDeconnecter() {
     if (!window.confirm("Te déconnecter de Tourney ?")) return;
-    deconnecter();
     setDeconnexionEnCours(true);
+    await deconnecter();
     // Navigation complète (pas le routeur client) : décharge tout l'état JS
     // en mémoire et remplace l'entrée d'historique courante, pour qu'un
     // retour arrière ne puisse jamais réafficher une page authentifiée

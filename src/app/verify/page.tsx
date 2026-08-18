@@ -1,21 +1,20 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Check } from "lucide-react";
+import { Eye, EyeOff, Check, MailCheck } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { BoutonGoogle } from "@/components/ds/BoutonGoogle";
+import { creerClientSupabaseNavigateur } from "@/lib/supabase/client";
 import {
-  marquerConnecte,
   marquerOnboarde,
-  definirMotDePasse,
-  verifierMotDePasse,
-  aUnMotDePasse,
   armerTransitionEntree,
   profilInitialComplet,
   reglementAccepte,
+  attendreSession,
+  estConnecte,
 } from "@/lib/mockAuth";
 
 /** Points 142 et 147 : après une connexion réussie, deux étapes obligatoires
@@ -27,8 +26,17 @@ function destinationApresConnexion(): string {
   return "/accueil";
 }
 
-const EMAIL_GOOGLE_DEMO = "demo@gmail.com";
 const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Traduit les messages Supabase Auth les plus courants — le reste passe
+ * tel quel (déjà en anglais neutre, rare en usage normal). */
+function traduireErreur(message: string): string {
+  if (/invalid login credentials/i.test(message)) return "E-mail ou mot de passe incorrect.";
+  if (/user already registered/i.test(message)) return "Un compte existe déjà avec cet e-mail — connecte-toi plutôt.";
+  if (/password should be at least/i.test(message)) return "Mot de passe trop court (6 caractères minimum côté serveur).";
+  if (/rate limit/i.test(message)) return "Trop de tentatives — réessaie dans quelques minutes.";
+  return message;
+}
 
 function evaluerMotDePasse(mdp: string) {
   return {
@@ -115,24 +123,39 @@ function VerifyInterne() {
   const [confirmation, setConfirmation] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [chargementGoogle, setChargementGoogle] = useState(false);
+  const [chargementForm, setChargementForm] = useState(false);
+  const [emailAConfirmer, setEmailAConfirmer] = useState(false);
+  const [verificationInitiale, setVerificationInitiale] = useState(false);
 
   const c = evaluerMotDePasse(motDePasse);
 
-  function terminer(source: "email" | "google", identifiant: string) {
+  function terminer() {
     marquerOnboarde();
-    marquerConnecte(source, identifiant);
     armerTransitionEntree();
     router.push(destinationApresConnexion());
   }
 
-  function creerCompte(e: React.FormEvent) {
+  useEffect(() => {
+    // Retour du callback OAuth Google, ou session déjà active (onglet
+    // rouvert sur /verify alors que connecté) : on saute directement le
+    // formulaire plutôt que de le montrer inutilement.
+    attendreSession().then(() => {
+      if (estConnecte()) {
+        terminer();
+        return;
+      }
+      setVerificationInitiale(true);
+      if (searchParams.get("erreur") === "oauth") {
+        setErreur("La connexion Google a échoué. Réessaie.");
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function creerCompte(e: React.FormEvent) {
     e.preventDefault();
     if (!REGEX_EMAIL.test(email.trim())) {
       setErreur("Adresse e-mail invalide.");
-      return;
-    }
-    if (aUnMotDePasse(email)) {
-      setErreur("Un compte existe déjà avec cet e-mail — connecte-toi plutôt.");
       return;
     }
     if (!c.longueur) {
@@ -148,32 +171,72 @@ function VerifyInterne() {
       return;
     }
     setErreur(null);
-    definirMotDePasse(email, motDePasse);
-    terminer("email", email.trim());
+    setChargementForm(true);
+    const supabase = creerClientSupabaseNavigateur();
+    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: motDePasse });
+    setChargementForm(false);
+    if (error) {
+      setErreur(traduireErreur(error.message));
+      return;
+    }
+    if (data.session) {
+      terminer();
+      return;
+    }
+    // Confirmation par e-mail activée côté Supabase : pas de session tant
+    // que le lien reçu par mail n'est pas cliqué.
+    setEmailAConfirmer(true);
   }
 
-  function connexionEmail(e: React.FormEvent) {
+  async function connexionEmail(e: React.FormEvent) {
     e.preventDefault();
     if (!REGEX_EMAIL.test(email.trim())) {
       setErreur("Adresse e-mail invalide.");
       return;
     }
-    if (!aUnMotDePasse(email)) {
-      setErreur("Aucun compte avec cet e-mail. Crée un compte d'abord.");
-      return;
-    }
-    if (!verifierMotDePasse(email, motDePasse)) {
-      setErreur("E-mail ou mot de passe incorrect.");
-      return;
-    }
     setErreur(null);
-    terminer("email", email.trim());
+    setChargementForm(true);
+    const supabase = creerClientSupabaseNavigateur();
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: motDePasse });
+    setChargementForm(false);
+    if (error) {
+      setErreur(traduireErreur(error.message));
+      return;
+    }
+    terminer();
   }
 
-  function connexionGoogle() {
+  async function connexionGoogle() {
     setChargementGoogle(true);
-    // Simulation : pas de vraie fenêtre OAuth, juste un délai réaliste.
-    setTimeout(() => terminer("google", EMAIL_GOOGLE_DEMO), 900);
+    const supabase = creerClientSupabaseNavigateur();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      setChargementGoogle(false);
+      setErreur(traduireErreur(error.message));
+      return;
+    }
+    // Sinon : navigation complète vers Google en cours, cette page va se
+    // décharger — pas besoin de retirer le chargement.
+  }
+
+  if (!verificationInitiale) return null;
+
+  if (emailAConfirmer) {
+    return (
+      <div
+        className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center"
+        style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}
+      >
+        <MailCheck size={32} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+        <p className="text-base font-medium">Vérifie ta boîte mail</p>
+        <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
+          Un lien de confirmation a été envoyé à {email.trim()}. Clique dessus pour activer ton compte.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -234,8 +297,8 @@ function VerifyInterne() {
               ))}
             </div>
 
-            <Button variante="primary" bloc type="submit">
-              Créer mon compte
+            <Button variante="primary" bloc type="submit" disabled={chargementForm}>
+              {chargementForm ? "Création en cours…" : "Créer mon compte"}
             </Button>
           </form>
         ) : (
@@ -248,8 +311,8 @@ function VerifyInterne() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <ChampMotDePasse label="Mot de passe" valeur={motDePasse} onChange={setMotDePasse} erreur={erreur ?? undefined} />
-            <Button variante="primary" bloc type="submit">
-              Se connecter
+            <Button variante="primary" bloc type="submit" disabled={chargementForm}>
+              {chargementForm ? "Connexion en cours…" : "Se connecter"}
             </Button>
           </form>
         )}

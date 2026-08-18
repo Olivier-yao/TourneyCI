@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Splash } from "@/components/ds/Splash";
-import { estConnecte, estOnboarde, profilInitialComplet, reglementAccepte } from "@/lib/mockAuth";
+import { estConnecte, estOnboarde, profilInitialComplet, reglementAccepte, attendreSession } from "@/lib/mockAuth";
 
 export function LanceurApp() {
   const router = useRouter();
@@ -13,11 +13,13 @@ export function LanceurApp() {
     // Écran de lancement natif : s'affiche à chaque ouverture (pas seulement
     // la première fois), d'où la lecture volontaire dans un effet — le flag
     // vit en localStorage, indisponible côté serveur.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDestination(estConnecte() ? "vers l'accueil" : "vers la connexion");
+    attendreSession().then(() => {
+      setDestination(estConnecte() ? "vers l'accueil" : "vers la connexion");
+    });
   }, []);
 
-  function surSplashTermine() {
+  async function surSplashTermine() {
+    await attendreSession();
     if (estConnecte()) {
       if (!profilInitialComplet()) {
         router.push("/bienvenue-profil");

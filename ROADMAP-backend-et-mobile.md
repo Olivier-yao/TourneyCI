@@ -21,25 +21,38 @@
 > `public.profiles` référence `auth.users` par clé étrangère (Supabase
 > gère l'auth dans son propre schéma, pas dans `public`).
 >
-> Côté auth applicative (frontend) : le flux numéro de téléphone/SMS/Twilio a
-> été retiré du produit — `/verify` ne propose plus que Google (bouton
-> direct) ou e-mail + mot de passe (`src/lib/mockAuth.ts`, encore un mock
-> localStorage tant que Supabase Auth n'est pas câblé, mais le champ
-> identifiant est déjà un e-mail partout, prêt pour le vrai câblage).
+> **Auth réelle branchée** : `/verify` appelle désormais le vrai SDK
+> Supabase Auth (`@supabase/ssr`) — Google OAuth et e-mail/mot de passe
+> testés de bout en bout dans le navigateur (création de compte réelle,
+> confirmation par e-mail, redirection OAuth Google jusqu'à l'écran de
+> consentement). Plus de numéro de téléphone/SMS/Twilio, plus de mot de
+> passe stocké côté client. `src/lib/mockAuth.ts` garde son rôle pour les
+> préférences locales à l'appareil (onboarding vu, rôle préféré, transition
+> d'entrée) — ce sont des flags UI, pas de l'auth, pas de raison de les
+> migrer. Fichiers ajoutés : `src/lib/supabase/{client,server}.ts`,
+> `src/middleware.ts` (rafraîchit la session à chaque requête),
+> `src/app/auth/callback/route.ts` (échange le code OAuth contre une
+> session). Reste non couvert : session server-side dans les Server
+> Components/Route Handlers (le client `server.ts` existe mais rien ne
+> l'utilise encore, puisqu'il n'y a pas encore de route API) et les
+> contrôles d'accès métier (`peutSuperviser`, propriétaire d'équipe...) qui
+> tournent toujours côté client — cf. 2.2 ci-dessous, inchangé tant qu'il
+> n'y a pas d'API à sécuriser.
 
 ## 1. État actuel (constat factuel)
 
-TourneyCI est aujourd'hui **100 % frontend** : Next.js 16 + React 19, aucune
-dépendance backend (`package.json` ne contient ni base de données, ni ORM,
-ni lib d'auth serveur), aucune route API (`src/app/api` n'existe pas),
-`.env.example` le dit explicitement : *"Aucune variable d'environnement
-requise : l'app est entièrement mock-first (localStorage), sans backend"*.
+TourneyCI est **presque entièrement frontend** : Next.js 16 + React 19.
+L'auth est désormais réelle (Supabase Auth, cf. encadré tout en haut) et
+Prisma + le schéma Supabase sont en place, mais aucune route API n'existe
+encore (`src/app/api` n'existe pas) — l'auth exceptée, tout le reste passe
+encore par le localStorage.
 
-Toute la logique métier vit dans **32 modules `src/lib/mock*.ts`**, chacun
-simulant un domaine (auth, tournois, inscriptions, chat, wallet, litiges,
-adjoints, équipes, etc.) en lisant/écrivant dans le `localStorage` de
-l'appareil. C'est du **mono-appareil** : rien n'est partagé entre deux
-téléphones, pas de vrais comptes.
+Toute la logique métier (hors auth) vit dans **~30 modules
+`src/lib/mock*.ts`**, chacun simulant un domaine (tournois, inscriptions,
+chat, wallet, litiges, adjoints, équipes, etc.) en lisant/écrivant dans le
+`localStorage` de l'appareil. C'est du **mono-appareil** pour ces
+domaines-là : rien n'est partagé entre deux téléphones tant qu'ils n'ont
+pas leur propre route API.
 
 Point architectural positif : chaque écran React appelle des fonctions
 exportées par ces modules (`tournoiParId()`, `enregistrerInscription()`,
@@ -54,15 +67,7 @@ pour la migration à venir.
    Next.js (`src/app/api/**/route.ts`) plutôt qu'un service Express séparé,
    pour rester dans le même déploiement Vercel que le frontend actuel —
    dis-moi si tu préfères découpler dès maintenant.
-2. **Activer Supabase Auth** : dans le dashboard Supabase, onglet
-   **Authentication → Providers**, active Google (client ID/secret Google
-   Cloud à créer si pas déjà fait) et Email/mot de passe, désactive le
-   reste (pas de téléphone/SMS). Le frontend est déjà prêt côté UI
-   (`/verify` ne propose plus que Google ou e-mail + mot de passe) — il ne
-   reste qu'à remplacer `src/lib/mockAuth.ts` par le SDK `@supabase/ssr` une
-   fois les clés du projet (`NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`) confirmées dans `.env`.
-3. Rien d'autre n'est requis pour que je continue à modéliser les domaines
+2. Rien d'autre n'est requis pour que je continue à modéliser les domaines
    suivants (chat, wallet, notifications...) ou à commencer les premières
    routes API en parallèle.
 
@@ -79,10 +84,11 @@ pour la migration à venir.
   équipes (pré-créées et éphémères BR), matchs/manches, messages de chat,
   notifications, transactions wallet, demandes (adjoint, annulation,
   certification), litiges, avis (cœur/cœur brisé), abonnements/follows.
-- **Auth réelle** — remplace `mockAuth.ts` par Supabase Auth (Google OAuth +
-  email/mot de passe, plus de téléphone/SMS/Twilio, déjà retiré côté UI) :
-  sessions gérées côté serveur, plus de "connecté" simulé par un flag
-  localStorage.
+- ~~**Auth réelle**~~ — fait : Supabase Auth (Google OAuth + email/mot de
+  passe) branché via `@supabase/ssr`, testé de bout en bout. Reste
+  seulement à utiliser le client serveur (`src/lib/supabase/server.ts`,
+  déjà écrit mais pas encore appelé) une fois les premières routes API
+  créées, pour vérifier la session côté serveur sur chaque endpoint.
 - **Stockage fichiers** — les photos/bannières sont aujourd'hui des
   data URLs en localStorage ; il faut un object storage (S3, Cloudflare R2,
   Supabase Storage) + redimensionnement serveur.

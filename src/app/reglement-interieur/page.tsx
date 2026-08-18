@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { Button } from "@/components/ds/Button";
-import { estConnecte, profilInitialComplet, reglementAccepte, marquerReglementAccepte } from "@/lib/mockAuth";
+import { estConnecte, profilInitialComplet, reglementAccepte, marquerReglementAccepte, attendreSession } from "@/lib/mockAuth";
 
 const REGLEMENT = `# Règlement intérieur — Tourney
 
@@ -149,20 +149,23 @@ export default function ReglementInterieurPage() {
   const [accepte, setAccepte] = useState(false);
 
   useEffect(() => {
-    if (!estConnecte()) {
-      router.replace("/verify");
-      return;
+    async function verifier() {
+      await attendreSession();
+      if (!estConnecte()) {
+        router.replace("/verify");
+        return;
+      }
+      if (!profilInitialComplet()) {
+        router.replace("/bienvenue-profil");
+        return;
+      }
+      if (reglementAccepte()) {
+        router.replace("/accueil");
+        return;
+      }
+      setPret(true);
     }
-    if (!profilInitialComplet()) {
-      router.replace("/bienvenue-profil");
-      return;
-    }
-    if (reglementAccepte()) {
-      router.replace("/accueil");
-      return;
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPret(true);
+    verifier();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

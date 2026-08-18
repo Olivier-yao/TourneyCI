@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { estConnecte } from "@/lib/mockAuth";
+import { estConnecte, attendreSession } from "@/lib/mockAuth";
 
 /** Garde d'authentification pour les pages qui ne devraient pas rester
  * accessibles après déconnexion (retour navigateur, lien direct...).
@@ -13,7 +13,8 @@ export function useExigerConnexion(): boolean {
   const [autorise, setAutorise] = useState(false);
 
   useEffect(() => {
-    function verifier() {
+    async function verifier() {
+      await attendreSession();
       if (!estConnecte()) {
         setAutorise(false);
         router.replace("/verify");

@@ -7,7 +7,7 @@ import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles } from "@/lib/mockProfil";
-import { estConnecte, profilInitialComplet, marquerProfilInitialComplet, reglementAccepte } from "@/lib/mockAuth";
+import { estConnecte, profilInitialComplet, marquerProfilInitialComplet, reglementAccepte, attendreSession } from "@/lib/mockAuth";
 import { PAYS, villesDuPays, paysDeVille } from "@/lib/mockGeographie";
 
 /** Étape obligatoire après la création de compte (points 142, 154) : pseudo
@@ -25,21 +25,24 @@ export default function BienvenueProfilPage() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!estConnecte()) {
-      router.replace("/verify");
-      return;
+    async function verifier() {
+      await attendreSession();
+      if (!estConnecte()) {
+        router.replace("/verify");
+        return;
+      }
+      if (profilInitialComplet()) {
+        router.replace(reglementAccepte() ? "/accueil" : "/reglement-interieur");
+        return;
+      }
+      const profil = lireProfil();
+      const paysActuel = paysDeVille(profil.ville);
+      setPseudo(profil.pseudo);
+      setPaysId(paysActuel?.id ?? PAYS[0].id);
+      setVille(profil.ville || villesDuPays(paysActuel?.id ?? PAYS[0].id)[0]);
+      setPret(true);
     }
-    if (profilInitialComplet()) {
-      router.replace(reglementAccepte() ? "/accueil" : "/reglement-interieur");
-      return;
-    }
-    const profil = lireProfil();
-    const paysActuel = paysDeVille(profil.ville);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPseudo(profil.pseudo);
-    setPaysId(paysActuel?.id ?? PAYS[0].id);
-    setVille(profil.ville || villesDuPays(paysActuel?.id ?? PAYS[0].id)[0]);
-    setPret(true);
+    verifier();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

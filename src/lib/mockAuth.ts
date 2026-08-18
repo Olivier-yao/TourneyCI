@@ -1,16 +1,15 @@
 /**
- * État "connexion" simulé pour la phase 2 du chantier V2 (pas de backend
- * réel : ni vraie session serveur). Persisté en localStorage, à remplacer
- * par Supabase Auth (Google OAuth + email/mot de passe) en phase 8 — plus de
- * connexion par numéro de téléphone/SMS/Twilio, retirée du produit.
+ * État "connexion" pour la phase 2 du chantier V2 — la session elle-même
+ * est désormais la vraie session Supabase Auth (Google OAuth + email/mot de
+ * passe, plus de numéro de téléphone/SMS/Twilio), pas un flag localStorage.
+ * Les autres flags de ce fichier (onboarding, profil initial, règlement,
+ * rôle préféré, transition d'entrée) restent des préférences locales à
+ * l'appareil, indépendantes de l'auth — pas de raison de les migrer.
  */
 
-export type SourceConnexion = "email" | "google";
+import { creerClientSupabaseNavigateur } from "./supabase/client";
 
 const CLE_ONBOARDE = "tourney-onboarde";
-const CLE_CONNECTE = "tourney-connecte";
-const CLE_SOURCE = "tourney-source-connexion";
-const CLE_IDENTIFIANT = "tourney-identifiant";
 
 function lire(cle: string): boolean {
   if (typeof window === "undefined") return false;
@@ -39,76 +38,49 @@ const CLE_REGLEMENT_ACCEPTE = "tourney-reglement-accepte";
 export const reglementAccepte = () => lire(CLE_REGLEMENT_ACCEPTE);
 export const marquerReglementAccepte = () => ecrire(CLE_REGLEMENT_ACCEPTE);
 
-export const estConnecte = () => lire(CLE_CONNECTE);
+export type SourceConnexion = "email" | "google";
 
-export function marquerConnecte(source: SourceConnexion, identifiant: string) {
-  ecrire(CLE_CONNECTE);
+type SessionConnue = { source: SourceConnexion; identifiant: string } | null;
+
+let sessionActuelle: SessionConnue = null;
+let sessionInitialisee = false;
+let resoudreInitialisation: (() => void) | null = null;
+const initialisationSession = new Promise<void>((resolve) => {
+  resoudreInitialisation = resolve;
+});
+
+if (typeof window !== "undefined") {
+  creerClientSupabaseNavigateur().auth.onAuthStateChange((_evenement, session) => {
+    sessionActuelle = session?.user
+      ? { source: session.user.app_metadata.provider === "google" ? "google" : "email", identifiant: session.user.email ?? "" }
+      : null;
+    if (!sessionInitialisee) {
+      sessionInitialisee = true;
+      resoudreInitialisation?.();
+    }
+  });
+}
+
+/** À attendre dans les gardes de connexion avant de lire estConnecte() —
+ * évite un flash "non connecté" le temps que le SDK lise la session depuis
+ * le storage local au tout premier rendu (quasi instantané, aucun appel
+ * réseau sauf si le token est près d'expirer). Résout immédiatement une
+ * fois la session déjà connue. */
+export async function attendreSession(): Promise<void> {
+  if (sessionInitialisee) return;
+  await initialisationSession;
+}
+
+export const estConnecte = () => sessionActuelle !== null;
+
+export async function deconnecter() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_SOURCE, source);
-  localStorage.setItem(CLE_IDENTIFIANT, identifiant);
+  await creerClientSupabaseNavigateur().auth.signOut();
 }
 
-export function deconnecter() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(CLE_CONNECTE);
-  localStorage.removeItem(CLE_SOURCE);
-  localStorage.removeItem(CLE_IDENTIFIANT);
-}
+export const sourceConnexion = (): SourceConnexion | null => sessionActuelle?.source ?? null;
 
-export function sourceConnexion(): SourceConnexion | null {
-  if (typeof window === "undefined") return null;
-  const valeur = localStorage.getItem(CLE_SOURCE);
-  return valeur === "email" || valeur === "google" ? valeur : null;
-}
-
-export function identifiantConnexion(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(CLE_IDENTIFIANT);
-}
-
-const CLE_MOTS_DE_PASSE = "tourney-mots-de-passe";
-
-function normaliserEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-/** Hash non cryptographique (djb2) — évite de stocker le mot de passe en
- * clair dans ce mock, mais ne remplace en rien une vraie auth. À basculer
- * sur Supabase Auth (bcrypt côté serveur) en phase 8. */
-function hacher(valeur: string): string {
-  let h = 0;
-  for (let i = 0; i < valeur.length; i++) {
-    h = (h << 5) - h + valeur.charCodeAt(i);
-    h |= 0;
-  }
-  return h.toString(36);
-}
-
-function lireMotsDePasse(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_MOTS_DE_PASSE);
-    return brut ? (JSON.parse(brut) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function definirMotDePasse(email: string, motDePasse: string) {
-  if (typeof window === "undefined") return;
-  const tous = lireMotsDePasse();
-  tous[normaliserEmail(email)] = hacher(motDePasse);
-  localStorage.setItem(CLE_MOTS_DE_PASSE, JSON.stringify(tous));
-}
-
-export function aUnMotDePasse(email: string): boolean {
-  return normaliserEmail(email) in lireMotsDePasse();
-}
-
-export function verifierMotDePasse(email: string, motDePasse: string): boolean {
-  const tous = lireMotsDePasse();
-  return tous[normaliserEmail(email)] === hacher(motDePasse);
-}
+export const identifiantConnexion = (): string | null => sessionActuelle?.identifiant ?? null;
 
 export type Role = "joueur" | "organisateur";
 
