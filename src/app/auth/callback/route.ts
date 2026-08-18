@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { creerClientSupabaseServeur } from "@/lib/supabase/server";
 
-/** Point de retour du flux OAuth Google (`signInWithOAuth`) : échange le
+/** Point de retour du flux OAuth Google (`signInWithOAuth`) et du lien de
+ * confirmation par e-mail (`signUp` avec `emailRedirectTo`) : échange le
  * code contre une session, puis renvoie vers /verify — c'est cette page qui
  * détecte la session fraîche et route vers la bonne destination
  * (bienvenue-profil / règlement / accueil), pas cette route serveur qui n'a

@@ -173,7 +173,11 @@ function VerifyInterne() {
     setErreur(null);
     setChargementForm(true);
     const supabase = creerClientSupabaseNavigateur();
-    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password: motDePasse });
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: motDePasse,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
     setChargementForm(false);
     if (error) {
       setErreur(traduireErreur(error.message));
