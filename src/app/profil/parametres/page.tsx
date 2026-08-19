@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
@@ -10,7 +10,7 @@ import { ThemeProvider } from "@/components/ds/ThemeProvider";
 import { ThemeToggle } from "@/components/ds/ThemeToggle";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
 import { useLangue } from "@/lib/i18n/useLangue";
-import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, peutChangerPseudo, marquerPseudoModifie } from "@/lib/mockProfil";
+import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, attendreProfil } from "@/lib/mockProfil";
 import { PAYS, paysDeVille } from "@/lib/mockGeographie";
 import { deconnecter } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -19,37 +19,53 @@ function ParametresInterne() {
   const connecte = useExigerConnexion();
   const router = useRouter();
   const [profil, setProfil] = useState(lireProfil);
-  const [pseudoOriginal] = useState(() => lireProfil().pseudo);
+  const [pseudoOriginal, setPseudoOriginal] = useState(() => lireProfil().pseudo);
   const [paysId, setPaysId] = useState(() => paysDeVille(lireProfil().ville)?.id ?? PAYS[0].id);
   const [enregistre, setEnregistre] = useState(false);
+  const [enregistrement, setEnregistrement] = useState(false);
   const [erreurPseudo, setErreurPseudo] = useState<string | null>(null);
+  const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
   const { t } = useLangue();
 
-  function enregistrer(e: React.FormEvent) {
+  useEffect(() => {
+    // lireProfil() est synchrone (cache), mais la réponse de /api/profil peut
+    // arriver après ce premier rendu — on resynchronise une fois garantie.
+    attendreProfil().then(() => {
+      const frais = lireProfil();
+      setProfil(frais);
+      setPseudoOriginal(frais.pseudo);
+      setPaysId(paysDeVille(frais.ville)?.id ?? PAYS[0].id);
+    });
+  }, []);
+
+  async function enregistrer(e: React.FormEvent) {
     e.preventDefault();
     const pseudoSaisi = profil.pseudo.trim();
     const pseudoChange = pseudoSaisi !== pseudoOriginal;
 
-    if (pseudoChange) {
-      const { ok, prochainChangementLe } = peutChangerPseudo();
-      if (!ok) {
-        setErreurPseudo(`Tu pourras changer de pseudo à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`);
-        setSuggestions([]);
-        return;
-      }
-      if (!pseudoDisponible(pseudoSaisi)) {
-        setErreurPseudo("Ce pseudo est déjà pris.");
-        setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
-        return;
-      }
+    if (pseudoChange && !pseudoDisponible(pseudoSaisi)) {
+      setErreurPseudo("Ce pseudo est déjà pris.");
+      setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+      return;
     }
 
     setErreurPseudo(null);
     setSuggestions([]);
-    sauvegarderProfil({ pseudo: pseudoSaisi, ville: profil.ville });
-    if (pseudoChange) marquerPseudoModifie();
+    setEnregistrement(true);
+    const resultat = await sauvegarderProfil({ pseudo: pseudoSaisi, ville: profil.ville });
+    setEnregistrement(false);
+    if (!resultat.ok) {
+      if (resultat.prochainChangementLe) {
+        setErreurPseudo(`Tu pourras changer de pseudo à nouveau le ${new Date(resultat.prochainChangementLe).toLocaleDateString("fr-FR")}.`);
+      } else {
+        setErreurPseudo(resultat.erreur ?? "Ce pseudo est déjà pris.");
+        setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+      }
+      return;
+    }
+    setPseudoOriginal(pseudoSaisi);
     setEnregistre(true);
   }
 
@@ -96,11 +112,17 @@ function ParametresInterne() {
           </div>
           <PhotoCropper
             photoActuelle={profil.photoUrl}
-            onValider={(dataUrl) => {
-              sauvegarderPhoto(dataUrl);
+            onValider={async (dataUrl) => {
+              setErreurPhoto(null);
+              const resultat = await sauvegarderPhoto(dataUrl);
+              if (!resultat.ok) {
+                setErreurPhoto(resultat.erreur ?? "Erreur lors de l'enregistrement de la photo.");
+                return;
+              }
               setProfil((p) => ({ ...p, photoUrl: dataUrl }));
             }}
           />
+          {erreurPhoto && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreurPhoto}</p>}
         </div>
 
         <form onSubmit={enregistrer} className="flex flex-col gap-4">
@@ -190,8 +212,8 @@ function ParametresInterne() {
               })()}
             </select>
           </div>
-          <Button variante="primary" type="submit">
-            {enregistre ? "Enregistré ✓" : "Enregistrer"}
+          <Button variante="primary" type="submit" disabled={enregistrement}>
+            {enregistrement ? "Enregistrement..." : enregistre ? "Enregistré ✓" : "Enregistrer"}
           </Button>
         </form>
 

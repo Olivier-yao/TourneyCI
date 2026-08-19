@@ -6,14 +6,14 @@ import { UserRound } from "lucide-react";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
-import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles } from "@/lib/mockProfil";
-import { estConnecte, profilInitialComplet, marquerProfilInitialComplet, reglementAccepte, attendreSession } from "@/lib/mockAuth";
+import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, attendreProfil, profilExiste } from "@/lib/mockProfil";
+import { estConnecte, reglementAccepte, attendreSession } from "@/lib/mockAuth";
 import { PAYS, villesDuPays, paysDeVille } from "@/lib/mockGeographie";
 
 /** Étape obligatoire après la création de compte (points 142, 154) : pseudo
  * (unique), pays, ville et photo de profil, sans possibilité de passer —
- * condition d'accès à l'accueil, une seule fois par appareil (cf.
- * profilInitialComplet). */
+ * condition d'accès à l'accueil, jusqu'à ce qu'une ligne existe côté serveur
+ * (cf. profilExiste() dans mockProfil.ts) — pas un flag par appareil. */
 export default function BienvenueProfilPage() {
   const router = useRouter();
   const [pret, setPret] = useState(false);
@@ -23,6 +23,7 @@ export default function BienvenueProfilPage() {
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
   const [erreur, setErreur] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [enregistrement, setEnregistrement] = useState(false);
 
   useEffect(() => {
     async function verifier() {
@@ -31,7 +32,8 @@ export default function BienvenueProfilPage() {
         router.replace("/verify");
         return;
       }
-      if (profilInitialComplet()) {
+      await attendreProfil();
+      if (profilExiste()) {
         router.replace(reglementAccepte() ? "/accueil" : "/reglement-interieur");
         return;
       }
@@ -48,7 +50,7 @@ export default function BienvenueProfilPage() {
 
   const villesDisponibles = villesDuPays(paysId);
 
-  function continuer() {
+  async function continuer() {
     const pseudoSaisi = pseudo.trim();
     if (!pseudoSaisi) {
       setErreur("Choisis un pseudo.");
@@ -72,9 +74,20 @@ export default function BienvenueProfilPage() {
     }
     setErreur(null);
     setSuggestions([]);
-    sauvegarderProfil({ pseudo: pseudoSaisi, ville });
-    sauvegarderPhoto(photoUrl);
-    marquerProfilInitialComplet();
+    setEnregistrement(true);
+    const resultatProfil = await sauvegarderProfil({ pseudo: pseudoSaisi, ville });
+    if (!resultatProfil.ok) {
+      setEnregistrement(false);
+      setErreur(resultatProfil.erreur ?? "Ce pseudo est déjà pris.");
+      setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+      return;
+    }
+    const resultatPhoto = await sauvegarderPhoto(photoUrl);
+    if (!resultatPhoto.ok) {
+      setEnregistrement(false);
+      setErreur(resultatPhoto.erreur ?? "Erreur lors de l'enregistrement de la photo.");
+      return;
+    }
     // Point 190 : replace (pas push) — sinon la sortie d'un écran de
     // passage obligatoire ajoute une entrée d'historique orpheline, et le
     // bouton retour finit par boucler entre deux écrans au lieu de remonter
@@ -178,8 +191,8 @@ export default function BienvenueProfilPage() {
           </select>
         </div>
 
-        <Button variante="primary" bloc onClick={continuer}>
-          Entrer sur Tourney
+        <Button variante="primary" bloc onClick={continuer} disabled={enregistrement}>
+          {enregistrement ? "Enregistrement..." : "Entrer sur Tourney"}
         </Button>
       </div>
     </div>

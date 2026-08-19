@@ -3,10 +3,12 @@
  * est désormais la vraie session Supabase Auth (Google OAuth + email/mot de
  * passe, plus de numéro de téléphone/SMS/Twilio), pas un flag localStorage.
  * Onboarding/rôle préféré/transition d'entrée restent des préférences
- * locales à l'appareil, indépendantes du compte. Profil initial et
- * règlement, eux, sont des données de compte (cf. cleCompte()) : un
- * deuxième compte sur le même appareil ne doit pas hériter de l'état du
- * premier.
+ * locales à l'appareil, indépendantes du compte. Le règlement est une
+ * donnée de compte (cf. cleCompte()) : un deuxième compte sur le même
+ * appareil ne doit pas hériter de l'état du premier. Le profil lui-même
+ * (pseudo/ville/photo) n'est plus mock du tout, cf. mockProfil.ts —
+ * profilExiste()/attendreProfil() y remplacent l'ancien flag local
+ * profilInitialComplet().
  */
 
 import { creerClientSupabaseNavigateur } from "./supabase/client";
@@ -25,13 +27,6 @@ function ecrire(cle: string) {
 
 export const estOnboarde = () => lire(CLE_ONBOARDE);
 export const marquerOnboarde = () => ecrire(CLE_ONBOARDE);
-
-const CLE_PROFIL_INITIAL_COMPLET = "tourney-profil-initial-complet";
-
-/** Point 142 : pseudo + photo obligatoires avant d'atteindre l'accueil, une
- * seule fois par appareil (pas à chaque connexion) — cf. /bienvenue-profil. */
-export const profilInitialComplet = () => lire(cleCompte(CLE_PROFIL_INITIAL_COMPLET));
-export const marquerProfilInitialComplet = () => ecrire(cleCompte(CLE_PROFIL_INITIAL_COMPLET));
 
 const CLE_REGLEMENT_ACCEPTE = "tourney-reglement-accepte";
 

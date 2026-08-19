@@ -4,7 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { Button } from "@/components/ds/Button";
-import { estConnecte, profilInitialComplet, reglementAccepte, marquerReglementAccepte, attendreSession } from "@/lib/mockAuth";
+import { estConnecte, reglementAccepte, marquerReglementAccepte, attendreSession } from "@/lib/mockAuth";
+import { profilExiste, attendreProfil } from "@/lib/mockProfil";
 
 const REGLEMENT = `# Règlement intérieur — Tourney
 
@@ -155,7 +156,8 @@ export default function ReglementInterieurPage() {
         router.replace("/verify");
         return;
       }
-      if (!profilInitialComplet()) {
+      await attendreProfil();
+      if (!profilExiste()) {
         router.replace("/bienvenue-profil");
         return;
       }

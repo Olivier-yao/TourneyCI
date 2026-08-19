@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ChevronRight, Settings, Wallet, History, Ticket, Bookmark, ShieldCheck, Heart, HeartCrack, Users, Trophy, Plus, LifeBuoy } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { Button } from "@/components/ds/Button";
-import { lireProfil, estActif, mesPointsCumules, palierActuel } from "@/lib/mockProfil";
+import { lireProfil, estActif, mesPointsCumules, palierActuel, attendreProfil } from "@/lib/mockProfil";
 import { BadgeActif } from "@/components/ds/BadgeActif";
 import { BadgePalier } from "@/components/ds/Palier";
 import { lireSolde } from "@/lib/mockWallet";
@@ -22,7 +22,7 @@ import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 export default function ProfilPage() {
   const connecte = useExigerConnexion();
-  const [profil] = useState(lireProfil);
+  const [profil, setProfil] = useState(lireProfil);
   const [solde, setSolde] = useState(0);
   const [compteurs, setCompteurs] = useState({ historique: 0, inscriptions: 0, favoris: 0, equipes: 0 });
   const [organisateur, setOrganisateur] = useState<{ estOrganisateur: boolean; certifie: boolean }>({
@@ -42,6 +42,15 @@ export default function ProfilPage() {
     tournois: Tournoi[];
   } | null>(null);
   const winrate = Math.round((profil.victoires / profil.matchsJoues) * 100);
+
+  useEffect(() => {
+    // lireProfil() est déjà synchrone (cache), mais peut ne pas encore avoir
+    // reçu la réponse de /api/profil au tout premier rendu — on rafraîchit
+    // une fois le chargement initial garanti terminé.
+    attendreProfil().then(() => {
+      setProfil(lireProfil());
+    });
+  }, []);
 
   useEffect(() => {
     const inscriptions = mesInscriptions();

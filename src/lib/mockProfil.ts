@@ -1,9 +1,17 @@
 /**
  * Données mock pour la phase 6 du chantier V2 (profil + classement).
+ *
+ * Le profil lui-même (pseudo/ville/photo) n'est plus mock : il vient de
+ * /api/profil (table Postgres profiles, cf. ROADMAP-backend-et-mobile.md).
+ * lireProfil() reste volontairement SYNCHRONE — comme sessionActuelle dans
+ * mockAuth.ts, un cache module-level est rempli en tâche de fond par un
+ * fetch, et rafraîchi à chaque changement de compte connecté (onAuthStateChange),
+ * pour que les ~25 écrans qui appellent lireProfil().pseudo n'aient rien à
+ * changer. Seuls les écrans qui ENREGISTRENT (bienvenue-profil, paramètres)
+ * doivent gérer sauvegarderProfil()/sauvegarderPhoto() comme des appels async.
  */
 
-import { peutModifierMensuel } from "./limiteMensuelle";
-import { cleCompte } from "./mockAuth";
+import { creerClientSupabaseNavigateur } from "./supabase/client";
 
 export type Rang = "Débutant" | "Amateur" | "Confirmé" | "Expert" | "Élite" | "Légende";
 
@@ -17,6 +25,10 @@ export type Profil = {
   photoUrl?: string;
 };
 
+/** Base de démo : matchsJoues/victoires/rangNational ne sont pas encore
+ * suivis par un vrai backend (aucun historique de match réel n'est stocké
+ * nulle part) — ces trois champs restent des valeurs figées tant que ce
+ * domaine n'est pas migré à son tour. */
 export const MON_PROFIL: Profil = {
   pseudo: "Kader B.",
   ville: "Abidjan",
@@ -26,24 +38,73 @@ export const MON_PROFIL: Profil = {
   victoires: 61,
 };
 
-const CLE_PROFIL_MODIFIE = "tourney-profil-modifie";
+type SurchargeServeur = { pseudo?: string; ville?: string; photoUrl?: string };
+
+/** null = aucun profil serveur pour ce compte (ou pas encore chargé). */
+let surchargeCache: SurchargeServeur | null = null;
+let profilInitialise = false;
+let resoudreProfilInitialise: (() => void) | null = null;
+const initialisationProfil = new Promise<void>((resolve) => {
+  resoudreProfilInitialise = resolve;
+});
+
+function marquerInitialise() {
+  if (!profilInitialise) {
+    profilInitialise = true;
+    resoudreProfilInitialise?.();
+  }
+}
+
+function surchargeDepuisReponse(data: { pseudo: string; photo_url: string | null; villes: { nom: string } | null }): SurchargeServeur {
+  return { pseudo: data.pseudo, ville: data.villes?.nom, photoUrl: data.photo_url ?? undefined };
+}
+
+async function rafraichirProfilServeur() {
+  try {
+    const reponse = await fetch("/api/profil");
+    const json = await reponse.json();
+    surchargeCache = json.success && json.data ? surchargeDepuisReponse(json.data) : null;
+  } catch {
+    surchargeCache = null;
+  } finally {
+    marquerInitialise();
+  }
+}
+
+if (typeof window !== "undefined") {
+  creerClientSupabaseNavigateur().auth.onAuthStateChange((_evenement, session) => {
+    if (session?.user) {
+      rafraichirProfilServeur();
+    } else {
+      surchargeCache = null;
+      marquerInitialise();
+    }
+  });
+}
+
+/** À attendre avant de traiter profilExiste()/lireProfil() comme définitifs
+ * (juste après une connexion, le premier fetch peut être encore en vol). */
+export async function attendreProfil(): Promise<void> {
+  if (profilInitialise) return;
+  await initialisationProfil;
+}
+
+/** Un profil serveur existe pour le compte connecté — remplace l'ancien
+ * flag localStorage profilInitialComplet() : l'existence de la ligne EST la
+ * complétude, pas besoin d'un drapeau séparé à poser après coup. */
+export function profilExiste(): boolean {
+  return surchargeCache !== null;
+}
 
 /** Profil de base (pseudo/ville/photo) sans le grade calculé — utilisé en
  * interne pour éviter une boucle infinie avec calculerGrade()/lireProfil(). */
 function profilBase(): Profil {
-  if (typeof window === "undefined") return MON_PROFIL;
-  try {
-    const brut = localStorage.getItem(cleCompte(CLE_PROFIL_MODIFIE));
-    const surcharge = brut ? (JSON.parse(brut) as Partial<Profil>) : {};
-    return { ...MON_PROFIL, ...surcharge };
-  } catch {
-    return MON_PROFIL;
-  }
+  return { ...MON_PROFIL, ...(surchargeCache ?? {}) };
 }
 
-/** Fusionne MON_PROFIL avec les surcharges (pseudo/ville) enregistrées en
- * localStorage, et recalcule le grade (point 66) selon les matchs joués et
- * les points cumulés au classement. */
+/** Fusionne MON_PROFIL avec les données serveur (pseudo/ville/photo), et
+ * recalcule le grade (point 66) selon les matchs joués et les points
+ * cumulés au classement. */
 export function lireProfil(): Profil {
   const base = profilBase();
   const points = mesPointsCumules();
@@ -92,16 +153,6 @@ export function palierParPoints(pointsCumules: number): DefinitionPalier {
     if (pointsCumules >= p.pointsRequis) atteint = p;
   }
   return atteint;
-}
-
-function lireSurcharge(): Partial<Profil> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(cleCompte(CLE_PROFIL_MODIFIE));
-    return brut ? (JSON.parse(brut) as Partial<Profil>) : {};
-  } catch {
-    return {};
-  }
 }
 
 /** Seuil de matchs joués à partir duquel un profil est considéré "actif"
@@ -165,30 +216,36 @@ export function suggererPseudosDisponibles(pseudo: string, nombre = 3): string[]
   return suggestions;
 }
 
-const CLE_PSEUDO_MODIFIE_LE = "tourney-pseudo-modifie-le";
+export type ResultatSauvegardeProfil = { ok: boolean; erreur?: string; prochainChangementLe?: number };
 
-/** Point 155 : le pseudo ne peut être changé qu'une fois par mois — appelé
- * par le formulaire de réglages APRÈS un changement effectif, jamais lors de
- * la première saisie obligatoire (point 142/154), qui n'est pas un "changement". */
-export function marquerPseudoModifie() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_PSEUDO_MODIFIE_LE), String(Date.now()));
+/** Enregistre pseudo/ville via PUT /api/profil (créé la ligne si c'est la
+ * toute première fois). Point 155 (pseudo modifiable 1×/mois) est désormais
+ * appliqué côté serveur — la réponse renvoie prochainChangementLe si bloqué,
+ * plus besoin d'un flag local séparé à poser après coup. */
+export async function sauvegarderProfil(donnees: { pseudo: string; ville: string }): Promise<ResultatSauvegardeProfil> {
+  const reponse = await fetch("/api/profil", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(donnees),
+  });
+  const json = await reponse.json();
+  if (!json.success) return { ok: false, erreur: json.error, prochainChangementLe: json.prochainChangementLe };
+  surchargeCache = surchargeDepuisReponse(json.data);
+  marquerInitialise();
+  return { ok: true };
 }
 
-export function peutChangerPseudo(): { ok: boolean; prochainChangementLe?: number } {
-  if (typeof window === "undefined") return { ok: true };
-  const brut = localStorage.getItem(cleCompte(CLE_PSEUDO_MODIFIE_LE));
-  return peutModifierMensuel(brut ? Number(brut) : undefined);
-}
-
-export function sauvegarderProfil(donnees: { pseudo: string; ville: string }) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_PROFIL_MODIFIE), JSON.stringify({ ...lireSurcharge(), ...donnees }));
-}
-
-export function sauvegarderPhoto(photoUrl: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_PROFIL_MODIFIE), JSON.stringify({ ...lireSurcharge(), photoUrl }));
+export async function sauvegarderPhoto(photoUrl: string): Promise<ResultatSauvegardeProfil> {
+  const reponse = await fetch("/api/profil", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ photoUrl }),
+  });
+  const json = await reponse.json();
+  if (!json.success) return { ok: false, erreur: json.error };
+  surchargeCache = surchargeDepuisReponse(json.data);
+  marquerInitialise();
+  return { ok: true };
 }
 
 export type HistoriqueEntree = {

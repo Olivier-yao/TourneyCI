@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Splash } from "@/components/ds/Splash";
-import { estConnecte, estOnboarde, profilInitialComplet, reglementAccepte, attendreSession } from "@/lib/mockAuth";
+import { estConnecte, estOnboarde, reglementAccepte, attendreSession } from "@/lib/mockAuth";
+import { profilExiste, attendreProfil } from "@/lib/mockProfil";
 
 export function LanceurApp() {
   const router = useRouter();
@@ -21,7 +22,8 @@ export function LanceurApp() {
   async function surSplashTermine() {
     await attendreSession();
     if (estConnecte()) {
-      if (!profilInitialComplet()) {
+      await attendreProfil();
+      if (!profilExiste()) {
         router.push("/bienvenue-profil");
       } else if (!reglementAccepte()) {
         router.push("/reglement-interieur");

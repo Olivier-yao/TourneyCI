@@ -11,17 +11,18 @@ import { creerClientSupabaseNavigateur } from "@/lib/supabase/client";
 import {
   marquerOnboarde,
   armerTransitionEntree,
-  profilInitialComplet,
   reglementAccepte,
   attendreSession,
   estConnecte,
 } from "@/lib/mockAuth";
+import { profilExiste, attendreProfil } from "@/lib/mockProfil";
 
 /** Points 142 et 147 : après une connexion réussie, deux étapes obligatoires
- * (profil puis règlement intérieur) tant qu'elles n'ont pas été complétées
- * une fois sur cet appareil, avant d'atteindre l'accueil. */
-function destinationApresConnexion(): string {
-  if (!profilInitialComplet()) return "/bienvenue-profil";
+ * (profil puis règlement intérieur) tant qu'elles n'ont pas été complétées,
+ * avant d'atteindre l'accueil. */
+async function destinationApresConnexion(): Promise<string> {
+  await attendreProfil();
+  if (!profilExiste()) return "/bienvenue-profil";
   if (!reglementAccepte()) return "/reglement-interieur";
   return "/accueil";
 }
@@ -129,10 +130,10 @@ function VerifyInterne() {
 
   const c = evaluerMotDePasse(motDePasse);
 
-  function terminer() {
+  async function terminer() {
     marquerOnboarde();
     armerTransitionEntree();
-    router.push(destinationApresConnexion());
+    router.push(await destinationApresConnexion());
   }
 
   useEffect(() => {
@@ -141,7 +142,7 @@ function VerifyInterne() {
     // formulaire plutôt que de le montrer inutilement.
     attendreSession().then(() => {
       if (estConnecte()) {
-        terminer();
+        void terminer();
         return;
       }
       setVerificationInitiale(true);
@@ -184,7 +185,7 @@ function VerifyInterne() {
       return;
     }
     if (data.session) {
-      terminer();
+      await terminer();
       return;
     }
     // Confirmation par e-mail activée côté Supabase : pas de session tant
@@ -207,7 +208,7 @@ function VerifyInterne() {
       setErreur(traduireErreur(error.message));
       return;
     }
-    terminer();
+    await terminer();
   }
 
   async function connexionGoogle() {
