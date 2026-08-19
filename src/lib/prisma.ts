@@ -10,10 +10,16 @@ import { PrismaPg } from "@prisma/adapter-pg";
  * appliqué) — adaptateur Postgres standard, pas l'adaptateur Neon (le
  * schéma a été introspecté depuis Supabase, pas créé sur Neon). DATABASE_URL
  * doit pointer vers le pooler Supabase (port 6543 "Transaction pooler"),
- * pas la connexion directe (5432, souvent injoignable en IPv4). */
+ * pas la connexion directe (5432, souvent injoignable en IPv4).
+ *
+ * En production, DATABASE_URL n'est pas définie : l'intégration Vercel x
+ * Supabase fournit déjà la même chaîne sous POSTGRES_PRISMA_URL — on
+ * retombe dessus plutôt que de dupliquer une variable sensible. */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL,
+});
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
