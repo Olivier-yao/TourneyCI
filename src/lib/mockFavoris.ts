@@ -1,9 +1,11 @@
+import { cleCompte } from "./mockAuth";
+
 const CLE_FAVORIS = "tourney-favoris";
 
 function lireFavoris(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const brut = localStorage.getItem(CLE_FAVORIS);
+    const brut = localStorage.getItem(cleCompte(CLE_FAVORIS));
     return brut ? (JSON.parse(brut) as string[]) : [];
   } catch {
     return [];
@@ -19,7 +21,7 @@ export function basculerFavori(tournoiId: string): boolean {
   const favoris = lireFavoris();
   const index = favoris.indexOf(tournoiId);
   const nouveaux = index === -1 ? [...favoris, tournoiId] : favoris.filter((id) => id !== tournoiId);
-  localStorage.setItem(CLE_FAVORIS, JSON.stringify(nouveaux));
+  localStorage.setItem(cleCompte(CLE_FAVORIS), JSON.stringify(nouveaux));
   return index === -1;
 }
 

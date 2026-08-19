@@ -23,6 +23,9 @@ export type Litige = {
   horodatage: number;
 };
 
+// Pas de cleCompte() : un litige est tranché par l'organisateur/arbitre du
+// tournoi, un compte différent de celui qui l'a signalé — doit rester un
+// registre partagé, visible des deux côtés.
 const CLE_LITIGES = "tourney-litiges";
 
 function lireTout(): Litige[] {

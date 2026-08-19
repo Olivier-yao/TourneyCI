@@ -2,9 +2,11 @@
  * État "connexion" pour la phase 2 du chantier V2 — la session elle-même
  * est désormais la vraie session Supabase Auth (Google OAuth + email/mot de
  * passe, plus de numéro de téléphone/SMS/Twilio), pas un flag localStorage.
- * Les autres flags de ce fichier (onboarding, profil initial, règlement,
- * rôle préféré, transition d'entrée) restent des préférences locales à
- * l'appareil, indépendantes de l'auth — pas de raison de les migrer.
+ * Onboarding/rôle préféré/transition d'entrée restent des préférences
+ * locales à l'appareil, indépendantes du compte. Profil initial et
+ * règlement, eux, sont des données de compte (cf. cleCompte()) : un
+ * deuxième compte sur le même appareil ne doit pas hériter de l'état du
+ * premier.
  */
 
 import { creerClientSupabaseNavigateur } from "./supabase/client";
@@ -28,15 +30,15 @@ const CLE_PROFIL_INITIAL_COMPLET = "tourney-profil-initial-complet";
 
 /** Point 142 : pseudo + photo obligatoires avant d'atteindre l'accueil, une
  * seule fois par appareil (pas à chaque connexion) — cf. /bienvenue-profil. */
-export const profilInitialComplet = () => lire(CLE_PROFIL_INITIAL_COMPLET);
-export const marquerProfilInitialComplet = () => ecrire(CLE_PROFIL_INITIAL_COMPLET);
+export const profilInitialComplet = () => lire(cleCompte(CLE_PROFIL_INITIAL_COMPLET));
+export const marquerProfilInitialComplet = () => ecrire(cleCompte(CLE_PROFIL_INITIAL_COMPLET));
 
 const CLE_REGLEMENT_ACCEPTE = "tourney-reglement-accepte";
 
 /** Point 147 : acceptation obligatoire du règlement intérieur avant
  * d'atteindre l'accueil, une seule fois par appareil — cf. /reglement-interieur. */
-export const reglementAccepte = () => lire(CLE_REGLEMENT_ACCEPTE);
-export const marquerReglementAccepte = () => ecrire(CLE_REGLEMENT_ACCEPTE);
+export const reglementAccepte = () => lire(cleCompte(CLE_REGLEMENT_ACCEPTE));
+export const marquerReglementAccepte = () => ecrire(cleCompte(CLE_REGLEMENT_ACCEPTE));
 
 export type SourceConnexion = "email" | "google";
 
@@ -72,6 +74,16 @@ export async function attendreSession(): Promise<void> {
 }
 
 export const estConnecte = () => sessionActuelle !== null;
+
+/** Préfixe une clé localStorage par le compte connecté (son e-mail), pour
+ * que chaque compte Supabase ait ses propres données mock sur un même
+ * appareil — sans ça, un deuxième compte Google réutilisait le profil, le
+ * solde et les inscriptions du premier. Retombe sur la clé brute si personne
+ * n'est connecté (écrans avant connexion, aucune donnée de compte en jeu). */
+export function cleCompte(base: string): string {
+  const id = identifiantConnexion();
+  return id ? `${base}::${id}` : base;
+}
 
 export async function deconnecter() {
   if (typeof window === "undefined") return;

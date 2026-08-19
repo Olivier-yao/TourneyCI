@@ -1,4 +1,5 @@
 import { estInscrit } from "./mockInscriptions";
+import { cleCompte } from "./mockAuth";
 
 export type NotificationApp = {
   id: string;
@@ -29,7 +30,7 @@ function lireBrut<T>(cle: string, defaut: T): T {
 }
 
 export function mesNotifications(): NotificationApp[] {
-  return lireBrut(CLE_NOTIFICATIONS, NOTIFICATIONS_INITIALES);
+  return lireBrut(cleCompte(CLE_NOTIFICATIONS), NOTIFICATIONS_INITIALES);
 }
 
 /** Point 189 : exportée pour permettre l'envoi de notifications ponctuelles
@@ -44,11 +45,11 @@ export function ajouterNotification(texte: string, tournoiId?: string) {
     horodatage: Date.now(),
     tournoiId,
   };
-  localStorage.setItem(CLE_NOTIFICATIONS, JSON.stringify([nouvelle, ...existantes]));
+  localStorage.setItem(cleCompte(CLE_NOTIFICATIONS), JSON.stringify([nouvelle, ...existantes]));
 }
 
 function lireSuivis(): string[] {
-  return lireBrut(CLE_SUIVIS, []);
+  return lireBrut(cleCompte(CLE_SUIVIS), []);
 }
 
 export function notifsActivees(tournoiId: string): boolean {
@@ -60,7 +61,7 @@ export function basculerNotifsTournoi(tournoiId: string): boolean {
   const suivis = lireSuivis();
   const index = suivis.indexOf(tournoiId);
   const nouveaux = index === -1 ? [...suivis, tournoiId] : suivis.filter((id) => id !== tournoiId);
-  localStorage.setItem(CLE_SUIVIS, JSON.stringify(nouveaux));
+  localStorage.setItem(cleCompte(CLE_SUIVIS), JSON.stringify(nouveaux));
   return index === -1;
 }
 
@@ -74,21 +75,21 @@ export function notifierParticipants(tournoiId: string, titre: string, message: 
 }
 
 export function estLue(id: string): boolean {
-  return lireBrut<string[]>(CLE_LUES, []).includes(id);
+  return lireBrut<string[]>(cleCompte(CLE_LUES), []).includes(id);
 }
 
 export function marquerLue(id: string) {
   if (typeof window === "undefined") return;
-  const lues = lireBrut<string[]>(CLE_LUES, []);
-  if (!lues.includes(id)) localStorage.setItem(CLE_LUES, JSON.stringify([...lues, id]));
+  const lues = lireBrut<string[]>(cleCompte(CLE_LUES), []);
+  if (!lues.includes(id)) localStorage.setItem(cleCompte(CLE_LUES), JSON.stringify([...lues, id]));
 }
 
 export function toutMarquerLu() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_LUES, JSON.stringify(mesNotifications().map((n) => n.id)));
+  localStorage.setItem(cleCompte(CLE_LUES), JSON.stringify(mesNotifications().map((n) => n.id)));
 }
 
 export function nombreNonLues(): number {
-  const lues = new Set(lireBrut<string[]>(CLE_LUES, []));
+  const lues = new Set(lireBrut<string[]>(cleCompte(CLE_LUES), []));
   return mesNotifications().filter((n) => !lues.has(n.id)).length;
 }

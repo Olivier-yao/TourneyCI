@@ -24,6 +24,11 @@ export type EquipeProfil = {
 export const MAX_EQUIPES_PROFIL = 5;
 export const MAX_MEMBRES_EQUIPE_PROFIL = 4;
 
+// Pas de cleCompte() : une équipe implique plusieurs pseudos (chef + membres),
+// potentiellement des comptes différents — equipesProfilDontMembreNonChef()
+// doit retrouver les équipes créées par un AUTRE compte où je suis membre.
+// Namespacer par compte connecté isolerait chaque compte dans son propre
+// registre, cassant les invitations d'équipe entre comptes.
 const CLE = "tourney-equipes-profil";
 
 function lire(): EquipeProfil[] {

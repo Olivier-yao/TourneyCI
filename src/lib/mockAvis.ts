@@ -2,6 +2,13 @@
  * Avis "cœur / cœur brisé" laissés par les participants à la fin d'un
  * tournoi, associés au tournoi et à l'organisateur concerné. Sert de base à
  * la réputation organisateur et aux mécanismes de séquestre du cash prize.
+ *
+ * Pas de cleCompte() ici : compterAvis()/avisDeOrganisateur() alimentent un
+ * compteur PUBLIC affiché à tous les visiteurs (fiche tournoi, /en-direct,
+ * profil organisateur) — namespacer par compte le rendrait invisible aux
+ * autres comptes du même appareil. Les entrées n'ont d'ailleurs pas de champ
+ * auteur : "mon avis" désigne déjà l'avis de CET APPAREIL, pas d'un compte
+ * précis (limite du mock assumée, cf. commentaires plus bas).
  */
 
 export type TypeAvis = "coeur" | "coeur_brise";

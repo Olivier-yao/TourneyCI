@@ -5,6 +5,8 @@
  * soutien par organisateur et par appareil (mock mono-utilisateur).
  */
 
+import { cleCompte } from "./mockAuth";
+
 export type Soutien = {
   id: string;
   organisateur: string;
@@ -17,7 +19,7 @@ const CLE_SOUTIENS = "tourney-soutiens-organisateur";
 function lireTout(): Soutien[] {
   if (typeof window === "undefined") return [];
   try {
-    const brut = localStorage.getItem(CLE_SOUTIENS);
+    const brut = localStorage.getItem(cleCompte(CLE_SOUTIENS));
     return brut ? (JSON.parse(brut) as Soutien[]) : [];
   } catch {
     return [];
@@ -41,5 +43,5 @@ export function soutenirOrganisateur(organisateur: string, tournoiId: string) {
     tournoiId,
     horodatage: Date.now(),
   };
-  localStorage.setItem(CLE_SOUTIENS, JSON.stringify([...lireTout(), soutien]));
+  localStorage.setItem(cleCompte(CLE_SOUTIENS), JSON.stringify([...lireTout(), soutien]));
 }

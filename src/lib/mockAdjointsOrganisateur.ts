@@ -17,6 +17,9 @@ import { classementOrganisateurs } from "./mockClassementOrganisateurs";
 export type StatutAdjoint = "en_attente" | "accepte";
 export type Adjoint = { proprietaire: string; adjoint: string; statut: StatutAdjoint; horodatage: number };
 
+// Pas de cleCompte() : une relation adjoint implique deux comptes différents
+// (propriétaire + adjoint) qui doivent tous les deux voir la même invitation
+// — namespacer par compte connecté la rendrait invisible à l'autre partie.
 const CLE = "tourney-adjoints-organisateur";
 
 function lireTout(): Adjoint[] {

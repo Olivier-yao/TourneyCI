@@ -9,6 +9,7 @@ import { avisDeOrganisateur, avisGlobalDeOrganisateur } from "./mockAvis";
 import { lireProfil } from "./mockProfil";
 import { estOrganisateurApprouve } from "./mockDemandesOrganisateur";
 import { peutModifierMensuel } from "./limiteMensuelle";
+import { cleCompte } from "./mockAuth";
 
 export type DemandeCertification = {
   ageConfirme: boolean;
@@ -21,13 +22,13 @@ const CLE_DEMANDE = "tourney-organisateur-demande";
 
 export function estCertifie(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(CLE_CERTIFICATION) === "1";
+  return localStorage.getItem(cleCompte(CLE_CERTIFICATION)) === "1";
 }
 
 export function demandeCertification(): DemandeCertification | null {
   if (typeof window === "undefined") return null;
   try {
-    const brut = localStorage.getItem(CLE_DEMANDE);
+    const brut = localStorage.getItem(cleCompte(CLE_DEMANDE));
     return brut ? (JSON.parse(brut) as DemandeCertification) : null;
   } catch {
     return null;
@@ -45,8 +46,8 @@ export function soumettreCertification(ageConfirme: boolean, documentNom: string
     soumisLe: new Date().toLocaleDateString("fr-FR"),
   };
   if (documentEnListeNoire(documentNom)) return false;
-  localStorage.setItem(CLE_DEMANDE, JSON.stringify(demande));
-  localStorage.setItem(CLE_CERTIFICATION, "1");
+  localStorage.setItem(cleCompte(CLE_DEMANDE), JSON.stringify(demande));
+  localStorage.setItem(cleCompte(CLE_CERTIFICATION), "1");
   return true;
 }
 
@@ -61,12 +62,12 @@ const CLE_NOM_ORGANISATEUR = "tourney-nom-organisateur";
 
 export function nomOrganisateur(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(CLE_NOM_ORGANISATEUR) || undefined;
+  return localStorage.getItem(cleCompte(CLE_NOM_ORGANISATEUR)) || undefined;
 }
 
 export function definirNomOrganisateur(nom: string) {
   if (typeof window === "undefined" || !nom.trim()) return;
-  localStorage.setItem(CLE_NOM_ORGANISATEUR, nom.trim());
+  localStorage.setItem(cleCompte(CLE_NOM_ORGANISATEUR), nom.trim());
 }
 
 /** Noms déjà pris par d'autres organisateurs — dérivé des tournois de démo
@@ -109,12 +110,12 @@ const CLE_NOM_ORGANISATEUR_MODIFIE_LE = "tourney-nom-organisateur-modifie-le";
  * (onboarding), qui n'est pas un "changement". */
 export function marquerNomOrganisateurModifie() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_NOM_ORGANISATEUR_MODIFIE_LE, String(Date.now()));
+  localStorage.setItem(cleCompte(CLE_NOM_ORGANISATEUR_MODIFIE_LE), String(Date.now()));
 }
 
 export function peutChangerNomOrganisateur(): { ok: boolean; prochainChangementLe?: number } {
   if (typeof window === "undefined") return { ok: true };
-  const brut = localStorage.getItem(CLE_NOM_ORGANISATEUR_MODIFIE_LE);
+  const brut = localStorage.getItem(cleCompte(CLE_NOM_ORGANISATEUR_MODIFIE_LE));
   return peutModifierMensuel(brut ? Number(brut) : undefined);
 }
 
@@ -125,12 +126,12 @@ const CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE = "tourney-photo-organisateur-modifiee-
  * profil joueur — modifiable une fois par semaine. */
 export function photoOrganisateur(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(CLE_PHOTO_ORGANISATEUR) || undefined;
+  return localStorage.getItem(cleCompte(CLE_PHOTO_ORGANISATEUR)) || undefined;
 }
 
 export function peutChangerPhotoOrganisateur(): { ok: boolean; prochainChangementLe?: number } {
   if (typeof window === "undefined") return { ok: true };
-  const brut = localStorage.getItem(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE);
+  const brut = localStorage.getItem(cleCompte(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE));
   if (!brut) return { ok: true };
   const dernierChangement = Number(brut);
   const SEPT_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -141,8 +142,8 @@ export function peutChangerPhotoOrganisateur(): { ok: boolean; prochainChangemen
 
 export function definirPhotoOrganisateur(dataUrl: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_PHOTO_ORGANISATEUR, dataUrl);
-  localStorage.setItem(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE, String(Date.now()));
+  localStorage.setItem(cleCompte(CLE_PHOTO_ORGANISATEUR), dataUrl);
+  localStorage.setItem(cleCompte(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE), String(Date.now()));
 }
 
 /** Identité organisateur utilisée partout où un tournoi doit être rattaché
@@ -183,12 +184,12 @@ const CLE_REGLEMENT_CERTIFIE_ACCEPTE = "tourney-reglement-certifie-accepte";
  * tournoi payant. */
 export function reglementCertifieAccepte(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(CLE_REGLEMENT_CERTIFIE_ACCEPTE) === "1";
+  return localStorage.getItem(cleCompte(CLE_REGLEMENT_CERTIFIE_ACCEPTE)) === "1";
 }
 
 export function marquerReglementCertifieAccepte() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_REGLEMENT_CERTIFIE_ACCEPTE, "1");
+  localStorage.setItem(cleCompte(CLE_REGLEMENT_CERTIFIE_ACCEPTE), "1");
 }
 
 const CLE_REGLEMENT_STANDARD_ACCEPTE = "tourney-reglement-standard-accepte";
@@ -198,12 +199,12 @@ const CLE_REGLEMENT_STANDARD_ACCEPTE = "tourney-reglement-standard-accepte";
  * (point 159) qui, lui, ne concerne que les tournois payants. */
 export function reglementStandardAccepte(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem(CLE_REGLEMENT_STANDARD_ACCEPTE) === "1";
+  return localStorage.getItem(cleCompte(CLE_REGLEMENT_STANDARD_ACCEPTE)) === "1";
 }
 
 export function marquerReglementStandardAccepte() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_REGLEMENT_STANDARD_ACCEPTE, "1");
+  localStorage.setItem(cleCompte(CLE_REGLEMENT_STANDARD_ACCEPTE), "1");
 }
 
 /**
@@ -219,32 +220,32 @@ const CLE_BANNIERE_ORGANISATEUR = "tourney-banniere-organisateur";
 
 export function tagOrganisateur(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(CLE_TAG_ORGANISATEUR) || undefined;
+  return localStorage.getItem(cleCompte(CLE_TAG_ORGANISATEUR)) || undefined;
 }
 
 export function definirTagOrganisateur(tag: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_TAG_ORGANISATEUR, tag.trim());
+  localStorage.setItem(cleCompte(CLE_TAG_ORGANISATEUR), tag.trim());
 }
 
 export function bioOrganisateur(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(CLE_BIO_ORGANISATEUR) || undefined;
+  return localStorage.getItem(cleCompte(CLE_BIO_ORGANISATEUR)) || undefined;
 }
 
 export function definirBioOrganisateur(bio: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_BIO_ORGANISATEUR, bio.trim());
+  localStorage.setItem(cleCompte(CLE_BIO_ORGANISATEUR), bio.trim());
 }
 
 export function banniereOrganisateur(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(CLE_BANNIERE_ORGANISATEUR) || undefined;
+  return localStorage.getItem(cleCompte(CLE_BANNIERE_ORGANISATEUR)) || undefined;
 }
 
 export function definirBanniereOrganisateur(dataUrl: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_BANNIERE_ORGANISATEUR, dataUrl);
+  localStorage.setItem(cleCompte(CLE_BANNIERE_ORGANISATEUR), dataUrl);
 }
 
 /**
@@ -284,7 +285,7 @@ function normaliserUrlReseau(url: string): string {
 export function reseauxSociauxOrganisateur(): ReseauSocial[] {
   if (typeof window === "undefined") return [];
   try {
-    const brut = localStorage.getItem(CLE_RESEAUX_SOCIAUX);
+    const brut = localStorage.getItem(cleCompte(CLE_RESEAUX_SOCIAUX));
     return brut ? (JSON.parse(brut) as ReseauSocial[]) : [];
   } catch {
     return [];
@@ -296,7 +297,7 @@ export function definirReseauSocial(plateforme: PlateformeSociale, url: string) 
   if (typeof window === "undefined" || !url.trim()) return;
   const existants = reseauxSociauxOrganisateur().filter((r) => r.plateforme !== plateforme);
   localStorage.setItem(
-    CLE_RESEAUX_SOCIAUX,
+    cleCompte(CLE_RESEAUX_SOCIAUX),
     JSON.stringify([...existants, { plateforme, url: normaliserUrlReseau(url) }]),
   );
 }
@@ -304,7 +305,7 @@ export function definirReseauSocial(plateforme: PlateformeSociale, url: string) 
 export function retirerReseauSocial(plateforme: PlateformeSociale) {
   if (typeof window === "undefined") return;
   localStorage.setItem(
-    CLE_RESEAUX_SOCIAUX,
+    cleCompte(CLE_RESEAUX_SOCIAUX),
     JSON.stringify(reseauxSociauxOrganisateur().filter((r) => r.plateforme !== plateforme)),
   );
 }
@@ -334,6 +335,10 @@ export function statistiquesReputation(organisateur: string): { coeurs: number; 
 
 export type StatutModeration = "actif" | "suspendu" | "banni";
 
+// Pas de cleCompte() sur ces 3 clés : décisions de modération admin
+// consultées par NOM d'organisateur depuis /admin/moderation, potentiellement
+// sur un compte différent de celui de l'admin connecté — doivent rester un
+// registre partagé, comme CLE_LISTE_NOIRE juste en dessous.
 const CLE_SUSPENDU = "tourney-organisateur-suspendu-leve";
 const CLE_BANNI = "tourney-organisateur-banni";
 const CLE_LISTE_NOIRE = "tourney-liste-noire";

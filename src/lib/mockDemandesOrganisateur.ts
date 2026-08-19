@@ -11,11 +11,16 @@
 import { VALIDATION_AUTOMATIQUE_ACTIVE } from "./mockValidationAuto";
 import { analyserDemandeOrganisateur, type AnalyseDemandeOrganisateur } from "./mockAnalyseAutomatique";
 import { ajouterNotification } from "./mockNotifications";
+import { identifiantConnexion } from "./mockAuth";
 
 export type StatutDemandeOrganisateur = "en_attente" | "validee" | "refusee";
 
 export type DemandeOrganisateur = {
   id: string;
+  /** Compte Supabase à l'origine de la demande — le registre reste partagé
+   * (l'administration doit voir toutes les demandes), mais chaque compte ne
+   * doit voir/reprendre que SA PROPRE dernière demande. */
+  compte: string;
   nomOrganisateur: string;
   /** Motivation du candidat (point 162), visible par l'administration. */
   motivation: string;
@@ -29,6 +34,10 @@ export type DemandeOrganisateur = {
   horodatage: number;
 };
 
+// Pas de cleCompte() sur la clé elle-même : demandesOrganisateurEnAttente()
+// est consultée côté admin pour tous les comptes confondus — le filtrage par
+// compte se fait plutôt via le champ `compte` de chaque demande (voir
+// demandeOrganisateurActuelle() ci-dessous).
 const CLE_DEMANDES_ORGANISATEUR = "tourney-demandes-organisateur";
 
 function lireTout(): DemandeOrganisateur[] {
@@ -41,10 +50,12 @@ function lireTout(): DemandeOrganisateur[] {
   }
 }
 
-/** Dernière demande de l'organisateur de cet appareil (mock mono-compte). */
+/** Dernière demande du compte connecté (le registre est partagé pour que
+ * l'administration voie tout, mais chaque compte ne doit voir que la sienne). */
 export function demandeOrganisateurActuelle(): DemandeOrganisateur | undefined {
-  const tout = lireTout();
-  return tout.length > 0 ? tout[tout.length - 1] : undefined;
+  const compte = identifiantConnexion();
+  const miennes = lireTout().filter((d) => d.compte === compte);
+  return miennes.length > 0 ? miennes[miennes.length - 1] : undefined;
 }
 
 export function estOrganisateurApprouve(): boolean {
@@ -63,6 +74,7 @@ export function creerDemandeOrganisateur(
   const validationAuto = VALIDATION_AUTOMATIQUE_ACTIVE && analyse.pertinente;
   const demande: DemandeOrganisateur = {
     id: `orga-${Date.now().toString(36)}`,
+    compte: identifiantConnexion() ?? "",
     nomOrganisateur: nomOrganisateur.trim(),
     motivation: motivation.trim(),
     identiteVerifiee,

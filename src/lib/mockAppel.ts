@@ -18,6 +18,8 @@ export type Appel = {
   horodatage: number;
 };
 
+// Pas de cleCompte() : tousLesAppelsOuverts() est consultée côté admin pour
+// tous les comptes confondus — doit rester un registre partagé.
 const CLE_APPELS = "tourney-appels";
 
 function lireTout(): Appel[] {

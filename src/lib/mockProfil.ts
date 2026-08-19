@@ -3,6 +3,7 @@
  */
 
 import { peutModifierMensuel } from "./limiteMensuelle";
+import { cleCompte } from "./mockAuth";
 
 export type Rang = "Débutant" | "Amateur" | "Confirmé" | "Expert" | "Élite" | "Légende";
 
@@ -32,7 +33,7 @@ const CLE_PROFIL_MODIFIE = "tourney-profil-modifie";
 function profilBase(): Profil {
   if (typeof window === "undefined") return MON_PROFIL;
   try {
-    const brut = localStorage.getItem(CLE_PROFIL_MODIFIE);
+    const brut = localStorage.getItem(cleCompte(CLE_PROFIL_MODIFIE));
     const surcharge = brut ? (JSON.parse(brut) as Partial<Profil>) : {};
     return { ...MON_PROFIL, ...surcharge };
   } catch {
@@ -96,7 +97,7 @@ export function palierParPoints(pointsCumules: number): DefinitionPalier {
 function lireSurcharge(): Partial<Profil> {
   if (typeof window === "undefined") return {};
   try {
-    const brut = localStorage.getItem(CLE_PROFIL_MODIFIE);
+    const brut = localStorage.getItem(cleCompte(CLE_PROFIL_MODIFIE));
     return brut ? (JSON.parse(brut) as Partial<Profil>) : {};
   } catch {
     return {};
@@ -171,23 +172,23 @@ const CLE_PSEUDO_MODIFIE_LE = "tourney-pseudo-modifie-le";
  * la première saisie obligatoire (point 142/154), qui n'est pas un "changement". */
 export function marquerPseudoModifie() {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_PSEUDO_MODIFIE_LE, String(Date.now()));
+  localStorage.setItem(cleCompte(CLE_PSEUDO_MODIFIE_LE), String(Date.now()));
 }
 
 export function peutChangerPseudo(): { ok: boolean; prochainChangementLe?: number } {
   if (typeof window === "undefined") return { ok: true };
-  const brut = localStorage.getItem(CLE_PSEUDO_MODIFIE_LE);
+  const brut = localStorage.getItem(cleCompte(CLE_PSEUDO_MODIFIE_LE));
   return peutModifierMensuel(brut ? Number(brut) : undefined);
 }
 
 export function sauvegarderProfil(donnees: { pseudo: string; ville: string }) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_PROFIL_MODIFIE, JSON.stringify({ ...lireSurcharge(), ...donnees }));
+  localStorage.setItem(cleCompte(CLE_PROFIL_MODIFIE), JSON.stringify({ ...lireSurcharge(), ...donnees }));
 }
 
 export function sauvegarderPhoto(photoUrl: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_PROFIL_MODIFIE, JSON.stringify({ ...lireSurcharge(), photoUrl }));
+  localStorage.setItem(cleCompte(CLE_PROFIL_MODIFIE), JSON.stringify({ ...lireSurcharge(), photoUrl }));
 }
 
 export type HistoriqueEntree = {
@@ -274,6 +275,10 @@ export const SAISON = "Saison 3 : Éclipse";
  * ne se réinitialise automatiquement ici. */
 export const SAISON_FIN_LABEL = "se termine dans 18 jours";
 
+/** Classement partagé (pas de cleCompte()) : les points sont attribués à des
+ * joueurs nommés, pas au compte connecté — la ligne "moi" n'en est qu'une
+ * parmi d'autres, le reste doit rester visible identiquement pour tous les
+ * comptes qui consultent ce classement. */
 const CLE_POINTS_ATTRIBUES = "tourney-points-attribues";
 
 function lirePointsAttribues(): Record<string, ClassementEntree[]> {

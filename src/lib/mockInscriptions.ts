@@ -1,3 +1,5 @@
+import { cleCompte } from "./mockAuth";
+
 const CLE_INSCRIPTIONS = "tourney-inscriptions";
 
 export type Inscription = { tournoiId: string; equipe?: string; tag?: string };
@@ -5,7 +7,7 @@ export type Inscription = { tournoiId: string; equipe?: string; tag?: string };
 function lireInscriptions(): Inscription[] {
   if (typeof window === "undefined") return [];
   try {
-    const brut = localStorage.getItem(CLE_INSCRIPTIONS);
+    const brut = localStorage.getItem(cleCompte(CLE_INSCRIPTIONS));
     return brut ? (JSON.parse(brut) as Inscription[]) : [];
   } catch {
     return [];
@@ -25,7 +27,7 @@ export function enregistrerInscription(tournoiId: string, tag?: string, equipe?:
   const existantes = lireInscriptions();
   if (existantes.some((i) => i.tournoiId === tournoiId)) return;
   localStorage.setItem(
-    CLE_INSCRIPTIONS,
+    cleCompte(CLE_INSCRIPTIONS),
     JSON.stringify([...existantes, { tournoiId, equipe, tag }]),
   );
 }
@@ -36,7 +38,7 @@ export function renommerEquipe(tournoiId: string, nouveauNom: string) {
   if (typeof window === "undefined") return;
   const existantes = lireInscriptions();
   const maj = existantes.map((i) => (i.tournoiId === tournoiId && i.equipe ? { ...i, equipe: nouveauNom } : i));
-  localStorage.setItem(CLE_INSCRIPTIONS, JSON.stringify(maj));
+  localStorage.setItem(cleCompte(CLE_INSCRIPTIONS), JSON.stringify(maj));
 }
 
 export function mesInscriptions(): Inscription[] {

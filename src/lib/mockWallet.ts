@@ -4,6 +4,8 @@
  * automatiquement à la fin d'un tournoi (cf. mockTournaments.terminerTournoi).
  */
 
+import { cleCompte } from "./mockAuth";
+
 export type TypeMouvement = "gain" | "inscription" | "recharge" | "retrait" | "commission" | "financement" | "remboursement";
 
 export type Mouvement = {
@@ -45,19 +47,19 @@ function lireBrut<T>(cle: string, defaut: T): T {
 }
 
 export function lireSolde(): number {
-  return lireBrut(CLE_SOLDE, SOLDE_INITIAL);
+  return lireBrut(cleCompte(CLE_SOLDE), SOLDE_INITIAL);
 }
 
 export function mesMouvements(): Mouvement[] {
-  return lireBrut(CLE_MOUVEMENTS, MOUVEMENTS_INITIAUX);
+  return lireBrut(cleCompte(CLE_MOUVEMENTS), MOUVEMENTS_INITIAUX);
 }
 
 function enregistrerMouvement(m: Omit<Mouvement, "id" | "horodatage">) {
   if (typeof window === "undefined") return;
   const mouvements = mesMouvements();
   const nouveau: Mouvement = { ...m, id: `mv-${Date.now().toString(36)}`, horodatage: Date.now() };
-  localStorage.setItem(CLE_MOUVEMENTS, JSON.stringify([nouveau, ...mouvements]));
-  localStorage.setItem(CLE_SOLDE, JSON.stringify(lireSolde() + m.montantXof));
+  localStorage.setItem(cleCompte(CLE_MOUVEMENTS), JSON.stringify([nouveau, ...mouvements]));
+  localStorage.setItem(cleCompte(CLE_SOLDE), JSON.stringify(lireSolde() + m.montantXof));
 }
 
 const AUJOURD_HUI = () =>

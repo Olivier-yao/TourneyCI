@@ -20,6 +20,8 @@ export type PropositionEquipe = {
   horodatage: number;
 };
 
+// Pas de cleCompte() : une proposition implique le proposeur ET le chef,
+// deux comptes potentiellement différents qui doivent tous deux la voir.
 const CLE = "tourney-propositions-equipe";
 
 function lire(): PropositionEquipe[] {

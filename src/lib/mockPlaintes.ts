@@ -18,6 +18,9 @@ export type Plainte = {
   horodatage: number;
 };
 
+// Pas de cleCompte() : plaintesEnAttente() est consultée côté admin pour
+// TOUTES les plaintes, tous comptes confondus — doit rester un registre
+// partagé. mesPlaintes(auteur) filtre déjà par auteur sur ce registre commun.
 const CLE_PLAINTES = "tourney-plaintes";
 
 function lireTout(): Plainte[] {

@@ -21,6 +21,9 @@ export type DemandeAnnulation = {
   horodatage: number;
 };
 
+// Pas de cleCompte() : demandesEnAttente() est consultée côté admin pour
+// tous les comptes confondus, et demandeAnnulationPourTournoi() est déjà
+// scopée par tournoiId (pas besoin d'un scope compte en plus).
 const CLE_DEMANDES_ANNULATION = "tourney-demandes-annulation";
 
 function lireTout(): DemandeAnnulation[] {
