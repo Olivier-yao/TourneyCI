@@ -215,7 +215,15 @@ function VerifyInterne() {
     const supabase = creerClientSupabaseNavigateur();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        // Sans ça, Google reconnecte en silence le compte deja actif sur
+        // l'appareil/navigateur au lieu de demander lequel choisir - source
+        // de confusion si plusieurs comptes Google existent (telephone vs
+        // PC, comptes pro/perso...), donnant l'impression a tort de creer
+        // un "nouveau compte" alors que c'est juste un Gmail different.
+        queryParams: { prompt: "select_account" },
+      },
     });
     if (error) {
       setChargementGoogle(false);
