@@ -36,15 +36,18 @@ export function MatchLiveClient({
   }
 
   useEffect(() => {
-    // État dépendant du localStorage : neutre au premier rendu serveur,
-    // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonPseudo(lireProfil().pseudo);
-    rafraichir();
-    const tournoi = tournoiParId(tournoiId);
-    if (tournoi && peutSuperviser(tournoi.organisateur, nomOrganisateurActuel())) setRole("organisateur");
-    else if (estInscrit(tournoiId)) setRole("participant");
-    else setRole("spectateur");
+    async function charger() {
+      // État dépendant du localStorage : neutre au premier rendu serveur,
+      // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMonPseudo(lireProfil().pseudo);
+      rafraichir();
+      const tournoi = await tournoiParId(tournoiId);
+      if (tournoi && peutSuperviser(tournoi.organisateur, nomOrganisateurActuel())) setRole("organisateur");
+      else if (await estInscrit(tournoiId)) setRole("participant");
+      else setRole("spectateur");
+    }
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournoiId, matchInitial.id]);
 

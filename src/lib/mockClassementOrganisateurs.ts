@@ -25,11 +25,11 @@ const NOTES_DEMO: Record<string, number> = {
 /** Classement des organisateurs : le plus de participants rassemblés sur
  * l'ensemble de leurs tournois, la meilleure note, et le moins de tournois
  * "floppés" (annulés ou clôturés à 0 inscrit). */
-export function classementOrganisateurs(): OrganisateurClasse[] {
+export async function classementOrganisateurs(): Promise<OrganisateurClasse[]> {
   const profil = lireProfil();
   const parOrganisateur = new Map<string, { participants: number; total: number; floppes: number }>();
 
-  for (const t of tousLesTournois()) {
+  for (const t of await tousLesTournois()) {
     const entree = parOrganisateur.get(t.organisateur) ?? { participants: 0, total: 0, floppes: 0 };
     entree.total += 1;
     entree.participants += t.placesInscrites;

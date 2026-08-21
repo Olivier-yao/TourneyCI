@@ -6,7 +6,7 @@ import { ArrowDown, Eye, Hourglass, Info, CornerRightUp, MessagesSquare } from "
 import { PRESS } from "@/components/ds/Button";
 import { CLIP_HEXAGONE } from "@/components/ds/Palier";
 import { matchParId, spectateursDerives } from "@/lib/mockBracket";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
@@ -34,7 +34,8 @@ export default function ChatSpectateursMatchPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const match = matchParId(params.id);
-  const tournoi = match ? tournoiParId(match.tournoiId) : undefined;
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [inscrit, setInscrit] = useState(false);
   const [organisateur, setOrganisateur] = useState(false);
   const [messages, setMessages] = useState<MessageChat[]>([]);
@@ -43,10 +44,23 @@ export default function ChatSpectateursMatchPage() {
   const minuteurRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInscrit(match ? estInscrit(match.tournoiId) : false);
-    setOrganisateur(Boolean(tournoi) && peutSuperviser(tournoi!.organisateur, nomOrganisateurActuel()));
-    setMessages(messagesChat(cleSpectateurs(params.id)));
+    if (!match) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPret(true);
+      return;
+    }
+    async function charger() {
+      if (!match) return;
+      const t = await tournoiParId(match.tournoiId);
+      const suisInscrit = await estInscrit(match.tournoiId);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTournoi(t);
+      setInscrit(suisInscrit);
+      setOrganisateur(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setMessages(messagesChat(cleSpectateurs(params.id)));
+      setPret(true);
+    }
+    charger();
     const id = setInterval(() => setMessages(messagesChat(cleSpectateurs(params.id))), RAFRAICHISSEMENT_MS);
     return () => {
       clearInterval(id);
@@ -54,6 +68,8 @@ export default function ChatSpectateursMatchPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  if (!pret) return null;
 
   if (!match) {
     return (

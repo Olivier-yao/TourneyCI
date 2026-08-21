@@ -13,7 +13,7 @@ import { mesInscriptions } from "@/lib/mockInscriptions";
 import { mesFavoris } from "@/lib/mockFavoris";
 import { equipesDuJoueur } from "@/lib/mockEquipesBR";
 import { equipesProfilDontChef } from "@/lib/mockEquipesProfil";
-import { tournoiParId, estTermine, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
+import { tournoiParId, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie, estOrganisateurCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
 import { compteurFollowers } from "@/lib/mockSuiviOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
@@ -53,33 +53,35 @@ export default function ProfilPage() {
   }, []);
 
   useEffect(() => {
-    const inscriptions = mesInscriptions();
-    const historique = inscriptions.filter((i) => {
-      const t = tournoiParId(i.tournoiId);
-      return t && estTermine(t.id);
-    }).length;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSolde(lireSolde());
-    const moi = lireProfil().pseudo;
-    setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
-    setOrganisateur({ estOrganisateur: mesTournoisOrganises().length > 0, certifie: estCertifie() });
-    setRole(rolePrefere());
+    async function charger() {
+      const inscriptions = await mesInscriptions();
+      const tournoisInscrits = await Promise.all(inscriptions.map((i) => tournoiParId(i.tournoiId)));
+      const historique = tournoisInscrits.filter((t) => t && t.termine).length;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSolde(lireSolde());
+      const moi = lireProfil().pseudo;
+      setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
+      const tournoisOrganises = await mesTournoisOrganises();
+      setOrganisateur({ estOrganisateur: tournoisOrganises.length > 0, certifie: estCertifie() });
+      setRole(rolePrefere());
 
-    const onboardingOk = onboardingOrganisateurComplet();
-    const nomOrga = nomOrganisateurActuel();
-    const stats = statistiquesReputation(nomOrga);
-    const classement = classementOrganisateurs();
-    setVueOrga({
-      onboardingOk,
-      certifie: estOrganisateurCertifie(),
-      nom: nomOrga,
-      tag: tagOrganisateur(),
-      coeurs: stats.coeurs,
-      coeursBrises: stats.coeursBrises,
-      followers: compteurFollowers(nomOrga),
-      rang: classement.findIndex((o) => o.nom === nomOrga) + 1,
-      tournois: mesTournoisOrganises(),
-    });
+      const onboardingOk = onboardingOrganisateurComplet();
+      const nomOrga = nomOrganisateurActuel();
+      const stats = statistiquesReputation(nomOrga);
+      const classement = await classementOrganisateurs();
+      setVueOrga({
+        onboardingOk,
+        certifie: estOrganisateurCertifie(),
+        nom: nomOrga,
+        tag: tagOrganisateur(),
+        coeurs: stats.coeurs,
+        coeursBrises: stats.coeursBrises,
+        followers: compteurFollowers(nomOrga),
+        rang: classement.findIndex((o) => o.nom === nomOrga) + 1,
+        tournois: tournoisOrganises,
+      });
+    }
+    charger();
   }, []);
 
   function basculerRole(nouveau: Role) {

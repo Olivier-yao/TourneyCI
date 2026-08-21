@@ -47,12 +47,12 @@ export default function AdjointsPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [groupesSupervision, setGroupesSupervision] = useState<GroupeSupervision[]>([]);
 
-  function rafraichir(nomActuel: string) {
+  async function rafraichir(nomActuel: string) {
     setAdjoints(adjointsDe(nomActuel));
     setInvitationsEnAttente(invitationsRecues(nomActuel));
     const proprietaires = proprietairesSupervises(nomActuel);
-    const certifies = new Map(classementOrganisateurs().map((o) => [o.nom, o.certifie]));
-    const tous = tousLesTournois();
+    const certifies = new Map((await classementOrganisateurs()).map((o) => [o.nom, o.certifie]));
+    const tous = await tousLesTournois();
     setGroupesSupervision(
       proprietaires
         .map((p) => ({
@@ -65,14 +65,17 @@ export default function AdjointsPage() {
   }
 
   useEffect(() => {
-    const n = nomOrganisateurActuel();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNom(n);
-    rafraichir(n);
+    async function charger() {
+      const n = nomOrganisateurActuel();
+      setNom(n);
+      await rafraichir(n);
+    }
+    charger();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function ajouter() {
-    const err = inviterAdjoint(nom, nomAjout);
+  async function ajouter() {
+    const err = await inviterAdjoint(nom, nomAjout);
     if (err) {
       setErreur(err);
       return;

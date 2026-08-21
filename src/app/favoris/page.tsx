@@ -18,8 +18,12 @@ export default function FavorisPage() {
   const [tournois, setTournois] = useState<Tournoi[]>([]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournois(mesFavoris().map(tournoiParId).filter((t): t is Tournoi => Boolean(t)));
+    async function charger() {
+      const resultats = await Promise.all(mesFavoris().map((id) => tournoiParId(id)));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTournois(resultats.filter((t): t is Tournoi => Boolean(t)));
+    }
+    charger();
   }, []);
 
   return (

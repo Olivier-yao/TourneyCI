@@ -93,13 +93,16 @@ export function VueOrganisateurMatch({
   const [roundLabel, setRoundLabel] = useState("");
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLitige(litigeDuMatch(matchInitial.id));
-    const tournoi = tournoiParId(tournoiId);
-    setCategorie(mappeGenre(tournoi ? genreDuJeu(tournoi.jeuId) : undefined));
-    const matchs = matchsDuTournoi(tournoiId);
-    const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : matchInitial.round;
-    setRoundLabel(libelleRound(matchInitial.round, totalRounds));
+    async function charger() {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLitige(litigeDuMatch(matchInitial.id));
+      const tournoi = await tournoiParId(tournoiId);
+      setCategorie(mappeGenre(tournoi ? genreDuJeu(tournoi.jeuId) : undefined));
+      const matchs = matchsDuTournoi(tournoiId);
+      const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : matchInitial.round;
+      setRoundLabel(libelleRound(matchInitial.round, totalRounds));
+    }
+    charger();
   }, [matchInitial.id, matchInitial.round, tournoiId]);
 
   const pretAJouer = Boolean(matchInitial.joueur1 && matchInitial.joueur2);

@@ -7,7 +7,7 @@ import { ArrowLeft, Search, CheckCircle2, Flame, Lock } from "lucide-react";
 import { Avatar } from "@/components/ds/Avatar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { PRESS } from "@/components/ds/Button";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { lireProfil, estActif } from "@/lib/mockProfil";
 import { inscriptionDe, estInscrit } from "@/lib/mockInscriptions";
 import { estPresent, definirPresence } from "@/lib/mockCheckin";
@@ -20,7 +20,8 @@ function tagDe(nom: string): string {
 export default function InscritsPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const tournoi = tournoiParId(params.id);
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [requete, setRequete] = useState("");
   const [monPseudo, setMonPseudo] = useState<{ nom: string; actif: boolean; photoUrl?: string } | null>(null);
   const [estMonTournoi, setEstMonTournoi] = useState(false);
@@ -28,15 +29,18 @@ export default function InscritsPage() {
   const [versionCheckin, setVersionCheckin] = useState(0);
 
   useEffect(() => {
-    const profil = lireProfil();
-    const inscription = inscriptionDe(params.id);
-    const nomAffiche = inscription?.equipe ?? inscription?.tag ?? profil.pseudo;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
-    setEstMonTournoi(tournoi?.organisateur === nomOrganisateurActuel());
-    // Point 180 : un participant a accès à la liste des inscrits dès qu'il
-    // s'est lui-même inscrit, sans attendre la clôture des inscriptions.
-    setInscrit(estInscrit(params.id));
+    async function charger() {
+      const [t, profil, inscription] = await Promise.all([tournoiParId(params.id), Promise.resolve(lireProfil()), inscriptionDe(params.id)]);
+      const nomAffiche = inscription?.equipe ?? inscription?.tag ?? profil.pseudo;
+      setTournoi(t);
+      setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
+      setEstMonTournoi(t?.organisateur === nomOrganisateurActuel());
+      // Point 180 : un participant a accès à la liste des inscrits dès qu'il
+      // s'est lui-même inscrit, sans attendre la clôture des inscriptions.
+      setInscrit(await estInscrit(params.id));
+      setPret(true);
+    }
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -52,6 +56,8 @@ export default function InscritsPage() {
     definirPresence(params.id, nom, !present);
     setVersionCheckin((v) => v + 1);
   }
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

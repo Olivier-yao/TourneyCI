@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, BadgeCheck, Camera, Heart, HeartCrack, Pencil, Share2, Trophy, Users, EyeOff, ExternalLink, Plus, Trash2, ShieldCheck, ChevronRight } from "lucide-react";
 import { formatXof } from "@/lib/formatXof";
-import { tousLesTournois, estAnnule, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
+import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { BannerCropper } from "@/components/ds/BannerCropper";
 import { Modal } from "@/components/ds/Modal";
 import { Avatar } from "@/components/ds/Avatar";
@@ -118,18 +118,18 @@ export default function ProfilOrganisateurPage() {
 
   const tauxAnnulation = useMemo(() => {
     if (tournois.length === 0) return 0;
-    const annules = tournois.filter((t) => t.annule || estAnnule(t.id)).length;
+    const annules = tournois.filter((t) => t.annule).length;
     return Math.round((annules / tournois.length) * 100);
   }, [tournois]);
 
-  function rafraichir() {
-    setTournois(tousLesTournois().filter((t) => t.organisateur === nom));
+  async function rafraichir() {
+    setTournois((await tousLesTournois()).filter((t) => t.organisateur === nom));
     setStats(statistiquesReputation(nom));
     setMonAvis(monAvisPourOrganisateur(nom)?.type ?? null);
     setSuivi(suisOrganisateur(nom));
     setNbFollowers(compteurFollowers(nom));
     setMasqueFollowers(suiviMasque(nom));
-    const classement = classementOrganisateurs();
+    const classement = await classementOrganisateurs();
     setRang(classement.findIndex((o) => o.nom === nom) + 1);
     const moi = nomOrganisateurActuel() === nom;
     setCestMoi(moi);
@@ -154,7 +154,6 @@ export default function ProfilOrganisateurPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     rafraichir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nom]);

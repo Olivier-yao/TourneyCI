@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, X, Camera, CheckCircle2, Clock, Circle, TriangleAlert } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { matchParId } from "@/lib/mockBracket";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { lireProfil } from "@/lib/mockProfil";
 import { creerLitige, litigeDuMatch, ajouterPreuveLitige, mesLitiges, type Litige } from "@/lib/mockLitige";
 
@@ -54,7 +54,8 @@ export default function LitigePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const match = matchParId(params.id);
-  const tournoi = match ? tournoiParId(match.tournoiId) : undefined;
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
 
   const [etape, setEtape] = useState<Etape>("motif");
   const [litige, setLitige] = useState<Litige | undefined>(undefined);
@@ -72,7 +73,17 @@ export default function LitigePage() {
       setEtape("suivi");
     }
     setHistorique(mesLitiges().filter((l) => l.matchId !== params.id).slice(0, 3));
+    if (!match) {
+      setPret(true);
+      return;
+    }
+    tournoiParId(match.tournoiId).then((t) => {
+      setTournoi(t);
+      setPret(true);
+    });
   }, [params.id]);
+
+  if (!pret) return null;
 
   if (!match || !tournoi) {
     return (

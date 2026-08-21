@@ -159,9 +159,10 @@ function CarteOrganisateur({ nom }: { nom: string }) {
   const [info, setInfo] = useState<{ certifie: boolean; note: number } | undefined>(undefined);
 
   useEffect(() => {
-    const entree = classementOrganisateurs().find((o) => o.nom === nom);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setInfo(entree ? { certifie: entree.certifie, note: entree.note } : undefined);
+    classementOrganisateurs().then((classement) => {
+      const entree = classement.find((o) => o.nom === nom);
+      setInfo(entree ? { certifie: entree.certifie, note: entree.note } : undefined);
+    });
   }, [nom]);
 
   return (
@@ -377,28 +378,31 @@ function DetailTournoiInterne() {
   const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
 
   useEffect(() => {
-    // État dépendant du localStorage (tournoi + ses surcharges) : introuvable
-    // au premier rendu serveur, synchronisé côté client une fois monté
-    // (évite un mismatch d'hydratation — le titre, la bannière, etc. peuvent
-    // différer si l'organisateur a modifié le tournoi depuis cet appareil).
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    const monTournoi = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
-    setEstMonTournoi(monTournoi);
-    setAccesChat(estInscrit(params.id) || monTournoi);
-    if (t) setFermeInscriptions(inscriptionsFermees(t));
-    // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
-    // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
-    // l'inscription ni pendant le déroulement, et jamais à l'organisateur.
-    setDemanderAvis(!monTournoi && Boolean(t?.termine) && !monAvisPourTournoi(params.id));
-    setAvisCompte(compterAvis(params.id));
-    if (t?.termine) {
-      reevaluerPaiementsEnAttente();
-      setEnSequestre(cashPrizeEnSequestre(params.id));
-      setPeutContester(estInscrit(params.id));
-      setMonAppel(monAppelPourTournoi(params.id));
+    // État dépendant de l'API (tournoi) : introuvable au premier rendu
+    // serveur, synchronisé côté client une fois monté (évite un mismatch
+    // d'hydratation — le titre, la bannière, etc. peuvent différer si
+    // l'organisateur a modifié le tournoi depuis un autre appareil).
+    async function charger() {
+      const t = await tournoiParId(params.id);
+      setTournoi(t);
+      const monTournoi = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
+      setEstMonTournoi(monTournoi);
+      setAccesChat((await estInscrit(params.id)) || monTournoi);
+      if (t) setFermeInscriptions(inscriptionsFermees(t));
+      // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
+      // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
+      // l'inscription ni pendant le déroulement, et jamais à l'organisateur.
+      setDemanderAvis(!monTournoi && Boolean(t?.termine) && !monAvisPourTournoi(params.id));
+      setAvisCompte(compterAvis(params.id));
+      if (t?.termine) {
+        reevaluerPaiementsEnAttente();
+        setEnSequestre(cashPrizeEnSequestre(params.id));
+        setPeutContester(await estInscrit(params.id));
+        setMonAppel(monAppelPourTournoi(params.id));
+      }
     }
+    charger();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   if (!tournoi) {

@@ -1,17 +1,26 @@
 /**
- * Données mock pour le chantier V2 (accueil + détail tournoi).
- * Pas de backend : à remplacer par de vraies requêtes Supabase en phase 8.
- * Les tournois créés par un organisateur sont persistés en localStorage
- * (mêmes limites que src/lib/mockAuth.ts : local au navigateur, pas partagé
- * entre appareils tant que la phase 8 n'est pas faite).
+ * Tournois — migré vers un vrai backend (Postgres via /api/tournois, cf.
+ * ROADMAP-backend-et-mobile.md et src/lib/server/tournois.ts pour
+ * l'adaptateur serveur). Les fonctions de lecture/écriture sont désormais
+ * async (fetch), mais gardent les mêmes noms/signatures qu'avant pour
+ * limiter les changements côté écrans, qui les appellent déjà dans un
+ * useEffect (jamais de lecture synchrone au rendu comme pour le profil).
+ *
+ * Restent mockés/localStorage, volontairement inchangés (agnostiques du
+ * format d'id, continuent de fonctionner à l'identique avec de vrais UUID) :
+ * mockWallet (solde), mockEquipesBR/mockPropositionsEquipe/mockEquipesProfil
+ * (formation d'équipes), mockOrganisateur (nom/certification, gating client
+ * uniquement — écart déjà connu, cf. roadmap 2.2), mockNotifications,
+ * mockAvis, mockAppel, mockBracket, mockBattleRoyale, et l'escroquesequestre
+ * du cash prize (paiementsEnAttente).
  */
 
 import { classementFinalBracket } from "./mockBracket";
 import { classementFinalBR } from "./mockBattleRoyale";
 import { attribuerPoints, lireProfil } from "./mockProfil";
 import { crediter } from "./mockWallet";
-import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
-import { estInscrit, inscriptionDe } from "./mockInscriptions";
+import { estCertifie } from "./mockOrganisateur";
+import { estInscrit } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
 import { avisDuTournoi } from "./mockAvis";
 import { appelOuvertPourTournoi } from "./mockAppel";
@@ -50,15 +59,18 @@ export type Tournoi = {
   jeuLabel: string;
   titre: string;
   organisateur: string;
+  /** Dérivé de type/equipeSousType/modeEquipe/placesTotal (pas stocké), cf. src/lib/tournoiFormat.ts. */
   format: string;
   type: TypeCompetition;
   modalite: Modalite;
   ville: string;
+  /** Dérivé de debutTournoiTs (pas stocké), cf. src/lib/tournoiFormat.ts. */
   dateLabel: string;
   cashPrizeXof: number;
   fraisXof: number;
   placesInscrites: number;
   placesTotal: number;
+  /** Dérivé de checkinTs (pas stocké), cf. src/lib/tournoiFormat.ts. */
   checkin: string;
   enDirect: boolean;
   reglement: string;
@@ -96,10 +108,6 @@ export type Tournoi = {
    * d'inscription. Si absents, comportement par défaut (voir clotureEffectiveInscriptions). */
   debutInscriptionsTs?: number;
   finInscriptionsTs?: number;
-  /** Démo testable côté organisateur (point 85) : l'organisateur affiché est
-   * toujours celui de l'appareil courant plutôt qu'un nom figé, pour que
-   * n'importe quel testeur retrouve ces tournois dans sa propre gestion. */
-  organisateurDynamique?: boolean;
   /** Stream live de la partie en cours activé par l'organisateur (point 109) :
    * remplace la bannière statique par un cadre de stream une fois le tournoi
    * en direct. Pas de flux réel dans ce mock (voir point 110). */
@@ -302,461 +310,117 @@ export function modeDuTournoi(t: Pick<Tournoi, "type" | "format">): ModeJeu | un
   return undefined;
 }
 
-export const TOURNOIS: Tournoi[] = [
-  {
-    id: "abidjan-cup-12",
-    code: "AC12X4",
-    jeuId: "eafc",
-    jeuLabel: "EA FC 26",
-    titre: "Abidjan Cup #12",
-    organisateur: "Ivoire Esport",
-    format: "1v1 · BO3",
-    type: "1v1",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "Samedi 21h00 GMT",
-    cashPrizeXof: 500000,
-    fraisXof: 2000,
-    placesInscrites: 41,
-    placesTotal: 64,
-    checkin: "20h30",
-    enDirect: true,
-    reglement:
-      "Élimination directe, BO3 en quarts, BO5 en finale. Score à signaler dans l'app avec capture d'écran.",
-    inscrits: ["KB", "AY", "SD"],
-  },
-  {
-    id: "ligue-yopougon",
-    code: "LYP7B2",
-    jeuId: "eafc",
-    jeuLabel: "EA FC 26",
-    titre: "Ligue Yopougon",
-    organisateur: "Yop Gaming",
-    format: "1v1 · BO1",
-    type: "1v1",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "Dimanche 18h00 GMT",
-    cashPrizeXof: 150000,
-    fraisXof: 1000,
-    placesInscrites: 28,
-    placesTotal: 64,
-    checkin: "17h30",
-    enDirect: false,
-    reglement: "Élimination directe, BO1 jusqu'en demies, BO3 en finale.",
-    inscrits: ["MK", "DL"],
-  },
-  {
-    id: "freefire-night",
-    code: "FFN9K1",
-    jeuId: "freefire",
-    jeuLabel: "Free Fire",
-    titre: "Free Fire Night · Squad",
-    organisateur: "Abidjan Battle Royale",
-    format: "Battle Royale · 50 joueurs",
-    type: "battle_royale",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "Vendredi 20h00 GMT",
-    cashPrizeXof: 100000,
-    fraisXof: 0,
-    placesInscrites: 11,
-    placesTotal: 50,
-    checkin: "19h30",
-    enDirect: false,
-    reglement: "Manche unique, élimination au fur et à mesure. Gratuit, places limitées.",
-    inscrits: ["FT", "GO", "HL"],
-  },
-  {
-    id: "br-solo-yopougon",
-    code: "BRS7Q2",
-    jeuId: "pubgm",
-    jeuLabel: "PUBG Mobile",
-    titre: "PUBG Solo Marathon",
-    organisateur: "Yopougon Gaming",
-    format: "Battle Royale · Solo · 50 joueurs",
-    type: "battle_royale",
-    modalite: "virtuel",
-    ville: "Abidjan",
-    dateLabel: "En cours",
-    cashPrizeXof: 60000,
-    fraisXof: 500,
-    placesInscrites: 50,
-    placesTotal: 50,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Manches successives, barème de points cumulés. Les 25 meilleurs se qualifient.",
-    inscrits: ["KB", "YM", "AK"],
-    brSousType: "solo",
-  },
-  {
-    id: "br-squad-treichville",
-    code: "BRQ4M8",
-    jeuId: "freefire",
-    jeuLabel: "Free Fire",
-    titre: "Free Fire Squad Wars",
-    organisateur: "Treichville Esport",
-    format: "Battle Royale · Squad · 48 joueurs (12 squads)",
-    type: "battle_royale",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "En cours",
-    cashPrizeXof: 150000,
-    fraisXof: 1000,
-    placesInscrites: 48,
-    placesTotal: 48,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Manches successives par squad de 4. Barème de points cumulés, top 6 squads qualifiés.",
-    inscrits: ["Squad 1", "Squad 2", "Squad 3"],
-    brSousType: "squad",
-  },
-  {
-    id: "codm-showdown",
-    code: "CDM5W3",
-    jeuId: "codm",
-    jeuLabel: "Call of Duty Mobile",
-    titre: "CODM Showdown",
-    organisateur: "War Room CI",
-    format: "Équipes · 5v5",
-    type: "equipes",
-    modalite: "presentiel",
-    ville: "Bouaké",
-    dateLabel: "Samedi 15h00 GMT",
-    cashPrizeXof: 200000,
-    fraisXof: 3000,
-    placesInscrites: 9,
-    placesTotal: 16,
-    checkin: "14h30",
-    enDirect: false,
-    reglement: "Poules puis élimination directe. BO3 dès les quarts.",
-    inscrits: ["NR"],
-    modeEquipe: "libre",
-  },
-  {
-    id: "tekken-clash",
-    code: "TKN4Y8",
-    jeuId: "tekken",
-    jeuLabel: "Tekken 8",
-    titre: "Tekken Clash Yamoussoukro",
-    organisateur: "FGC Côte d'Ivoire",
-    format: "1v1 · BO5",
-    type: "1v1",
-    modalite: "virtuel",
-    ville: "En ligne",
-    dateLabel: "Dimanche 14h00 GMT",
-    cashPrizeXof: 75000,
-    fraisXof: 1500,
-    placesInscrites: 14,
-    placesTotal: 32,
-    checkin: "13h30",
-    enDirect: false,
-    reglement: "Élimination directe, BO5 sur tous les tours.",
-    inscrits: ["ZK", "PT"],
-  },
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
+}
 
-  // ---- Démos "en cours" testables côté organisateur (point 85) ----
-  // organisateurDynamique: true => affiché comme organisé par l'appareil
-  // courant, quel que soit le nom d'organisateur choisi par le testeur.
-  {
-    id: "demo-1v1-en-cours",
-    code: "DM1V1X",
-    jeuId: "tekken",
-    jeuLabel: "Tekken 8",
-    titre: "Démo · 1v1 en cours",
-    organisateur: "",
-    organisateurDynamique: true,
-    format: "1v1 · BO5",
-    type: "1v1",
-    modalite: "virtuel",
-    ville: "En ligne",
-    dateLabel: "En cours",
-    cashPrizeXof: 40000,
-    fraisXof: 500,
-    placesInscrites: 4,
-    placesTotal: 4,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Élimination directe, BO5 sur tous les tours.",
-    inscrits: ["Fofana", "Bamba", "Traoré", "Adjoua"],
-    debutTournoiTs: Date.now() - 45 * 60 * 1000,
-  },
-  {
-    id: "demo-equipes-en-cours",
-    code: "DMEQPX",
-    jeuId: "codm",
-    jeuLabel: "Call of Duty Mobile",
-    titre: "Démo · Équipes en cours",
-    organisateur: "",
-    organisateurDynamique: true,
-    format: "Équipes · 5v5",
-    type: "equipes",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "En cours",
-    cashPrizeXof: 80000,
-    fraisXof: 2000,
-    placesInscrites: 4,
-    placesTotal: 4,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Poules puis élimination directe. BO3 dès les demies.",
-    inscrits: ["Team Alpha", "Team Beta", "Team Gamma", "Team Delta"],
-    modeEquipe: "libre",
-    debutTournoiTs: Date.now() - 40 * 60 * 1000,
-  },
-  {
-    id: "demo-br-solo-en-cours",
-    code: "DMBRSX",
-    jeuId: "pubgm",
-    jeuLabel: "PUBG Mobile",
-    titre: "Démo · Battle Royale Solo en cours",
-    organisateur: "",
-    organisateurDynamique: true,
-    format: "Battle Royale · Solo · 50 joueurs",
-    type: "battle_royale",
-    modalite: "virtuel",
-    ville: "En ligne",
-    dateLabel: "En cours",
-    cashPrizeXof: 50000,
-    fraisXof: 500,
-    placesInscrites: 50,
-    placesTotal: 50,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Manches successives, barème de points cumulés.",
-    inscrits: ["Kader B.", "Yao M.", "Aya K."],
-    brSousType: "solo",
-    debutTournoiTs: Date.now() - 25 * 60 * 1000,
-  },
-  {
-    id: "demo-br-duo-en-cours",
-    code: "DMBRDX",
-    jeuId: "freefire",
-    jeuLabel: "Free Fire",
-    titre: "Démo · Battle Royale Duo en cours",
-    organisateur: "",
-    organisateurDynamique: true,
-    format: "Battle Royale · Duo · 30 joueurs (15 duos)",
-    type: "battle_royale",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "En cours",
-    cashPrizeXof: 45000,
-    fraisXof: 1000,
-    placesInscrites: 30,
-    placesTotal: 30,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Manches successives par duo. Barème de points cumulés.",
-    inscrits: ["Duo 1", "Duo 2", "Duo 3"],
-    brSousType: "duo",
-    debutTournoiTs: Date.now() - 20 * 60 * 1000,
-  },
-  {
-    id: "demo-br-squad-en-cours",
-    code: "DMBRQX",
-    jeuId: "freefire",
-    jeuLabel: "Free Fire",
-    titre: "Démo · Battle Royale Squad en cours",
-    organisateur: "",
-    organisateurDynamique: true,
-    format: "Battle Royale · Squad · 32 joueurs (8 squads)",
-    type: "battle_royale",
-    modalite: "presentiel",
-    ville: "Abidjan",
-    dateLabel: "En cours",
-    cashPrizeXof: 60000,
-    fraisXof: 1000,
-    placesInscrites: 32,
-    placesTotal: 32,
-    checkin: "Terminé",
-    enDirect: true,
-    reglement: "Manches successives par squad de 4. Barème de points cumulés.",
-    inscrits: ["Squad 1", "Squad 2", "Squad 3"],
-    brSousType: "squad",
-    debutTournoiTs: Date.now() - 15 * 60 * 1000,
-  },
-];
+export async function tousLesTournois(options?: { organisateurMoi?: boolean; enDirect?: boolean }): Promise<Tournoi[]> {
+  const params = new URLSearchParams();
+  if (options?.organisateurMoi) params.set("organisateur", "me");
+  if (options?.enDirect) params.set("enDirect", "1");
+  const reponse = await fetch(`/api/tournois${params.size ? `?${params}` : ""}`);
+  const resultat = await reponseJson<Tournoi[]>(reponse);
+  return resultat.ok ? resultat.data : [];
+}
 
-const CLE_TOURNOIS_CREES = "tourney-tournois-crees";
+export async function tournoiParId(id: string): Promise<Tournoi | undefined> {
+  const reponse = await fetch(`/api/tournois/${id}`);
+  const resultat = await reponseJson<Tournoi>(reponse);
+  return resultat.ok ? resultat.data : undefined;
+}
 
-function lireTournoisCrees(): Tournoi[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_TOURNOIS_CREES);
-    if (!brut) return [];
-    const tournois = JSON.parse(brut) as Tournoi[];
-    // Rétrocompatibilité : les tournois créés avant l'ajout du champ "code"
-    // n'en ont pas encore un — on leur en génère un et on le persiste,
-    // sous peine d'un code qui change à chaque lecture.
-    let modifie = false;
-    const corriges = tournois.map((t) => {
-      if (t.code) return t;
-      modifie = true;
-      return { ...t, code: genererCode() };
-    });
-    if (modifie) localStorage.setItem(CLE_TOURNOIS_CREES, JSON.stringify(corriges));
-    return corriges;
-  } catch {
-    return [];
+export async function tournoiParCode(code: string): Promise<Tournoi | undefined> {
+  const normalise = code.trim().toUpperCase();
+  if (!normalise) return undefined;
+  return tournoiParId(normalise);
+}
+
+/** Données envoyées à la création — distinctes de `Tournoi` : format/
+ * dateLabel/checkin sont dérivés côté serveur (cf. src/lib/tournoiFormat.ts),
+ * organisateur/inscrits/termine/annule/placesInscrites/code/id sont
+ * calculés, pas saisis. */
+export type DonneesCreationTournoi = {
+  jeuId: string;
+  jeuLabel: string;
+  titre: string;
+  type: TypeCompetition;
+  modalite: Modalite;
+  ville?: string;
+  placesTotal: number;
+  debutTournoiTs: number;
+  /** Horodatage (ms) du check-in, remplace l'ancien champ texte "checkin". */
+  checkinTs: number;
+  debutInscriptionsTs?: number;
+  finInscriptionsTs?: number;
+  cashPrizeXof?: number;
+  fraisXof?: number;
+  financementCashPrize?: "inscriptions" | "organisateur";
+  commissionActivee?: boolean;
+  reglement: string;
+  informations?: string;
+  banniereUrl?: string;
+  symboleId?: string;
+  modeEquipe?: ModeEquipe;
+  brSousType?: "solo" | "duo" | "trio" | "squad";
+  manchesPrevues?: number;
+  equipeSousType?: EquipeSousType;
+  repartitionCashPrize?: RepartitionCashPrize[];
+};
+
+export type ResultatCreationTournoi = { ok: true; tournoi: Tournoi } | { ok: false; erreur?: string };
+
+export async function creerTournoi(donnees: DonneesCreationTournoi): Promise<ResultatCreationTournoi> {
+  const reponse = await fetch("/api/tournois", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(donnees),
+  });
+  const resultat = await reponseJson<Tournoi>(reponse);
+  // repartitionCashPrize/manchesPrevues/équipes prédéfinies ne sont pas
+  // encore persistés côté serveur (hors périmètre de cette étape, cf. plan) —
+  // on les réattache localement à la réponse pour ne pas casser l'écran de
+  // création, qui les affiche immédiatement après coup.
+  if (resultat.ok) {
+    return { ok: true, tournoi: { ...resultat.data, repartitionCashPrize: donnees.repartitionCashPrize, manchesPrevues: donnees.manchesPrevues } };
   }
-}
-
-const CLE_INSCRITS_SUPPLEMENTAIRES = "tourney-inscrits-supplementaires";
-
-function lireInscritsSupplementaires(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_INSCRITS_SUPPLEMENTAIRES);
-    return brut ? (JSON.parse(brut) as Record<string, number>) : {};
-  } catch {
-    return {};
-  }
-}
-
-/** Incrémente le compteur d'inscrits d'un tournoi (mock : pas de vraie table
- * de participants, juste un compteur superposé en localStorage). */
-export function incrementerInscrits(tournoiId: string) {
-  if (typeof window === "undefined") return;
-  const supplements = lireInscritsSupplementaires();
-  supplements[tournoiId] = (supplements[tournoiId] ?? 0) + 1;
-  localStorage.setItem(CLE_INSCRITS_SUPPLEMENTAIRES, JSON.stringify(supplements));
-}
-
-const CLE_TOURNOIS_TERMINES = "tourney-tournois-termines";
-const CLE_TOURNOIS_ANNULES = "tourney-tournois-annules";
-
-function lireListe(cle: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(cle);
-    return brut ? (JSON.parse(brut) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function ajouterA(cle: string, id: string) {
-  if (typeof window === "undefined") return;
-  const liste = lireListe(cle);
-  if (!liste.includes(id)) localStorage.setItem(cle, JSON.stringify([...liste, id]));
-}
-
-export function estTermine(id: string): boolean {
-  return lireListe(CLE_TOURNOIS_TERMINES).includes(id);
-}
-
-export function estAnnule(id: string): boolean {
-  return lireListe(CLE_TOURNOIS_ANNULES).includes(id);
+  return { ok: false, erreur: resultat.erreur };
 }
 
 /** Champs qu'un organisateur peut modifier après création (point 95) : pas
  * les champs structurels/financiers (type, frais, cash prize, dates) déjà
  * pris en compte par des inscriptions en cours. */
-export type ParametresModifiablesTournoi = Partial<
-  Pick<Tournoi, "titre" | "ville" | "checkin" | "reglement" | "informations" | "streamActif" | "symboleId">
->;
+export type ParametresModifiablesTournoi = Partial<Pick<Tournoi, "titre" | "ville" | "reglement" | "informations" | "streamActif" | "symboleId">> & {
+  /** Remplace l'ancien champ texte "checkin" — horodatage (ms). */
+  checkinTs?: number;
+};
 
-const CLE_PARAMETRES_SUPERPOSES = "tourney-parametres-superposes";
-
-function lireParametresSuperposes(): Record<string, ParametresModifiablesTournoi> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_PARAMETRES_SUPERPOSES);
-    return brut ? (JSON.parse(brut) as Record<string, ParametresModifiablesTournoi>) : {};
-  } catch {
-    return {};
-  }
+export async function modifierTournoi(id: string, patch: ParametresModifiablesTournoi): Promise<boolean> {
+  const reponse = await fetch(`/api/tournois/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  const resultat = await reponseJson<Tournoi>(reponse);
+  return resultat.ok;
 }
 
-export function modifierTournoi(id: string, patch: ParametresModifiablesTournoi) {
-  if (typeof window === "undefined") return;
-  const tout = lireParametresSuperposes();
-  localStorage.setItem(CLE_PARAMETRES_SUPERPOSES, JSON.stringify({ ...tout, [id]: { ...tout[id], ...patch } }));
-}
-
-/** Annule un tournoi (compte comme un "flop" pour le classement organisateur). */
 /** Annule un tournoi et rembourse automatiquement les frais déjà payés par
- * l'inscrit de cet appareil (mock mono-utilisateur : pas de vrai registre
- * multi-comptes, seul le participant local peut être remboursé ici). */
-export function annulerTournoi(id: string) {
-  ajouterA(CLE_TOURNOIS_ANNULES, id);
-  const tournoi = tournoiParId(id);
-  if (tournoi && tournoi.fraisXof > 0 && estInscrit(id)) {
+ * l'inscrit de cet appareil (mock mono-utilisateur pour le remboursement :
+ * pas de vrai registre multi-comptes, seul le participant local peut être
+ * remboursé ici — cf. mockWallet, hors périmètre de cette étape). */
+export async function annulerTournoi(id: string): Promise<void> {
+  const tournoi = await tournoiParId(id);
+  const reponse = await fetch(`/api/tournois/${id}/annuler`, { method: "POST" });
+  if (!reponse.ok) return;
+  if (tournoi && tournoi.fraisXof > 0 && (await estInscrit(id))) {
     crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement", tournoi.id);
   }
 }
 
-function avecEtatsSuperposes(tournois: Tournoi[]): Tournoi[] {
-  const supplements = lireInscritsSupplementaires();
-  const termines = lireListe(CLE_TOURNOIS_TERMINES);
-  const annules = lireListe(CLE_TOURNOIS_ANNULES);
-  const parametres = lireParametresSuperposes();
-  const profil = lireProfil();
-  return tournois.map((t) => {
-    const inscrits = t.inscrits;
-    const inscription = estInscrit(t.id) ? inscriptionDe(t.id) : undefined;
-    const monNom = inscription ? (inscription.equipe ?? inscription.tag ?? profil.pseudo) : null;
-    return {
-      ...t,
-      ...parametres[t.id],
-      organisateur: t.organisateurDynamique ? nomOrganisateurActuel() : t.organisateur,
-      placesInscrites: t.placesInscrites + (supplements[t.id] ?? 0),
-      termine: t.termine || termines.includes(t.id),
-      annule: t.annule || annules.includes(t.id),
-      inscrits: monNom && !inscrits.includes(monNom) ? [...inscrits, monNom] : inscrits,
-    };
-  });
-}
-
-export function tousLesTournois(): Tournoi[] {
-  return avecEtatsSuperposes([...lireTournoisCrees(), ...TOURNOIS]);
-}
-
-export function tournoiParId(id: string): Tournoi | undefined {
-  return tousLesTournois().find((t) => t.id === id);
-}
-
-export function tournoiParCode(code: string): Tournoi | undefined {
-  const normalise = code.trim().toUpperCase();
-  if (!normalise) return undefined;
-  return tousLesTournois().find((t) => t.code === normalise);
-}
-
-/** Code court (6 caractères, sans caractères ambigus) pour retrouver un
- * tournoi facilement via la recherche, à la place du titre complet. */
-function genererCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 6; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  return code;
-}
-
-export function creerTournoi(donnees: Omit<Tournoi, "id" | "code" | "placesInscrites">): Tournoi {
-  const tournoi: Tournoi = {
-    ...donnees,
-    id: `${donnees.titre.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now().toString(36)}`,
-    code: genererCode(),
-    placesInscrites: 0,
-  };
-  const existants = lireTournoisCrees();
-  if (typeof window !== "undefined") {
-    localStorage.setItem(
-      CLE_TOURNOIS_CREES,
-      JSON.stringify([tournoi, ...existants]),
-    );
-  }
-  return tournoi;
-}
-
-export function mesTournoisOrganises(): Tournoi[] {
-  // Les démos "en cours" (organisateurDynamique) sont attribuées à
-  // l'utilisateur courant : elles doivent apparaître dans son espace
-  // organisateur au même titre que les tournois qu'il a réellement créés,
-  // pour pouvoir tester validation de score, litiges et check-in dessus.
-  const demosMoi = TOURNOIS.filter((t) => t.organisateurDynamique);
-  return avecEtatsSuperposes([...lireTournoisCrees(), ...demosMoi]);
+export async function mesTournoisOrganises(): Promise<Tournoi[]> {
+  return tousLesTournois({ organisateurMoi: true });
 }
 
 function pointsPourPlace(place: number, effectif: number): number {
@@ -781,13 +445,6 @@ function pointsPourPlaceBR(place: number, effectif: number): number {
   return Math.max(-20, -(place - moitie) * 2);
 }
 
-/**
- * Clôture un tournoi : distribue les points de classement de façon
- * automatique et équilibrée selon la place finale (bracket ou battle royale),
- * puis crédite le solde de l'utilisateur local s'il fait partie des gagnants
- * du cash prize. La commission de l'organisateur n'est créditée que
- * s'il est certifié (cf. mockOrganisateur).
- */
 /**
  * Séquestre du cash prize : à la clôture, le gain du vainqueur (s'il s'agit
  * de l'utilisateur de cet appareil) est mis en attente plutôt que crédité
@@ -854,9 +511,21 @@ export function reevaluerPaiementsEnAttente() {
   }
 }
 
-export function terminerTournoi(tournoiId: string): { pointsAttribues: number; gainCredite: number } {
-  const tournoi = tournoiParId(tournoiId);
+/**
+ * Clôture un tournoi : distribue les points de classement de façon
+ * automatique et équilibrée selon la place finale (bracket ou battle royale),
+ * puis crédite le solde de l'utilisateur local s'il fait partie des gagnants
+ * du cash prize. La commission de l'organisateur n'est créditée que
+ * s'il est certifié (cf. mockOrganisateur). Seul termine_le devient réel
+ * (POST /api/tournois/[id]/terminer) ; le reste (points, cash prize,
+ * commission, notifications) reste géré ici, inchangé.
+ */
+export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttribues: number; gainCredite: number }> {
+  const tournoi = await tournoiParId(tournoiId);
   if (!tournoi) return { pointsAttribues: 0, gainCredite: 0 };
+
+  const reponse = await fetch(`/api/tournois/${tournoiId}/terminer`, { method: "POST" });
+  if (!reponse.ok) return { pointsAttribues: 0, gainCredite: 0 };
 
   const classement =
     tournoi.type === "battle_royale"
@@ -896,7 +565,6 @@ export function terminerTournoi(tournoiId: string): { pointsAttribues: number; g
     if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission", tournoi.id);
   }
 
-  ajouterA(CLE_TOURNOIS_TERMINES, tournoiId);
   notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
   supprimerEquipesDuTournoi(tournoiId);
   return { pointsAttribues, gainCredite };

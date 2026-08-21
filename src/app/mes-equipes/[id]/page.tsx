@@ -47,21 +47,31 @@ export default function EquipeProfilPage() {
   const [rechercheEffectuee, setRechercheEffectuee] = useState(false);
   const [messageInvitation, setMessageInvitation] = useState<string | null>(null);
   const [propositions, setPropositions] = useState<PropositionEquipe[]>([]);
+  const [titresTournois, setTitresTournois] = useState<Record<string, string>>({});
 
-  function rafraichir() {
+  async function rafraichir() {
     const e = equipeProfilParId(params.id);
     setEquipe(e);
     if (e) {
-      setPropositions(propositionsEnAttentePourEquipe(e.id));
+      const props = propositionsEnAttentePourEquipe(e.id);
+      setPropositions(props);
       setNbMessages(messagesChatEquipe(e.id).length);
+      const entrees = await Promise.all(
+        props.map(async (p) => [p.tournoiId, (await tournoiParId(p.tournoiId))?.titre] as const),
+      );
+      setTitresTournois(
+        Object.fromEntries(entrees.filter((e2): e2 is [string, string] => e2[1] !== undefined)),
+      );
     }
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMoi(lireProfil().pseudo);
-    rafraichir();
-    setPret(true);
+    async function charger() {
+      setMoi(lireProfil().pseudo);
+      await rafraichir();
+      setPret(true);
+    }
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -196,12 +206,12 @@ export default function EquipeProfilPage() {
             </div>
             <div className="mt-2.5 flex flex-col gap-2">
               {propositions.map((p) => {
-                const tournoi = tournoiParId(p.tournoiId);
+                const titreTournoi = titresTournois[p.tournoiId];
                 return (
                   <div key={p.id} className="flex items-center gap-2.5">
                     <div className="flex-1 min-w-0 text-xs">
                       <span className="font-semibold">{p.proposeur}</span> propose d&apos;inscrire l&apos;équipe
-                      {tournoi && <div className="truncate" style={{ color: "var(--ds-muted)" }}>{tournoi.titre}</div>}
+                      {titreTournoi && <div className="truncate" style={{ color: "var(--ds-muted)" }}>{titreTournoi}</div>}
                     </div>
                     <button type="button" onClick={() => refuserProposition(p)} aria-label="Refuser" className={`w-8 h-8 flex items-center justify-center shrink-0 ${PRESS}`} style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}>
                       <X size={13} strokeWidth={2} />

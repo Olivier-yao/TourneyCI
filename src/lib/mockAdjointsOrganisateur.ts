@@ -37,16 +37,16 @@ function ecrire(liste: Adjoint[]) {
   localStorage.setItem(CLE, JSON.stringify(liste));
 }
 
-function organisateurExiste(nom: string): boolean {
-  return classementOrganisateurs().some((o) => o.nom.toLowerCase() === nom.trim().toLowerCase());
+async function organisateurExiste(nom: string): Promise<boolean> {
+  return (await classementOrganisateurs()).some((o) => o.nom.toLowerCase() === nom.trim().toLowerCase());
 }
 
 /** Envoie une invitation — renvoie un message d'erreur, ou null si OK. */
-export function inviterAdjoint(proprietaire: string, nomAdjoint: string): string | null {
+export async function inviterAdjoint(proprietaire: string, nomAdjoint: string): Promise<string | null> {
   const cible = nomAdjoint.trim();
   if (!cible) return "Indique le nom de l'organisateur à inviter.";
   if (cible.toLowerCase() === proprietaire.toLowerCase()) return "Tu ne peux pas t'inviter toi-même.";
-  if (!organisateurExiste(cible)) return "Aucun organisateur ne correspond à ce nom.";
+  if (!(await organisateurExiste(cible))) return "Aucun organisateur ne correspond à ce nom.";
   const tous = lireTout();
   if (tous.some((a) => a.proprietaire === proprietaire && a.adjoint.toLowerCase() === cible.toLowerCase())) {
     return "Déjà invité.";

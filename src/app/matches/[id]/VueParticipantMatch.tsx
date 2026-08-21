@@ -41,12 +41,15 @@ export function VueParticipantMatch({
   const [inscrits, setInscrits] = useState(0);
 
   useEffect(() => {
-    const matchs = matchsDuTournoi(tournoiId);
-    const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : match.round;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRoundLabel(libelleRound(match.round, totalRounds));
-    const tournoi = tournoiParId(tournoiId);
-    setInscrits(tournoi?.placesInscrites ?? 0);
+    async function charger() {
+      const matchs = matchsDuTournoi(tournoiId);
+      const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : match.round;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRoundLabel(libelleRound(match.round, totalRounds));
+      const tournoi = await tournoiParId(tournoiId);
+      setInscrits(tournoi?.placesInscrites ?? 0);
+    }
+    charger();
   }, [tournoiId, match.round]);
 
   const jeSuisJoueur1 = match.joueur1 === monPseudo;

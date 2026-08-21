@@ -28,9 +28,11 @@ export default function ClassementOrganisateursPage() {
   const [maPhoto, setMaPhoto] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setClassement(classementOrganisateurs());
-    setMaPhoto(photoOrganisateur());
+    async function charger() {
+      setClassement(await classementOrganisateurs());
+      setMaPhoto(photoOrganisateur());
+    }
+    charger();
   }, []);
 
   const premier = classement[0];

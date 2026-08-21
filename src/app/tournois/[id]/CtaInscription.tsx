@@ -13,7 +13,6 @@ import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { estInscrit, inscriptionDe, renommerEquipe, enregistrerInscription } from "@/lib/mockInscriptions";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
-import { incrementerInscrits } from "@/lib/mockTournaments";
 import { lireProfil } from "@/lib/mockProfil";
 import { monSoutienPourOrganisateur, soutenirOrganisateur } from "@/lib/mockSoutien";
 import {
@@ -105,36 +104,38 @@ export function CtaInscription({
   const [monEquipeChef, setMonEquipeChef] = useState<EquipeBR | undefined>(undefined);
 
   useEffect(() => {
-    // Lu depuis le localStorage : état neutre au premier rendu serveur,
+    // Lu depuis le localStorage/l'API : état neutre au premier rendu serveur,
     // synchronisé côté client une fois monté (cf. LanceurApp.tsx).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFavori(estFavori(tournoiId));
-    setNotifs(notifsActivees(tournoiId));
-    setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
-    const profil = lireProfil();
-    setMonPseudo(profil.pseudo);
-    setEquipesProfilChef(equipesProfilDontChef(profil.pseudo));
-    setEquipesProfilMembre(equipesProfilDontMembreNonChef(profil.pseudo));
+    async function charger() {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFavori(estFavori(tournoiId));
+      setNotifs(notifsActivees(tournoiId));
+      setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
+      const profil = lireProfil();
+      setMonPseudo(profil.pseudo);
+      setEquipesProfilChef(equipesProfilDontChef(profil.pseudo));
+      setEquipesProfilMembre(equipesProfilDontMembreNonChef(profil.pseudo));
 
-    const equipeConfirmee = estBREquipes ? equipeDeJoueur(tournoiId, profil.pseudo) : undefined;
-    const dejaInscrit = estInscrit(tournoiId);
-    if (!dejaInscrit && equipeConfirmee) {
-      if (fraisXof === 0 || equipeConfirmee.paiementCouvert) {
-        enregistrerInscription(tournoiId, undefined, equipeConfirmee.nom);
-        incrementerInscrits(tournoiId);
-      } else {
-        setEquipeEnAttentePaiement(equipeConfirmee);
+      const equipeConfirmee = estBREquipes ? equipeDeJoueur(tournoiId, profil.pseudo) : undefined;
+      const dejaInscrit = await estInscrit(tournoiId);
+      if (!dejaInscrit && equipeConfirmee) {
+        if (fraisXof === 0 || equipeConfirmee.paiementCouvert) {
+          await enregistrerInscription(tournoiId, undefined, equipeConfirmee.nom);
+        } else {
+          setEquipeEnAttentePaiement(equipeConfirmee);
+        }
+      }
+      setInscrit(await estInscrit(tournoiId));
+      setEquipeInscrite((await inscriptionDe(tournoiId))?.equipe);
+      setMonEquipeChef(equipeConfirmee && equipeConfirmee.chef === profil.pseudo ? equipeConfirmee : undefined);
+
+      if (estBREquipes && equipePreselectionneeId && !dejaInscrit && !equipeConfirmee) {
+        const equipe = equipeParId(equipePreselectionneeId);
+        setEquipeInvitee(equipe);
+        setDemandeEnvoyee(equipe ? aUneDemandeEnAttente(equipe.id, profil.pseudo) : false);
       }
     }
-    setInscrit(estInscrit(tournoiId));
-    setEquipeInscrite(inscriptionDe(tournoiId)?.equipe);
-    setMonEquipeChef(equipeConfirmee && equipeConfirmee.chef === profil.pseudo ? equipeConfirmee : undefined);
-
-    if (estBREquipes && equipePreselectionneeId && !dejaInscrit && !equipeConfirmee) {
-      const equipe = equipeParId(equipePreselectionneeId);
-      setEquipeInvitee(equipe);
-      setDemandeEnvoyee(equipe ? aUneDemandeEnAttente(equipe.id, profil.pseudo) : false);
-    }
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournoiId]);
 
@@ -160,11 +161,14 @@ export function CtaInscription({
     setConfirmationOuverte(true);
   }
 
-  function confirmerInscription() {
+  async function confirmerInscription() {
     if (!presenceAcceptee) return;
     if (montantEnAttente === 0) {
-      enregistrerInscription(tournoiId, tagEnAttente, equipeEnAttente);
-      incrementerInscrits(tournoiId);
+      const resultat = await enregistrerInscription(tournoiId, tagEnAttente, equipeEnAttente);
+      if (!resultat.ok) {
+        setErreur(resultat.erreur ?? "Erreur lors de l'inscription.");
+        return;
+      }
       setConfirmationOuverte(false);
       setInscrit(true);
       setEquipeInscrite(equipeEnAttente);
@@ -260,9 +264,10 @@ export function CtaInscription({
     demarrerInscription(equipeEnAttentePaiement.nom, undefined, undefined, fraisXof);
   }
 
-  function validerRenommage() {
+  async function validerRenommage() {
     if (!nouveauNomEquipe.trim()) return;
-    renommerEquipe(tournoiId, nouveauNomEquipe.trim());
+    const resultat = await renommerEquipe(tournoiId, nouveauNomEquipe.trim());
+    if (!resultat.ok) return;
     setEquipeInscrite(nouveauNomEquipe.trim());
     setRenommage(false);
   }

@@ -5,18 +5,21 @@ import { useRouter } from "next/navigation";
 import { AppBar } from "@/components/ds/AppBar";
 import { CarteTournoi } from "@/components/ds/CarteTournoi";
 import { mesInscriptions } from "@/lib/mockInscriptions";
-import { tournoiParId, estTermine, type Tournoi } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 
 export default function HistoriquePage() {
   const router = useRouter();
   const [tournois, setTournois] = useState<Tournoi[]>([]);
 
   useEffect(() => {
-    const inscrits = mesInscriptions()
-      .map((i) => tournoiParId(i.tournoiId))
-      .filter((t): t is Tournoi => t !== undefined && estTermine(t.id));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournois(inscrits);
+    async function charger() {
+      const inscriptions = await mesInscriptions();
+      const tournoisInscrits = await Promise.all(inscriptions.map((i) => tournoiParId(i.tournoiId)));
+      const inscrits = tournoisInscrits.filter((t): t is Tournoi => t !== undefined && Boolean(t.termine));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTournois(inscrits);
+    }
+    charger();
   }, []);
 
   return (

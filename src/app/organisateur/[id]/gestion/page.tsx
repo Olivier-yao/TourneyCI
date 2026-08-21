@@ -12,11 +12,7 @@ import { manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 
-function CarteActionRequise({
-  tournoi,
-}: {
-  tournoi: NonNullable<ReturnType<typeof tournoiParId>>;
-}) {
+function CarteActionRequise({ tournoi }: { tournoi: Tournoi }) {
   if (tournoi.termine || tournoi.annule) return null;
 
   if (tournoi.type === "battle_royale") {
@@ -76,11 +72,11 @@ export default function GestionTournoiPage() {
   const [autorise, setAutorise] = useState(false);
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
-    setPret(true);
+    tournoiParId(params.id).then((t) => {
+      setTournoi(t);
+      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setPret(true);
+    });
   }, [params.id]);
 
   if (!pret) return null;

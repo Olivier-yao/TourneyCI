@@ -1,46 +1,55 @@
-import { cleCompte } from "./mockAuth";
-
-const CLE_INSCRIPTIONS = "tourney-inscriptions";
+/** Inscriptions — migré vers /api/inscriptions et /api/tournois/[id]/inscriptions
+ * (table Postgres `inscriptions`), même pattern que mockTournaments.ts :
+ * fonctions async, mêmes noms/signatures qu'avant. */
 
 export type Inscription = { tournoiId: string; equipe?: string; tag?: string };
 
-function lireInscriptions(): Inscription[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(cleCompte(CLE_INSCRIPTIONS));
-    return brut ? (JSON.parse(brut) as Inscription[]) : [];
-  } catch {
-    return [];
-  }
+/** Cache mémoire de toutes les inscriptions du compte connecté — rechargé à
+ * chaque appel de mesInscriptions() (pas de invalidation cross-onglet à
+ * gérer ici, contrairement au profil : ces écrans se rafraîchissent déjà à
+ * chaque montage). */
+let cache: Inscription[] | null = null;
+
+export async function mesInscriptions(): Promise<Inscription[]> {
+  const reponse = await fetch("/api/inscriptions");
+  const json = await reponse.json().catch(() => null);
+  cache = json?.success ? (json.data as Inscription[]) : [];
+  return cache;
 }
 
-export function estInscrit(tournoiId: string): boolean {
-  return lireInscriptions().some((i) => i.tournoiId === tournoiId);
+export async function estInscrit(tournoiId: string): Promise<boolean> {
+  return (await inscriptionDe(tournoiId)) !== undefined;
 }
 
-export function inscriptionDe(tournoiId: string): Inscription | undefined {
-  return lireInscriptions().find((i) => i.tournoiId === tournoiId);
+export async function inscriptionDe(tournoiId: string): Promise<Inscription | undefined> {
+  const liste = cache ?? (await mesInscriptions());
+  return liste.find((i) => i.tournoiId === tournoiId);
 }
 
-export function enregistrerInscription(tournoiId: string, tag?: string, equipe?: string) {
-  if (typeof window === "undefined") return;
-  const existantes = lireInscriptions();
-  if (existantes.some((i) => i.tournoiId === tournoiId)) return;
-  localStorage.setItem(
-    cleCompte(CLE_INSCRIPTIONS),
-    JSON.stringify([...existantes, { tournoiId, equipe, tag }]),
-  );
+export type ResultatInscription = { ok: boolean; erreur?: string };
+
+export async function enregistrerInscription(tournoiId: string, tag?: string, equipe?: string): Promise<ResultatInscription> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag, equipe }),
+  });
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  cache = [...(cache ?? []).filter((i) => i.tournoiId !== tournoiId), { tournoiId, tag, equipe }];
+  return { ok: true };
 }
 
 /** Renomme l'équipe de l'inscription courante (capitaine uniquement, avant le
  * début du tournoi — le verrouillage post-démarrage est géré par l'appelant). */
-export function renommerEquipe(tournoiId: string, nouveauNom: string) {
-  if (typeof window === "undefined") return;
-  const existantes = lireInscriptions();
-  const maj = existantes.map((i) => (i.tournoiId === tournoiId && i.equipe ? { ...i, equipe: nouveauNom } : i));
-  localStorage.setItem(cleCompte(CLE_INSCRIPTIONS), JSON.stringify(maj));
-}
-
-export function mesInscriptions(): Inscription[] {
-  return lireInscriptions();
+export async function renommerEquipe(tournoiId: string, nouveauNom: string): Promise<ResultatInscription> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ equipe: nouveauNom }),
+  });
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  cache = (cache ?? []).map((i) => (i.tournoiId === tournoiId ? { ...i, equipe: nouveauNom } : i));
+  return { ok: true };
 }

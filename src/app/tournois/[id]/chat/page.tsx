@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Send, Lock } from "lucide-react";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
@@ -21,25 +21,34 @@ function heure(horodatage: number): string {
 export default function ChatTournoiPage() {
   const connecte = useExigerConnexion();
   const params = useParams<{ id: string }>();
-  const tournoi = tournoiParId(params.id);
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
   const [organisateur, setOrganisateur] = useState(false);
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
 
   useEffect(() => {
-    const org = Boolean(tournoi) && peutSuperviser(tournoi!.organisateur, nomOrganisateurActuel());
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateur(org);
-    // Accessible dès l'inscription (pas besoin d'attendre la clôture des
-    // inscriptions ni le début de la compétition).
-    setAutorise(estInscrit(params.id) || org);
-    setMessages(messagesChat(params.id));
+    async function charger() {
+      const t = await tournoiParId(params.id);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTournoi(t);
+      const org = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
+      setOrganisateur(org);
+      // Accessible dès l'inscription (pas besoin d'attendre la clôture des
+      // inscriptions ni le début de la compétition).
+      setAutorise((await estInscrit(params.id)) || org);
+      setMessages(messagesChat(params.id));
+      setPret(true);
+    }
+    charger();
     const id = setInterval(() => setMessages(messagesChat(params.id)), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
   }, [params.id]);
 
   if (!connecte) return null;
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

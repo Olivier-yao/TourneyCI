@@ -15,7 +15,7 @@ export default async function MatchLivePage({
     notFound();
   }
 
-  const tournoi = tournoiParId(match.tournoiId);
+  const tournoi = await tournoiParId(match.tournoiId);
 
   return (
     <MatchLiveClient

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck, CheckCircle2, CreditCard, ArrowLeft, LockKeyhole } from "lucide-react";
 import { Button, PRESS } from "@/components/ds/Button";
 import { formatXof } from "@/lib/formatXof";
-import { incrementerInscrits } from "@/lib/mockTournaments";
 import { enregistrerInscription } from "@/lib/mockInscriptions";
 import { lireSolde, debiter } from "@/lib/mockWallet";
 import { marquerPaiementCouvert } from "@/lib/mockEquipesBR";
@@ -45,13 +44,20 @@ export function FluxPaiement({
 
   const soldeInsuffisant = soldeCarte < montantDu;
 
-  function inscriptionReussie() {
-    enregistrerInscription(tournoi.id, tag, equipe);
-    incrementerInscrits(tournoi.id);
+  async function inscriptionReussie(): Promise<boolean> {
+    const resultat = await enregistrerInscription(tournoi.id, tag, equipe);
+    if (!resultat.ok) {
+      // De l'argent a déjà été débité (payer() a validé le débit avant
+      // d'appeler cette fonction) : on ne peut pas rester silencieux si
+      // l'inscription échoue côté serveur (ex. tournoi complet entre-temps).
+      setErreur(resultat.erreur ?? "L'inscription a échoué après le paiement. Contacte le service client.");
+      return false;
+    }
     if (equipeId) marquerPaiementCouvert(equipeId);
+    return true;
   }
 
-  function payer(e: React.FormEvent) {
+  async function payer(e: React.FormEvent) {
     e.preventDefault();
     const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id);
     if (!ok) {
@@ -59,8 +65,7 @@ export function FluxPaiement({
       return;
     }
     setErreur(null);
-    inscriptionReussie();
-    setSucces(true);
+    if (await inscriptionReussie()) setSucces(true);
   }
 
   if (succes) {

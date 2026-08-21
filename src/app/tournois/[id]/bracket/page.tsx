@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Lock, Shuffle } from "lucide-react";
-import { tournoiParId, bracketVerrouillee, inscriptionsFermees } from "@/lib/mockTournaments";
+import { tournoiParId, bracketVerrouillee, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, genererBracket } from "@/lib/mockBracket";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
@@ -26,8 +26,16 @@ function melanger<T>(liste: T[]): T[] {
 export default function BracketPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const tournoi = tournoiParId(params.id);
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [, setRafraichir] = useState(0);
+
+  useEffect(() => {
+    tournoiParId(params.id).then((t) => {
+      setTournoi(t);
+      setPret(true);
+    });
+  }, [params.id]);
 
   const matches = matchsDuTournoi(params.id);
   const fermees = tournoi ? inscriptionsFermees(tournoi) : false;
@@ -41,6 +49,8 @@ export default function BracketPage() {
     setRafraichir((n) => n + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournoi?.id, matches.length, fermees, assezDeMonde]);
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

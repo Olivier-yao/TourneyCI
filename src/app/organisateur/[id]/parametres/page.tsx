@@ -29,17 +29,17 @@ export default function ParametresTournoiPage() {
   const [symboleId, setSymboleId] = useState(SYMBOLE_DEFAUT);
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setAutorise(t?.organisateur === nomOrganisateurActuel());
-    setTitre(t?.titre ?? "");
-    setVille(t?.ville ?? "");
-    setCheckin(t?.checkin ?? "");
-    setReglement(t?.reglement ?? "");
-    setInformations(t?.informations ?? "");
-    setSymboleId(t?.symboleId ?? SYMBOLE_DEFAUT);
-    setPret(true);
+    tournoiParId(params.id).then((t) => {
+      setTournoi(t);
+      setAutorise(t?.organisateur === nomOrganisateurActuel());
+      setTitre(t?.titre ?? "");
+      setVille(t?.ville ?? "");
+      setCheckin(t?.checkin ?? "");
+      setReglement(t?.reglement ?? "");
+      setInformations(t?.informations ?? "");
+      setSymboleId(t?.symboleId ?? SYMBOLE_DEFAUT);
+      setPret(true);
+    });
   }, [params.id]);
 
   if (!pret) return null;
@@ -62,15 +62,27 @@ export default function ParametresTournoiPage() {
     );
   }
 
-  function enregistrer() {
-    modifierTournoi(params.id, {
+  /** Convertit le texte "19h30"/"19:30" en horodatage réel, sur le même jour
+   * calendaire que le début du tournoi (checkin_le est une vraie colonne
+   * DateTime, cf. src/lib/server/tournois.ts). */
+  function checkinTsDepuisHeure(heure: string): number | undefined {
+    const m = heure.trim().match(/^(\d{1,2})[h:](\d{2})$/i);
+    if (!m || !tournoi?.debutTournoiTs) return undefined;
+    const ref = new Date(tournoi.debutTournoiTs);
+    return new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), Number(m[1]), Number(m[2])).getTime();
+  }
+
+  async function enregistrer() {
+    const checkinTs = checkinTsDepuisHeure(checkin);
+    const ok = await modifierTournoi(params.id, {
       titre: titre.trim() || tournoi!.titre,
       ville: ville.trim() || tournoi!.ville,
-      checkin: checkin.trim(),
+      checkinTs,
       reglement: reglement.trim(),
       informations: informations.trim() || undefined,
       symboleId,
     });
+    if (!ok) return;
     setEnregistre(true);
     setTimeout(() => setEnregistre(false), 2000);
   }

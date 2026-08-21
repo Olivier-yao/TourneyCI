@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Settings2, Search } from "lucide-react";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { manchesBR, classementCumuleBR, mancheEnCoursBR, pointsManche } from "@/lib/mockBattleRoyale";
 
 const RAFRAICHISSEMENT_MS = 15_000;
@@ -13,7 +13,8 @@ const RAFRAICHISSEMENT_MS = 15_000;
 export default function BattleRoyalePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const tournoi = tournoiParId(params.id);
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [rafraichir, setRafraichir] = useState(0);
   const [organisateur, setOrganisateur] = useState(false);
   const [manches, setManches] = useState<ReturnType<typeof manchesBR>>([]);
@@ -29,12 +30,18 @@ export default function BattleRoyalePage() {
   useEffect(() => {
     // État lu depuis le localStorage : neutre au premier rendu serveur,
     // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateur(tournoi?.organisateur === nomOrganisateurActuel());
-    setManches(manchesBR(params.id));
-    setClassement(classementCumuleBR(params.id, tournoi?.brSousType ?? "solo"));
-    setMancheEnCours(mancheEnCoursBR(params.id));
-  }, [params.id, rafraichir, tournoi?.brSousType, tournoi?.organisateur]);
+    async function charger() {
+      const t = await tournoiParId(params.id);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTournoi(t);
+      setOrganisateur(t?.organisateur === nomOrganisateurActuel());
+      setManches(manchesBR(params.id));
+      setClassement(classementCumuleBR(params.id, t?.brSousType ?? "solo"));
+      setMancheEnCours(mancheEnCoursBR(params.id));
+      setPret(true);
+    }
+    charger();
+  }, [params.id, rafraichir]);
 
   // Point 205 : aperçu en direct (validé par l'organisateur, pas encore
   // clôturé) superposé au classement officiel — jamais persisté comme
@@ -48,6 +55,8 @@ export default function BattleRoyalePage() {
           })
           .sort((a, b) => b.points - a.points)
       : classement;
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (

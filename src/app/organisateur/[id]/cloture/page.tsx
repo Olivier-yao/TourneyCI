@@ -44,18 +44,18 @@ export default function ClotureTournoiPage() {
   const [demandeEnAttente, setDemandeEnAttente] = useState<DemandeAnnulation | undefined>(undefined);
   const [copie, setCopie] = useState(false);
 
-  function rafraichirTournoi() {
-    setTournoi(tournoiParId(params.id));
+  async function rafraichirTournoi() {
+    setTournoi(await tournoiParId(params.id));
   }
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
-    setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
-    setDemandeEnAttente(demandeAnnulationPourTournoi(params.id));
-    setPret(true);
+    tournoiParId(params.id).then((t) => {
+      setTournoi(t);
+      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
+      setDemandeEnAttente(demandeAnnulationPourTournoi(params.id));
+      setPret(true);
+    });
   }, [params.id]);
 
   const manchesJouees = tournoi?.type === "battle_royale" ? manchesBR(params.id).length : 0;
@@ -146,10 +146,10 @@ export default function ClotureTournoiPage() {
 
   useEffect(() => {
     if (tournoi && cloturePret && !tournoi.termine && !resultat) {
-      const r = terminerTournoi(params.id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setResultat(r);
-      rafraichirTournoi();
+      terminerTournoi(params.id).then((r) => {
+        setResultat(r);
+        rafraichirTournoi();
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloturePret, tournoi?.termine]);

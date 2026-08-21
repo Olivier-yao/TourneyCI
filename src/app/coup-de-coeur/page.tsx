@@ -16,22 +16,25 @@ export default function CoupDeCoeurPage() {
   const [organisateurs, setOrganisateurs] = useState<LigneOrganisateur[]>([]);
 
   useEffect(() => {
-    const tournois = tousLesTournois();
-    const parOrganisateur = new Map<string, Tournoi[]>();
-    for (const t of tournois) {
-      const liste = parOrganisateur.get(t.organisateur) ?? [];
-      liste.push(t);
-      parOrganisateur.set(t.organisateur, liste);
+    async function charger() {
+      const tournois = await tousLesTournois();
+      const parOrganisateur = new Map<string, Tournoi[]>();
+      for (const t of tournois) {
+        const liste = parOrganisateur.get(t.organisateur) ?? [];
+        liste.push(t);
+        parOrganisateur.set(t.organisateur, liste);
+      }
+      const lignes = Array.from(parOrganisateur.entries())
+        .map(([nom, tournoisOrg]) => {
+          const stats = statistiquesReputation(nom);
+          return { nom, coeurs: stats.coeurs, coeursBrises: stats.coeursBrises, tournois: tournoisOrg };
+        })
+        .filter((l) => l.coeurs > 0)
+        .sort((a, b) => b.coeurs - a.coeurs);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOrganisateurs(lignes);
     }
-    const lignes = Array.from(parOrganisateur.entries())
-      .map(([nom, tournoisOrg]) => {
-        const stats = statistiquesReputation(nom);
-        return { nom, coeurs: stats.coeurs, coeursBrises: stats.coeursBrises, tournois: tournoisOrg };
-      })
-      .filter((l) => l.coeurs > 0)
-      .sort((a, b) => b.coeurs - a.coeurs);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateurs(lignes);
+    charger();
   }, []);
 
   if (!connecte) return null;

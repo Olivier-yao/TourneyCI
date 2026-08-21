@@ -71,18 +71,21 @@ export default function AccueilV2Page() {
     // État dépendant du localStorage (tournois créés localement) : liste
     // vide au premier rendu serveur, synchronisée côté client une fois
     // montée, pour éviter un mismatch d'hydratation.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNotifications(mesNotifications());
-    setNonLues(nombreNonLues());
-    setTransitionCube(consommerTransitionEntree());
-    setTournois(tousLesTournois());
-    const profil = lireProfil();
-    setUtilisateur({
-      nom: profil.pseudo,
-      initiales: profil.pseudo.split(" ").map((m) => m[0]).filter(Boolean).join("").slice(0, 2).toUpperCase(),
-      photoUrl: profil.photoUrl,
-      ville: profil.ville,
-    });
+    async function charger() {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNotifications(mesNotifications());
+      setNonLues(nombreNonLues());
+      setTransitionCube(consommerTransitionEntree());
+      setTournois(await tousLesTournois());
+      const profil = lireProfil();
+      setUtilisateur({
+        nom: profil.pseudo,
+        initiales: profil.pseudo.split(" ").map((m) => m[0]).filter(Boolean).join("").slice(0, 2).toUpperCase(),
+        photoUrl: profil.photoUrl,
+        ville: profil.ville,
+      });
+    }
+    charger();
   }, []);
 
   if (!connecte) return null;

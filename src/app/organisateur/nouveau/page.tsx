@@ -245,15 +245,6 @@ export default function NouveauTournoiPage() {
   const nbFinalistes = modeFinalistes === "1" ? 1 : modeFinalistes === "3" ? 3 : Math.max(1, Number(nbFinalistesPerso) || 1);
   const repartitionCalculee = repartitionAutomatique(cashPrizeEffectif, nbFinalistes);
 
-  function labelFormat(): string {
-    if (type === "1v1") return "1v1";
-    if (type === "equipes") {
-      const taille = equipeSousType.charAt(0).toUpperCase() + equipeSousType.slice(1);
-      return `Équipes · ${taille}${modeEquipe === "libre" ? " · libre" : ""}`;
-    }
-    return `Battle Royale · ${places} joueurs`;
-  }
-
   function creer(e: React.FormEvent) {
     e.preventDefault();
     if (jeuId === "autre" && !jeuPersonnalise.trim()) {
@@ -307,42 +298,37 @@ export default function NouveauTournoiPage() {
     finaliserCreation();
   }
 
-  function finaliserCreation() {
-    const equipes =
-      type === "equipes" && modeEquipe === "predefinies"
-        ? nomsEquipes
-            .split("\n")
-            .map((n) => n.trim())
-            .filter(Boolean)
-            .map((nom, i) => ({ id: `equipe-${i}`, nom }))
-        : undefined;
+  async function finaliserCreation() {
+    if (debutTournoiTs === undefined) {
+      setErreur("La date est invalide.");
+      return;
+    }
+    const checkinTs = versTimestamp(dateJour, checkinHeure);
+    if (checkinTs === undefined) {
+      setErreur("L'heure de check-in est invalide.");
+      return;
+    }
 
-    const tournoi = creerTournoi({
+    const resultat = await creerTournoi({
       jeuId: jeuIdFinal,
       jeuLabel: jeuLabelFinal,
       titre: titre.trim(),
-      organisateur: nomOrganisateurActuel(),
-      format: labelFormat(),
       type,
       modalite,
-      ville: modalite === "virtuel" ? "En ligne" : ville.trim(),
-      dateLabel: dateLabel.trim(),
+      ville: modalite === "virtuel" ? undefined : ville.trim(),
       cashPrizeXof: cashPrizeEffectif,
       fraisXof: payant ? Number(fraisXof) || 0 : 0,
       financementCashPrize: financeParOrganisateur ? "organisateur" : "inscriptions",
       commissionActivee: payant && commissionActivee,
       placesTotal: places,
-      checkin: checkin.trim(),
-      enDirect: false,
+      checkinTs,
       reglement: reglement.trim(),
       informations: informations.trim() || undefined,
-      inscrits: [],
       banniereUrl,
       symboleId,
       debutTournoiTs,
       debutInscriptionsTs,
       finInscriptionsTs,
-      equipes,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       brSousType: type === "battle_royale" ? brSousType : undefined,
       manchesPrevues: type === "battle_royale" ? Math.max(1, Number(manchesPrevues) || 1) : undefined,
@@ -351,11 +337,16 @@ export default function NouveauTournoiPage() {
         (payant || financeParOrganisateur) && cashPrizeEffectif > 0 ? repartitionCalculee : undefined,
     });
 
-    if (financeParOrganisateur && cashPrizeNum > 0) {
-      debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement", tournoi.id);
+    if (!resultat.ok) {
+      setErreur(resultat.erreur ?? "Erreur lors de la création du tournoi.");
+      return;
     }
 
-    router.push(`/tournois/${tournoi.id}`);
+    if (financeParOrganisateur && cashPrizeNum > 0) {
+      debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement", resultat.tournoi.id);
+    }
+
+    router.push(`/tournois/${resultat.tournoi.id}`);
   }
 
   if (paiementFraisOuvert) {

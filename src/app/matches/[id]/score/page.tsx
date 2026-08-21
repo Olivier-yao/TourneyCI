@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Video, X, Users, Minus, Plus, Trophy } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { Avatar } from "@/components/ds/Avatar";
 import { matchParId, mettreAJourScoreMatch } from "@/lib/mockBracket";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 
 function initiales(nom: string): string {
   return nom
@@ -23,7 +23,8 @@ export default function SignalerScorePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const match = matchParId(params.id);
-  const tournoi = match ? tournoiParId(match.tournoiId) : undefined;
+  const [pretPage, setPretPage] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
 
   const [s1, setS1] = useState(match?.score1?.toString() ?? "");
   const [s2, setS2] = useState(match?.score2?.toString() ?? "");
@@ -31,6 +32,20 @@ export default function SignalerScorePage() {
   const [envoye, setEnvoye] = useState(false);
   const captureRef = useRef<HTMLInputElement>(null);
   const clipRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!match) {
+      setPretPage(true);
+      return;
+    }
+    tournoiParId(match.tournoiId).then((t) => {
+      setTournoi(t);
+      setPretPage(true);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id]);
+
+  if (!pretPage) return null;
 
   if (!match || !tournoi) {
     return (

@@ -24,11 +24,13 @@ export default function QualificationTournoiPage() {
   const [, setRafraichir] = useState(0);
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
-    setPret(true);
+    async function charger() {
+      const t = await tournoiParId(params.id);
+      setTournoi(t);
+      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setPret(true);
+    }
+    charger();
   }, [params.id]);
 
   if (!pret) return null;

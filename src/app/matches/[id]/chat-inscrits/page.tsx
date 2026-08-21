@@ -6,7 +6,7 @@ import { ArrowDown, Send, LockKeyholeOpen, Lock, CheckCircle2, XCircle } from "l
 import { PRESS } from "@/components/ds/Button";
 import { CLIP_HEXAGONE } from "@/components/ds/Palier";
 import { matchParId } from "@/lib/mockBracket";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
@@ -39,7 +39,8 @@ export default function ChatInscritsMatchPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const match = matchParId(params.id);
-  const tournoi = match ? tournoiParId(match.tournoiId) : undefined;
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
   const [inscritMoi, setInscritMoi] = useState(false);
   const [organisateur, setOrganisateur] = useState(false);
@@ -49,22 +50,34 @@ export default function ChatInscritsMatchPage() {
   const [texte, setTexte] = useState("");
 
   useEffect(() => {
-    if (!match) return;
-    const estOrg = Boolean(tournoi) && peutSuperviser(tournoi!.organisateur, nomOrganisateurActuel());
-    const suisInscrit = estInscrit(match.tournoiId);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrganisateur(estOrg);
-    setInscritMoi(suisInscrit);
-    setAutorise(suisInscrit || estOrg);
-    setMonPseudo(lireProfil().pseudo);
-    setPresents(presentsDuTournoi(match.tournoiId));
-    setMessages(messagesChat(cleInscrits(params.id)));
+    if (!match) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPret(true);
+      return;
+    }
+    async function charger() {
+      if (!match) return;
+      const t = await tournoiParId(match.tournoiId);
+      const estOrg = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
+      const suisInscrit = await estInscrit(match.tournoiId);
+      setTournoi(t);
+      setOrganisateur(estOrg);
+      setInscritMoi(suisInscrit);
+      setAutorise(suisInscrit || estOrg);
+      setMonPseudo(lireProfil().pseudo);
+      setPresents(presentsDuTournoi(match.tournoiId));
+      setMessages(messagesChat(cleInscrits(params.id)));
+      setPret(true);
+    }
+    charger();
     const id = setInterval(() => setMessages(messagesChat(cleInscrits(params.id))), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
   if (!connecte) return null;
+
+  if (!pret) return null;
 
   if (!match) {
     return (

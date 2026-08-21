@@ -58,8 +58,11 @@ export default function EnDirectPage() {
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTousLesTournoisState(tousLesTournois());
+    async function charger() {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTousLesTournoisState(await tousLesTournois());
+    }
+    charger();
   }, []);
 
   const enDirect = useMemo(() => {

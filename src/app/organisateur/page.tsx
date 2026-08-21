@@ -305,32 +305,34 @@ function OrganisateurPageInterne() {
   const [alerteVerifOuverte, setAlerteVerifOuverte] = useState(false);
 
   useEffect(() => {
-    // État dépendant du localStorage : liste vide au premier rendu serveur,
-    // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
-    const estCert = estCertifie();
-    const nom = nomOrganisateur();
-    // Point 178 : le règlement général doit être lu avant même le choix du
-    // nom d'organisateur, la toute première fois.
-    if (!nom && !reglementStandardAccepte()) {
-      router.replace("/organisateur/reglement-standard");
-      return;
+    async function charger() {
+      // État dépendant du localStorage : liste vide au premier rendu serveur,
+      // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
+      const estCert = estCertifie();
+      const nom = nomOrganisateur();
+      // Point 178 : le règlement général doit être lu avant même le choix du
+      // nom d'organisateur, la toute première fois.
+      if (!nom && !reglementStandardAccepte()) {
+        router.replace("/organisateur/reglement-standard");
+        return;
+      }
+      const demandeActuelle = demandeOrganisateurActuelle();
+      setCertifie(estCert);
+      setOrganisateurCertifie(estOrganisateurCertifie());
+      setNomOrg(nom);
+      setDemande(demandeActuelle);
+      // Point 167 : un nom suffit pour atteindre le tableau de bord — la
+      // demande de statut certifié (point 158) n'est plus une étape imposée.
+      setEtape(!nom ? "nom" : "complet");
+      setTournoisOrganises(await mesTournoisOrganises());
+      // Point 187 : arrivée depuis l'alerte du formulaire de création après
+      // vérification d'identité — ouvre directement la demande de certification
+      // plutôt que de laisser l'utilisateur revenir au même message.
+      if (searchParams.get("ouvrirCertification") === "1" && nom && estCert && !estOrganisateurCertifie()) {
+        setVueCertification(true);
+      }
     }
-    const demandeActuelle = demandeOrganisateurActuelle();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCertifie(estCert);
-    setOrganisateurCertifie(estOrganisateurCertifie());
-    setNomOrg(nom);
-    setDemande(demandeActuelle);
-    // Point 167 : un nom suffit pour atteindre le tableau de bord — la
-    // demande de statut certifié (point 158) n'est plus une étape imposée.
-    setEtape(!nom ? "nom" : "complet");
-    setTournoisOrganises(mesTournoisOrganises());
-    // Point 187 : arrivée depuis l'alerte du formulaire de création après
-    // vérification d'identité — ouvre directement la demande de certification
-    // plutôt que de laisser l'utilisateur revenir au même message.
-    if (searchParams.get("ouvrirCertification") === "1" && nom && estCert && !estOrganisateurCertifie()) {
-      setVueCertification(true);
-    }
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

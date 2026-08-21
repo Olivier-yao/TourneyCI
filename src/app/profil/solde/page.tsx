@@ -39,6 +39,21 @@ export default function SoldePage() {
   const [gains, setGains] = useState(0);
   const [gainsRecents, setGainsRecents] = useState(0);
   const [mouvementSelectionne, setMouvementSelectionne] = useState<Mouvement | null>(null);
+  const [titreTournoiSelectionne, setTitreTournoiSelectionne] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!mouvementSelectionne?.tournoiId) {
+      setTitreTournoiSelectionne(undefined);
+      return;
+    }
+    let annule = false;
+    tournoiParId(mouvementSelectionne.tournoiId).then((t) => {
+      if (!annule) setTitreTournoiSelectionne(t?.titre);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [mouvementSelectionne]);
 
   useEffect(() => {
     const lus = mesMouvements();
@@ -166,7 +181,7 @@ export default function SoldePage() {
             {mouvementSelectionne.tournoiId && (
               <div className="flex items-center justify-between text-sm">
                 <span style={{ color: "var(--ds-muted)" }}>Tournoi</span>
-                <span className="text-right">{tournoiParId(mouvementSelectionne.tournoiId)?.titre ?? mouvementSelectionne.tournoiId}</span>
+                <span className="text-right">{titreTournoiSelectionne ?? mouvementSelectionne.tournoiId}</span>
               </div>
             )}
             <div className="flex items-center justify-between text-sm pt-1" style={{ borderTop: "1px solid var(--ds-border)" }}>

@@ -38,7 +38,7 @@ import {
   traiterDemandeAnnulation,
   type DemandeAnnulation,
 } from "@/lib/mockDemandesAnnulation";
-import { annulerTournoi, tournoiParId } from "@/lib/mockTournaments";
+import { annulerTournoi, tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { plaintesEnAttente, traiterPlainte, type Plainte } from "@/lib/mockPlaintes";
 import { mesLitiges, type Litige, type StatutLitige } from "@/lib/mockLitige";
 
@@ -614,6 +614,7 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   const [plaintes, setPlaintes] = useState<Plainte[]>([]);
   const [litiges, setLitiges] = useState<Litige[]>([]);
   const [demandesAnnul, setDemandesAnnul] = useState<DemandeAnnulation[]>([]);
+  const [tournoisParDemande, setTournoisParDemande] = useState<Record<string, Tournoi | undefined>>({});
 
   function rafraichir() {
     setDemandesOrga(demandesOrganisateurEnAttente());
@@ -626,6 +627,12 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     rafraichir();
   }, []);
+
+  useEffect(() => {
+    Promise.all(demandesAnnul.map(async (d) => [d.tournoiId, await tournoiParId(d.tournoiId)] as const)).then((paires) => {
+      setTournoisParDemande(Object.fromEntries(paires));
+    });
+  }, [demandesAnnul]);
 
   const counts: Record<Onglet, number> = {
     organisateurs: demandesOrga.length,
@@ -781,7 +788,7 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
               <EtatVide texte="Aucune demande d'annulation en attente." />
             ) : (
               demandesAnnul.map((d, i) => {
-                const tournoi = tournoiParId(d.tournoiId);
+                const tournoi = tournoisParDemande[d.tournoiId];
                 const inscrits = tournoi ? ` · ${tournoi.placesInscrites} INSCRIT${tournoi.placesInscrites > 1 ? "S" : ""}` : "";
                 return (
                   <CarteAction

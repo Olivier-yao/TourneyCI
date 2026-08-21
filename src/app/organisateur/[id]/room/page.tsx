@@ -32,14 +32,16 @@ export default function RoomTournoiPage() {
   const [envoiConfirme, setEnvoiConfirme] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
-    const infos = infosRoomDuTournoi(params.id);
-    setLien(infos.lien);
-    setMotDePasse(infos.motDePasse);
-    setPret(true);
+    async function charger() {
+      const t = await tournoiParId(params.id);
+      setTournoi(t);
+      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      const infos = infosRoomDuTournoi(params.id);
+      setLien(infos.lien);
+      setMotDePasse(infos.motDePasse);
+      setPret(true);
+    }
+    charger();
   }, [params.id]);
 
   if (!pret) return null;

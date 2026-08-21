@@ -9,7 +9,7 @@ import { EcussonEquipe } from "@/components/ds/Palier";
 import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { lireProfil } from "@/lib/mockProfil";
 import {
   equipeParId,
@@ -28,6 +28,8 @@ import {
 export default function GestionEquipeBRPage() {
   const params = useParams<{ id: string; equipeId: string }>();
   const router = useRouter();
+  const [pret, setPret] = useState(false);
+  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [equipe, setEquipe] = useState<EquipeBR | undefined>(undefined);
   const [demandes, setDemandes] = useState<DemandeEquipeBR[]>([]);
   const [retraits, setRetraits] = useState<RetraitEquipeBR[]>([]);
@@ -37,8 +39,6 @@ export default function GestionEquipeBRPage() {
   const [motif, setMotif] = useState("");
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
   const [parametresOuverts, setParametresOuverts] = useState(false);
-
-  const tournoi = tournoiParId(params.id);
 
   function rafraichir() {
     const e = equipeParId(params.equipeId);
@@ -53,8 +53,14 @@ export default function GestionEquipeBRPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonPseudo(lireProfil().pseudo);
     rafraichir();
+    tournoiParId(params.id).then((t) => {
+      setTournoi(t);
+      setPret(true);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.equipeId]);
+
+  if (!pret) return null;
 
   if (!tournoi || !equipe) {
     return (

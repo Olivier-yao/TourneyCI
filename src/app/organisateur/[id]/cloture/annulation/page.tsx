@@ -46,12 +46,12 @@ export default function AnnulationTournoiPage() {
   const [motif, setMotif] = useState("");
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
-    setDejaDemande(Boolean(demandeAnnulationPourTournoi(params.id)));
-    setPret(true);
+    tournoiParId(params.id).then((t) => {
+      setTournoi(t);
+      setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
+      setDejaDemande(Boolean(demandeAnnulationPourTournoi(params.id)));
+      setPret(true);
+    });
   }, [params.id]);
 
   if (!pret) return null;

@@ -13,7 +13,7 @@ import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
 import { lireProfil } from "@/lib/mockProfil";
 import { equipesDuJoueur, demandesEnAttente, TAILLE_EQUIPE_BR, type EquipeBR } from "@/lib/mockEquipesBR";
-import { tournoiParId, estTermine, type Tournoi } from "@/lib/mockTournaments";
+import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import {
   equipesProfilDontChef,
   equipesProfilDontMembreNonChef,
@@ -58,22 +58,25 @@ export default function MesEquipesPage() {
   }
 
   useEffect(() => {
-    const moi = lireProfil().pseudo;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPseudo(moi);
-    rafraichirEquipesProfil(moi);
-    rafraichirInvitations(moi);
-    const avecTournoi = equipesDuJoueur(moi)
-      .filter((e) => !estTermine(e.tournoiId))
-      .map((equipe) => {
-        const tournoi = tournoiParId(equipe.tournoiId);
-        if (!tournoi) return undefined;
-        const pending = equipe.chef === moi ? demandesEnAttente(equipe.id).length : 0;
-        return { equipe, tournoi, pending };
-      })
-      .filter((v): v is EquipeAvecTournoi => Boolean(v))
-      .sort((a, b) => b.equipe.creeLe - a.equipe.creeLe);
-    setEquipesTournoi(avecTournoi);
+    async function charger() {
+      const moi = lireProfil().pseudo;
+      setPseudo(moi);
+      rafraichirEquipesProfil(moi);
+      rafraichirInvitations(moi);
+      const brut = await Promise.all(
+        equipesDuJoueur(moi).map(async (equipe) => {
+          const tournoi = await tournoiParId(equipe.tournoiId);
+          if (!tournoi || tournoi.termine) return undefined;
+          const pending = equipe.chef === moi ? demandesEnAttente(equipe.id).length : 0;
+          return { equipe, tournoi, pending };
+        }),
+      );
+      const avecTournoi = brut
+        .filter((v): v is EquipeAvecTournoi => Boolean(v))
+        .sort((a, b) => b.equipe.creeLe - a.equipe.creeLe);
+      setEquipesTournoi(avecTournoi);
+    }
+    charger();
   }, []);
 
   if (!connecte) return null;

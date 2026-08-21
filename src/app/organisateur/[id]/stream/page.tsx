@@ -41,12 +41,14 @@ export default function StreamTournoiPage() {
   const [dureeSec, setDureeSec] = useState(0);
 
   useEffect(() => {
-    const t = tournoiParId(params.id);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTournoi(t);
-    setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
-    setStreamActif(t?.streamActif ?? false);
-    setPret(true);
+    async function charger() {
+      const t = await tournoiParId(params.id);
+      setTournoi(t);
+      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setStreamActif(t?.streamActif ?? false);
+      setPret(true);
+    }
+    charger();
   }, [params.id]);
 
   useEffect(() => {

@@ -30,9 +30,12 @@ export default function TournoisPage() {
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTousLesTournoisState(tousLesTournois());
-    setIdsInscrits(new Set(mesInscriptions().map((i) => i.tournoiId)));
+    async function charger() {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTousLesTournoisState(await tousLesTournois());
+      setIdsInscrits(new Set((await mesInscriptions()).map((i) => i.tournoiId)));
+    }
+    charger();
   }, []);
 
   function correspond(t: Tournoi, f: FiltresValeur) {
