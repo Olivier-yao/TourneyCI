@@ -125,9 +125,9 @@ function ModerationAdminContenu() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     traiterAppel(a.id, "valide");
-                    reevaluerPaiementsEnAttente();
+                    await reevaluerPaiementsEnAttente();
                     rafraichir();
                   }}
                   className="flex-1 text-xs font-medium cursor-pointer px-2.5 py-1.5"
@@ -137,9 +137,9 @@ function ModerationAdminContenu() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     traiterAppel(a.id, "rejete");
-                    reevaluerPaiementsEnAttente();
+                    await reevaluerPaiementsEnAttente();
                     rafraichir();
                   }}
                   className="flex-1 text-xs font-medium cursor-pointer px-2.5 py-1.5"
@@ -171,8 +171,8 @@ function ModerationAdminContenu() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  libererSequestreCashPrize(p.tournoiId);
+                onClick={async () => {
+                  await libererSequestreCashPrize(p.tournoiId);
                   rafraichir();
                 }}
                 className="text-xs font-medium cursor-pointer px-2.5 py-1.5"

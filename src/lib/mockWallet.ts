@@ -1,10 +1,15 @@
 /**
- * Solde & TourneyCard (mock) — pas de vrai argent, tout est simulé en
- * localStorage. Sert à payer les inscriptions et à recevoir les gains
- * automatiquement à la fin d'un tournoi (cf. mockTournaments.terminerTournoi).
+ * Solde & TourneyCard — table `mouvements` (Postgres via /api/wallet), même
+ * pattern que les migrations précédentes (fonctions async, mêmes noms/
+ * signatures que la version localStorage quand c'est possible). Le solde
+ * n'est pas stocké : dérivé de la somme des mouvements, à la lecture, aussi
+ * bien côté serveur (cf. src/lib/server/wallet.ts) que côté client.
+ *
+ * Pas d'agrégateur de paiement mobile money branché pour l'instant :
+ * recharger()/retirer() restent des écritures directes (le joueur saisit un
+ * montant, il est crédité/débité instantanément) — seule la PERSISTANCE
+ * change ici, pas le flux de paiement réel, qui reste à brancher plus tard.
  */
-
-import { cleCompte } from "./mockAuth";
 
 export type TypeMouvement = "gain" | "inscription" | "recharge" | "retrait" | "commission" | "financement" | "remboursement";
 
@@ -26,60 +31,65 @@ export function codeTransaction(id: string): string {
   return `TXN-${id.replace(/^mv-/, "").toUpperCase()}`;
 }
 
-const CLE_SOLDE = "tourney-solde";
-const CLE_MOUVEMENTS = "tourney-mouvements";
-const SOLDE_INITIAL = 128500;
-
-const MOUVEMENTS_INITIAUX: Mouvement[] = [
-  { id: "m1", type: "gain", libelle: "Gain · Abidjan Cup #11", montantXof: 150000, dateLabel: "27/07 23:41", horodatage: 1 },
-  { id: "m2", type: "inscription", libelle: "Inscription · Ligue Yopougon", montantXof: -2000, dateLabel: "26/07", horodatage: 2 },
-  { id: "m3", type: "retrait", libelle: "Retrait Wave", montantXof: -40000, dateLabel: "22/07", horodatage: 3 },
-];
-
-function lireBrut<T>(cle: string, defaut: T): T {
-  if (typeof window === "undefined") return defaut;
-  try {
-    const brut = localStorage.getItem(cle);
-    return brut ? (JSON.parse(brut) as T) : defaut;
-  } catch {
-    return defaut;
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-export function lireSolde(): number {
-  return lireBrut(cleCompte(CLE_SOLDE), SOLDE_INITIAL);
+type WalletJSON = { solde: number; mouvements: Mouvement[] };
+
+export async function lireSolde(): Promise<number> {
+  const reponse = await fetch("/api/wallet");
+  const resultat = await reponseJson<WalletJSON>(reponse);
+  return resultat.ok ? resultat.data.solde : 0;
 }
 
-export function mesMouvements(): Mouvement[] {
-  return lireBrut(cleCompte(CLE_MOUVEMENTS), MOUVEMENTS_INITIAUX);
+export async function mesMouvements(): Promise<Mouvement[]> {
+  const reponse = await fetch("/api/wallet");
+  const resultat = await reponseJson<WalletJSON>(reponse);
+  return resultat.ok ? resultat.data.mouvements : [];
 }
 
-function enregistrerMouvement(m: Omit<Mouvement, "id" | "horodatage">) {
-  if (typeof window === "undefined") return;
-  const mouvements = mesMouvements();
-  const nouveau: Mouvement = { ...m, id: `mv-${Date.now().toString(36)}`, horodatage: Date.now() };
-  localStorage.setItem(cleCompte(CLE_MOUVEMENTS), JSON.stringify([nouveau, ...mouvements]));
-  localStorage.setItem(cleCompte(CLE_SOLDE), JSON.stringify(lireSolde() + m.montantXof));
+/** Pure : dérive le solde d'une liste de mouvements déjà chargée (évite un
+ * second appel réseau quand on a déjà mesMouvements()). */
+export function soldeDepuisMouvements(mouvements: Mouvement[]): number {
+  return mouvements.reduce((somme, m) => somme + m.montantXof, 0);
 }
 
-const AUJOURD_HUI = () =>
-  new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+/** Pure : mêmes raisons que soldeDepuisMouvements — prend la liste déjà
+ * chargée plutôt que de refaire un appel réseau. */
+export function gainsTotal(mouvements: Mouvement[]): number {
+  return mouvements.filter((m) => m.type === "gain").reduce((somme, m) => somme + m.montantXof, 0);
+}
 
-export function crediter(montantXof: number, libelle: string, type: TypeMouvement = "gain", tournoiId?: string) {
+export type ResultatMouvement = { ok: boolean; erreur?: string };
+
+async function ajouterMouvement(type: TypeMouvement, libelle: string, montantXof: number, tournoiId?: string): Promise<ResultatMouvement> {
+  const reponse = await fetch("/api/wallet/mouvements", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, libelle, montantXof, tournoiId }),
+  });
+  const resultat = await reponseJson<{ mouvement: Mouvement }>(reponse);
+  return resultat.ok ? { ok: true } : { ok: false, erreur: resultat.erreur };
+}
+
+export async function crediter(montantXof: number, libelle: string, type: TypeMouvement = "gain", tournoiId?: string): Promise<void> {
   if (montantXof <= 0) return;
-  enregistrerMouvement({ type, libelle, montantXof, dateLabel: AUJOURD_HUI(), tournoiId });
+  await ajouterMouvement(type, libelle, montantXof, tournoiId);
 }
 
-/** Débite si le solde est suffisant. Retourne false sinon (aucun effet). */
-export function debiter(montantXof: number, libelle: string, type: TypeMouvement, tournoiId?: string): boolean {
+/** Débite si le solde est suffisant (vérifié côté serveur). Retourne false
+ * sinon (aucun effet). */
+export async function debiter(montantXof: number, libelle: string, type: TypeMouvement, tournoiId?: string): Promise<boolean> {
   if (montantXof <= 0) return false;
-  if (lireSolde() < montantXof) return false;
-  enregistrerMouvement({ type, libelle, montantXof: -montantXof, dateLabel: AUJOURD_HUI(), tournoiId });
-  return true;
+  const resultat = await ajouterMouvement(type, libelle, -montantXof, tournoiId);
+  return resultat.ok;
 }
 
-export function recharger(montantXof: number, moyen: string) {
-  crediter(montantXof, `Recharge ${moyen}`, "recharge");
+export async function recharger(montantXof: number, moyen: string): Promise<void> {
+  await crediter(montantXof, `Recharge ${moyen}`, "recharge");
 }
 
 /** Frais de retrait : 1 % du montant retiré, plafonné pour rester indolore
@@ -99,16 +109,9 @@ export function montantNetRetrait(montantXof: number): number {
   return Math.max(0, montantXof - fraisRetrait(montantXof));
 }
 
-export function retirer(montantXof: number, moyen: string): { ok: boolean; erreur?: string } {
+export async function retirer(montantXof: number, moyen: string): Promise<ResultatMouvement> {
   if (montantXof < 1000) return { ok: false, erreur: "Le retrait minimum est de 1 000 CFA." };
-  if (lireSolde() < montantXof) return { ok: false, erreur: "Solde insuffisant pour ce retrait." };
-  enregistrerMouvement({
-    type: "retrait",
-    libelle: `Retrait ${moyen}`,
-    montantXof: -montantXof,
-    dateLabel: AUJOURD_HUI(),
-  });
-  return { ok: true };
+  return ajouterMouvement("retrait", `Retrait ${moyen}`, -montantXof);
 }
 
 /** Délai de vérification avant qu'un retrait ne soit considéré traité
@@ -117,10 +120,4 @@ export const DELAI_VERIFICATION_RETRAIT_MS = 5 * 60 * 1000;
 
 export function retraitEnVerification(m: Pick<Mouvement, "type" | "horodatage">): boolean {
   return m.type === "retrait" && Date.now() - m.horodatage < DELAI_VERIFICATION_RETRAIT_MS;
-}
-
-export function gainsTotal(): number {
-  return mesMouvements()
-    .filter((m) => m.type === "gain")
-    .reduce((somme, m) => somme + m.montantXof, 0);
 }

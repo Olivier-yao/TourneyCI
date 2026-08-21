@@ -32,8 +32,7 @@ export default function RetirerPage() {
   const [fait, setFait] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSolde(lireSolde());
+    lireSolde().then(setSolde);
   }, []);
 
   const montant = Number(montantSaisi) || 0;
@@ -41,14 +40,14 @@ export default function RetirerPage() {
   const net = montantNetRetrait(montant);
   const telephoneValide = telephone.replace(/\D/g, "").length >= 8;
 
-  function confirmer() {
+  async function confirmer() {
     if (!telephoneValide) {
       setErreurTelephone("Numéro invalide.");
       return;
     }
     setErreurTelephone(null);
     const libelle = DESTINATIONS.find((d) => d.id === destination)?.label ?? destination;
-    const resultat = retirer(montant, `${libelle} · ${telephone}`);
+    const resultat = await retirer(montant, `${libelle} · ${telephone}`);
     if (!resultat.ok) {
       setErreur(resultat.erreur ?? "Retrait impossible.");
       return;

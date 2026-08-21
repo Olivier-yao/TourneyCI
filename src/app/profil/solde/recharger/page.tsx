@@ -39,7 +39,7 @@ export default function RechargerPage() {
   const montantValide = montantSaisi >= MONTANT_MIN_XOF;
   const telephoneValide = telephone.replace(/\D/g, "").length >= 8;
 
-  function confirmer() {
+  async function confirmer() {
     if (!montantValide) return;
     if (!telephoneValide) {
       setErreurTelephone("Numéro invalide.");
@@ -47,7 +47,7 @@ export default function RechargerPage() {
     }
     setErreurTelephone(null);
     const libelleMoyen = MOYENS.find((m) => m.id === moyen)?.label ?? moyen;
-    recharger(montantSaisi, `${libelleMoyen} · ${telephone}`);
+    await recharger(montantSaisi, `${libelleMoyen} · ${telephone}`);
     setFait(true);
     setTimeout(() => router.push("/profil/solde"), 1400);
   }

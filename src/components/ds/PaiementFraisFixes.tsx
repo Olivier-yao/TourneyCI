@@ -25,15 +25,14 @@ export function PaiementFraisFixes({
   const [soldeCarte, setSoldeCarte] = useState(0);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSoldeCarte(lireSolde());
+    lireSolde().then(setSoldeCarte);
   }, []);
 
   const soldeInsuffisant = soldeCarte < montantXof;
 
-  function payer(e: React.FormEvent) {
+  async function payer(e: React.FormEvent) {
     e.preventDefault();
-    const ok = debiter(montantXof, libelle, "inscription");
+    const ok = await debiter(montantXof, libelle, "inscription");
     if (!ok) {
       setErreur("Solde TourneyCard insuffisant.");
       return;

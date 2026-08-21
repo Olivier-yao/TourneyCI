@@ -372,7 +372,7 @@ function DetailTournoiInterne() {
       setDemanderAvis(!monTournoi && Boolean(t?.termine) && !monAvisPourTournoi(params.id));
       setAvisCompte(compterAvis(params.id));
       if (t?.termine) {
-        reevaluerPaiementsEnAttente();
+        await reevaluerPaiementsEnAttente();
         setEnSequestre(cashPrizeEnSequestre(params.id));
         setPeutContester(await estInscrit(params.id));
         setMonAppel(monAppelPourTournoi(params.id));
@@ -587,9 +587,9 @@ function DetailTournoiInterne() {
             tournoiTitre={tournoi.titre}
             auteur={lireProfil().pseudo}
             appelExistant={monAppel}
-            onEnvoye={() => {
+            onEnvoye={async () => {
               setMonAppel(monAppelPourTournoi(tournoi.id));
-              reevaluerPaiementsEnAttente();
+              await reevaluerPaiementsEnAttente();
               setEnSequestre(cashPrizeEnSequestre(tournoi.id));
             }}
           />
@@ -705,9 +705,9 @@ function DetailTournoiInterne() {
             tournoiId={tournoi.id}
             tournoiTitre={tournoi.titre}
             organisateur={tournoi.organisateur}
-            onEnvoye={() => {
+            onEnvoye={async () => {
               setDemanderAvis(false);
-              reevaluerPaiementsEnAttente();
+              await reevaluerPaiementsEnAttente();
               setEnSequestre(cashPrizeEnSequestre(tournoi.id));
               setAvisCompte(compterAvis(tournoi.id));
             }}

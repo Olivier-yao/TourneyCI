@@ -57,8 +57,7 @@ export default function ProfilPage() {
       const inscriptions = await mesInscriptions();
       const tournoisInscrits = await Promise.all(inscriptions.map((i) => tournoiParId(i.tournoiId)));
       const historique = tournoisInscrits.filter((t) => t && t.termine).length;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSolde(lireSolde());
+      setSolde(await lireSolde());
       const moi = lireProfil().pseudo;
       setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
       const tournoisOrganises = await mesTournoisOrganises();

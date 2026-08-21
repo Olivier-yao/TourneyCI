@@ -38,8 +38,7 @@ export function FluxPaiement({
   const [soldeCarte, setSoldeCarte] = useState(0);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSoldeCarte(lireSolde());
+    lireSolde().then(setSoldeCarte);
   }, []);
 
   const soldeInsuffisant = soldeCarte < montantDu;
@@ -59,7 +58,7 @@ export function FluxPaiement({
 
   async function payer(e: React.FormEvent) {
     e.preventDefault();
-    const ok = montantDu === 0 || debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id);
+    const ok = montantDu === 0 || (await debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id));
     if (!ok) {
       setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
       return;

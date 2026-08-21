@@ -8,7 +8,7 @@ import { Button, PRESS } from "@/components/ds/Button";
 import { Modal } from "@/components/ds/Modal";
 import { TourneyCard } from "@/components/ds/TourneyCard";
 import { lireProfil, type Profil } from "@/lib/mockProfil";
-import { lireSolde, mesMouvements, gainsTotal, retraitEnVerification, codeTransaction, type Mouvement } from "@/lib/mockWallet";
+import { mesMouvements, soldeDepuisMouvements, gainsTotal, retraitEnVerification, codeTransaction, type Mouvement } from "@/lib/mockWallet";
 import { tournoiParId } from "@/lib/mockTournaments";
 
 const ICONE_MOUVEMENT: Record<Mouvement["type"], typeof Trophy> = {
@@ -56,16 +56,18 @@ export default function SoldePage() {
   }, [mouvementSelectionne]);
 
   useEffect(() => {
-    const lus = mesMouvements();
-    const seuil = Date.now() - 1000 * 60 * 60 * 24 * 2;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setProfil(lireProfil());
-    setSolde(lireSolde());
-    setMouvements(lus);
-    setGains(gainsTotal());
-    setGainsRecents(
-      lus.filter((m) => m.type === "gain" && m.horodatage > seuil).reduce((s, m) => s + m.montantXof, 0),
-    );
+    async function charger() {
+      const lus = await mesMouvements();
+      const seuil = Date.now() - 1000 * 60 * 60 * 24 * 2;
+      setProfil(lireProfil());
+      setSolde(soldeDepuisMouvements(lus));
+      setMouvements(lus);
+      setGains(gainsTotal(lus));
+      setGainsRecents(
+        lus.filter((m) => m.type === "gain" && m.horodatage > seuil).reduce((s, m) => s + m.montantXof, 0),
+      );
+    }
+    charger();
   }, []);
 
   if (!profil) return null;

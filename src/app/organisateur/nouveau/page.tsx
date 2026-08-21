@@ -175,8 +175,7 @@ export default function NouveauTournoiPage() {
       router.replace("/organisateur/reglement-certifie");
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSolde(lireSolde());
+    lireSolde().then(setSolde);
     // Un tournoi payant demande à la fois un compte en règle (anti-triche)
     // et le statut organisateur certifié complet (identité vérifiée +
     // demande validée + règlement accepté, points 158-159) — sans ça, seuls
@@ -393,7 +392,7 @@ export default function NouveauTournoiPage() {
     }
 
     if (financeParOrganisateur && cashPrizeNum > 0) {
-      debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement", resultat.tournoi.id);
+      await debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement", resultat.tournoi.id);
     }
 
     router.push(`/tournois/${resultat.tournoi.id}`);

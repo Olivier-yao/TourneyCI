@@ -422,7 +422,7 @@ export async function annulerTournoi(id: string): Promise<void> {
   const reponse = await fetch(`/api/tournois/${id}/annuler`, { method: "POST" });
   if (!reponse.ok) return;
   if (tournoi && tournoi.fraisXof > 0 && (await estInscrit(id))) {
-    crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement", tournoi.id);
+    await crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement", tournoi.id);
   }
 }
 
@@ -511,22 +511,22 @@ function retirerPaiementAttente(tournoiId: string) {
 }
 
 /** Libération manuelle (action admin) après vérification anti-triche. */
-export function libererSequestreCashPrize(tournoiId: string) {
+export async function libererSequestreCashPrize(tournoiId: string): Promise<void> {
   const paiement = lirePaiementsAttente().find((p) => p.tournoiId === tournoiId);
   if (!paiement) return;
-  crediter(paiement.montantXof, `Gain (débloqué) · ${paiement.titre}`, "gain", paiement.tournoiId);
+  await crediter(paiement.montantXof, `Gain (débloqué) · ${paiement.titre}`, "gain", paiement.tournoiId);
   retirerPaiementAttente(tournoiId);
 }
 
 /** Réévalue les paiements en attente : libère automatiquement ceux dont le
  * tournoi reste sous le seuil de cœurs brisés. À appeler après chaque avis
  * laissé, ou à l'arrivée sur l'écran d'un tournoi terminé. */
-export function reevaluerPaiementsEnAttente() {
+export async function reevaluerPaiementsEnAttente(): Promise<void> {
   for (const paiement of lirePaiementsAttente()) {
     const brises = avisDuTournoi(paiement.tournoiId).filter((a) => a.type === "coeur_brise").length;
     const conteste = appelOuvertPourTournoi(paiement.tournoiId);
     if (brises < SEUIL_COEURS_BRISES_SEQUESTRE && !conteste) {
-      crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain", paiement.tournoiId);
+      await crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain", paiement.tournoiId);
       retirerPaiementAttente(paiement.tournoiId);
     }
   }
@@ -583,7 +583,7 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
 
   if (tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()) {
     const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);
-    if (commission > 0) crediter(commission, `Commission · ${tournoi.titre}`, "commission", tournoi.id);
+    if (commission > 0) await crediter(commission, `Commission · ${tournoi.titre}`, "commission", tournoi.id);
   }
 
   notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
