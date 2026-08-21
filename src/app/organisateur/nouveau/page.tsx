@@ -61,10 +61,10 @@ const SOUS_TYPES_BR: { id: "solo" | "duo" | "trio" | "squad"; label: string }[] 
 ];
 
 const SOUS_TYPES_EQUIPE: { id: EquipeSousType; label: string }[] = [
+  { id: "solo", label: "Solo" },
   { id: "duo", label: "Duo" },
   { id: "trio", label: "Trio" },
   { id: "squad", label: "Squad" },
-  { id: "escouade", label: "Escouade" },
 ];
 
 function SegmentedControl<T extends string>({

@@ -1216,6 +1216,7 @@ enum sous_type_equipe {
   trio
   squad
   escouade
+  solo
 
   @@schema("public")
 }

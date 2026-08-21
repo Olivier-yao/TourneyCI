@@ -31,18 +31,18 @@ export type Modalite = "virtuel" | "presentiel";
 export type ModeEquipe = "libre" | "predefinies";
 
 /** Sous-types Équipes (bracket à élimination directe, distinct du Battle
- * Royale) — point 198 : ajout d'Escouade (5) pour couvrir les formats
- * compétitifs 5v5 des jeux de tir tactiques (ex. mode classé COD Mobile),
- * courants dans les genres FPS/TPS déjà pris en charge mais absents du
- * quatuor standard des squads Battle Royale (qui reste volontairement à 4,
- * conforme aux standards du genre). */
-export type EquipeSousType = "duo" | "trio" | "squad" | "escouade";
+ * Royale) : Solo/Duo/Trio/Squad, alignés sur les tailles du Battle Royale
+ * (point 198 avait ajouté Escouade/5 pour les formats 5v5 type CODM classé,
+ * remplacée par Solo sur demande utilisateur — la colonne Postgres
+ * sous_type_equipe garde "escouade" comme valeur héritée, plus proposée
+ * côté app). */
+export type EquipeSousType = "solo" | "duo" | "trio" | "squad";
 
 export const LABEL_UNITE_EQUIPE: Record<EquipeSousType, { nom: string; singulier: string; pluriel: string }> = {
+  solo: { nom: "Solo", singulier: "SOLO", pluriel: "SOLOS" },
   duo: { nom: "Duo", singulier: "DUO", pluriel: "DUOS" },
   trio: { nom: "Trio", singulier: "TRIO", pluriel: "TRIOS" },
   squad: { nom: "Squad", singulier: "SQUAD", pluriel: "SQUADS" },
-  escouade: { nom: "Escouade", singulier: "ESCOUADE", pluriel: "ESCOUADES" },
 };
 
 export type EquipeInfo = { id: string; nom: string };
