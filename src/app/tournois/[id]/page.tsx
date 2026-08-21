@@ -366,6 +366,7 @@ function DetailTournoiInterne() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const equipePreselectionneeId = searchParams.get("equipe") ?? undefined;
+  const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [modaleOuverte, setModaleOuverte] = useState<"informations" | "reglement" | null>(null);
   const [fermeInscriptions, setFermeInscriptions] = useState(false);
@@ -400,10 +401,13 @@ function DetailTournoiInterne() {
         setPeutContester(await estInscrit(params.id));
         setMonAppel(monAppelPourTournoi(params.id));
       }
+      setPret(true);
     }
     charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  if (!pret) return null;
 
   if (!tournoi) {
     return (
