@@ -19,7 +19,7 @@ import { classementFinalBracket } from "./mockBracket";
 import { classementFinalBR } from "./mockBattleRoyale";
 import { attribuerPoints, lireProfil } from "./mockProfil";
 import { crediter } from "./mockWallet";
-import { estCertifie } from "./mockOrganisateur";
+import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
 import { estInscrit } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
 import { avisDuTournoi } from "./mockAvis";
@@ -375,7 +375,9 @@ export async function creerTournoi(donnees: DonneesCreationTournoi): Promise<Res
   const reponse = await fetch("/api/tournois", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(donnees),
+    // organisateurNom : dérivé de la session courante, pas saisi par
+    // l'appelant — cf. synchroniserNomOrganisateur ci-dessous.
+    body: JSON.stringify({ ...donnees, organisateurNom: nomOrganisateurActuel() }),
   });
   const resultat = await reponseJson<Tournoi>(reponse);
   // repartitionCashPrize/manchesPrevues/équipes prédéfinies ne sont pas
@@ -419,7 +421,21 @@ export async function annulerTournoi(id: string): Promise<void> {
   }
 }
 
+/** Pousse le nom d'organisateur courant (mockOrganisateur.ts, localStorage)
+ * vers organisateur_profils côté serveur — auto-réparateur : un tournoi créé
+ * avant cette synchronisation (ou depuis un autre appareil) retrouve le bon
+ * nom dès le prochain appel de mesTournoisOrganises(). */
+export async function synchroniserNomOrganisateur(nom: string): Promise<void> {
+  if (!nom.trim()) return;
+  await fetch("/api/organisateur", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nomOrganisateur: nom }),
+  }).catch(() => undefined);
+}
+
 export async function mesTournoisOrganises(): Promise<Tournoi[]> {
+  await synchroniserNomOrganisateur(nomOrganisateurActuel());
   return tousLesTournois({ organisateurMoi: true });
 }
 

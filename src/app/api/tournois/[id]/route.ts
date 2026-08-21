@@ -57,7 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ...(typeof body.streamActif === "boolean" ? { stream_actif: body.streamActif } : {}),
       ...(typeof body.symboleId === "string" ? { symbole_id: body.symboleId } : {}),
     },
-    include: { jeux: true, villes: true, profiles: true, _count: { select: { inscriptions: true } } },
+    include: INCLUDE_TOURNOI_DETAIL,
   });
 
   return NextResponse.json({ success: true, data: versTournoiJSON(tournoi) });

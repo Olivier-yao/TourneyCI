@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { creerClientSupabaseServeur } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 import { Prisma, type type_competition } from "@/generated/prisma/client";
 import { formatDuTournoi, formaterDateLabel, formaterHeureCheckin } from "@/lib/tournoiFormat";
 
@@ -33,7 +34,7 @@ export function depuisTypeCompetition(valeur: type_competition): "1v1" | "equipe
 const includeTournoiDetail = {
   jeux: true,
   villes: true,
-  profiles: true,
+  profiles: { include: { organisateur_profils: true } },
   _count: { select: { inscriptions: true } },
   inscriptions: { include: { profiles: true } },
 } satisfies Prisma.tournoisInclude;
@@ -41,7 +42,7 @@ const includeTournoiDetail = {
 const includeTournoiListe = {
   jeux: true,
   villes: true,
-  profiles: true,
+  profiles: { include: { organisateur_profils: true } },
   _count: { select: { inscriptions: true } },
 } satisfies Prisma.tournoisInclude;
 
@@ -63,7 +64,7 @@ export function versTournoiJSON(row: TournoiDetailRow | TournoiListeRow) {
     jeuId: row.jeu_id,
     jeuLabel: row.jeux.label,
     titre: row.titre,
-    organisateur: row.profiles.pseudo,
+    organisateur: row.profiles.organisateur_profils?.nom_organisateur ?? row.profiles.pseudo,
     format: formatDuTournoi({ type, equipeSousType: row.equipe_sous_type ?? undefined, modeEquipe: row.mode_equipe ?? undefined, placesTotal: row.places_total }),
     type,
     modalite: row.modalite,
@@ -92,4 +93,28 @@ export function versTournoiJSON(row: TournoiDetailRow | TournoiListeRow) {
     finInscriptionsTs: row.fin_inscriptions_le?.getTime(),
     streamActif: row.stream_actif,
   };
+}
+
+/** Synchronise le nom d'organisateur (encore 100% localStorage côté client,
+ * cf. mockOrganisateur.ts) vers la table organisateur_profils, pour que
+ * l'API renvoie le même nom que nomOrganisateurActuel() côté client — sans
+ * ça, tournoi.organisateur (pseudo joueur) ne correspond jamais au nom
+ * d'organisateur choisi à l'onboarding, et le créateur d'un tournoi n'est
+ * plus reconnu comme son propre organisateur (peutSuperviser compare des
+ * noms). Best-effort : un conflit d'unicité sur nom_organisateur ne doit
+ * jamais faire échouer l'action principale (création de tournoi, etc.).
+ */
+export async function synchroniserNomOrganisateur(profileId: string, nom: string): Promise<void> {
+  const nomTrim = nom.trim();
+  if (!nomTrim) return;
+  try {
+    await prisma.organisateur_profils.upsert({
+      where: { profile_id: profileId },
+      create: { profile_id: profileId, nom_organisateur: nomTrim },
+      update: { nom_organisateur: nomTrim },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return;
+    throw err;
+  }
 }

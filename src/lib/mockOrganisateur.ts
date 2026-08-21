@@ -68,6 +68,15 @@ export function nomOrganisateur(): string | undefined {
 export function definirNomOrganisateur(nom: string) {
   if (typeof window === "undefined" || !nom.trim()) return;
   localStorage.setItem(cleCompte(CLE_NOM_ORGANISATEUR), nom.trim());
+  // Synchronise vers organisateur_profils (table Postgres) en tâche de
+  // fond : sans ça, l'API tournois renvoie le pseudo joueur au lieu de ce
+  // nom, et peutSuperviser() ne reconnaît plus l'organisateur comme le
+  // sien (comparaison de noms) — cf. src/lib/server/tournois.ts.
+  fetch("/api/organisateur", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nomOrganisateur: nom.trim() }),
+  }).catch(() => undefined);
 }
 
 /** Noms déjà pris par d'autres organisateurs — dérivé des tournois de démo

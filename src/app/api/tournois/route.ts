@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { utilisateurConnecte, nonAuthentifie, versTournoiJSON, versTypeCompetition, INCLUDE_TOURNOI_LISTE } from "@/lib/server/tournois";
+import {
+  utilisateurConnecte,
+  nonAuthentifie,
+  versTournoiJSON,
+  versTypeCompetition,
+  synchroniserNomOrganisateur,
+  INCLUDE_TOURNOI_LISTE,
+} from "@/lib/server/tournois";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -66,6 +73,9 @@ export async function POST(request: Request) {
     villeId = villeRow.id;
   }
 
+  const organisateurNom = typeof body.organisateurNom === "string" ? body.organisateurNom : "";
+  if (organisateurNom) await synchroniserNomOrganisateur(user.id, organisateurNom);
+
   const tournoi = await prisma.tournois.create({
     data: {
       jeu_id: jeuId,
@@ -91,7 +101,7 @@ export async function POST(request: Request) {
       banniere_url: typeof body.banniereUrl === "string" ? body.banniereUrl : undefined,
       symbole_id: typeof body.symboleId === "string" ? body.symboleId : undefined,
     },
-    include: { jeux: true, villes: true, profiles: true, _count: { select: { inscriptions: true } } },
+    include: INCLUDE_TOURNOI_LISTE,
   });
 
   return NextResponse.json({ success: true, data: versTournoiJSON(tournoi) });
