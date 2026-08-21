@@ -19,13 +19,22 @@ const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 // Le pooler Supabase est joignable en TLS mais son certificat n'est pas
 // vérifiable par la chaîne de confiance par défaut de Node — sslmode=require
-// dans l'URL est désormais interprété comme verify-full (durcissement de
-// pg-connection-string), d'où l'échec "self-signed certificate in
-// certificate chain" en prod. rejectUnauthorized: false retrouve l'ancien
-// comportement (connexion chiffrée, sans vérification du certificat).
+// dans l'URL est désormais interprété comme verify-full par pg-connection-
+// string, d'où l'échec "self-signed certificate in certificate chain" en
+// prod. Passer ssl: { rejectUnauthorized: false } à côté ne suffit PAS : pg
+// reparse connectionString et son sslmode l'écrase (voir
+// ConnectionParameters dans node_modules/pg/lib/connection-parameters.js,
+// le résultat du parsing prime toujours sur la config explicite). Il faut
+// donc forcer sslmode=no-verify directement dans l'URL.
+function connexionSansVerificationTls(url: string | undefined): string | undefined {
+  if (!url) return url;
+  const u = new URL(url);
+  u.searchParams.set("sslmode", "no-verify");
+  return u.toString();
+}
+
 const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: connexionSansVerificationTls(process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL),
 });
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
