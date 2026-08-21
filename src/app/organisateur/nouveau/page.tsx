@@ -71,6 +71,15 @@ const SOUS_TYPES_EQUIPE: { id: EquipeSousType; label: string }[] = [
   { id: "squad", label: "Squad" },
 ];
 
+/** Best-of par match (1v1/Équipes) : uniquement des valeurs impaires, pour
+ * toujours avoir un vainqueur majoritaire possible. */
+const OPTIONS_BO: { id: "1" | "3" | "5" | "7"; label: string }[] = [
+  { id: "1", label: "BO1" },
+  { id: "3", label: "BO3" },
+  { id: "5", label: "BO5" },
+  { id: "7", label: "BO7" },
+];
+
 function SegmentedControl<T extends string>({
   options,
   valeur,
@@ -133,6 +142,7 @@ export default function NouveauTournoiPage() {
   const [type, setType] = useState<TypeCompetition>("1v1");
   const [brSousType, setBrSousType] = useState<"solo" | "duo" | "trio" | "squad">("solo");
   const [manchesPrevues, setManchesPrevues] = useState("3");
+  const [manchesParMatch, setManchesParMatch] = useState<"1" | "3" | "5" | "7">("3");
   const [equipeSousType, setEquipeSousType] = useState<EquipeSousType>("squad");
   const [modalite, setModalite] = useState<Modalite>("presentiel");
   const [ville, setVille] = useState("");
@@ -375,6 +385,7 @@ export default function NouveauTournoiPage() {
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       brSousType: type === "battle_royale" ? brSousType : undefined,
       manchesPrevues: type === "battle_royale" ? Math.max(1, Number(manchesPrevues) || 1) : undefined,
+      manchesParMatch: type !== "battle_royale" ? Number(manchesParMatch) : undefined,
       equipeSousType: type === "equipes" ? equipeSousType : undefined,
       repartitionCashPrize:
         (payant || financeParOrganisateur) && cashPrizeEffectif > 0 ? repartitionCalculee : undefined,
@@ -722,13 +733,21 @@ export default function NouveauTournoiPage() {
         )}
 
         {type !== "battle_royale" && (
-          <Field
-            label={type === "equipes" ? "Nombre d'équipes" : "Places"}
-            type="number"
-            min={2}
-            value={placesTotal}
-            onChange={(e) => setPlacesTotal(e.target.value)}
-          />
+          <>
+            <Field
+              label={type === "equipes" ? "Nombre d'équipes" : "Places"}
+              type="number"
+              min={2}
+              value={placesTotal}
+              onChange={(e) => setPlacesTotal(e.target.value)}
+            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+                Nombre de manches par match
+              </label>
+              <SegmentedControl options={OPTIONS_BO} valeur={manchesParMatch} onChange={setManchesParMatch} />
+            </div>
+          </>
         )}
         {type === "battle_royale" && (
           <div className="flex flex-col gap-2">

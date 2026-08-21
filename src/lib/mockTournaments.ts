@@ -85,6 +85,9 @@ export type Tournoi = {
    * quand type === "battle_royale") — la clôture automatique attend que ce
    * nombre de manches soit joué, pas juste la première. */
   manchesPrevues?: number;
+  /** Best-of par match (1v1/Équipes uniquement) — purement informatif
+   * (affiché dans `format`, ex. "BO3"), n'affecte pas la clôture. */
+  manchesParMatch?: number;
   /** Sous-type Équipes (taille cible, point 177, escouade ajoutée au point
    * 198) — facultatif : "libre" sans sous-type précisé reste possible. */
   equipeSousType?: EquipeSousType;
@@ -365,6 +368,7 @@ export type DonneesCreationTournoi = {
   modeEquipe?: ModeEquipe;
   brSousType?: "solo" | "duo" | "trio" | "squad";
   manchesPrevues?: number;
+  manchesParMatch?: number;
   equipeSousType?: EquipeSousType;
   repartitionCashPrize?: RepartitionCashPrize[];
 };
@@ -380,12 +384,13 @@ export async function creerTournoi(donnees: DonneesCreationTournoi): Promise<Res
     body: JSON.stringify({ ...donnees, organisateurNom: nomOrganisateurActuel() }),
   });
   const resultat = await reponseJson<Tournoi>(reponse);
-  // repartitionCashPrize/manchesPrevues/équipes prédéfinies ne sont pas
-  // encore persistés côté serveur (hors périmètre de cette étape, cf. plan) —
-  // on les réattache localement à la réponse pour ne pas casser l'écran de
-  // création, qui les affiche immédiatement après coup.
+  // repartitionCashPrize/équipes prédéfinies ne sont pas encore persistés
+  // côté serveur (hors périmètre de cette étape, cf. plan) — réattaché
+  // localement à la réponse pour ne pas casser l'écran de création, qui
+  // l'affiche immédiatement après coup. manchesPrevues/manchesParMatch,
+  // eux, sont bien persistés désormais : pas besoin de réattache.
   if (resultat.ok) {
-    return { ok: true, tournoi: { ...resultat.data, repartitionCashPrize: donnees.repartitionCashPrize, manchesPrevues: donnees.manchesPrevues } };
+    return { ok: true, tournoi: { ...resultat.data, repartitionCashPrize: donnees.repartitionCashPrize } };
   }
   return { ok: false, erreur: resultat.erreur };
 }

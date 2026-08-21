@@ -97,6 +97,8 @@ export async function POST(request: Request) {
       cash_prize_engage_xof: Number(body.cashPrizeXof) || 0,
       commission_activee: Boolean(body.commissionActivee),
       places_total: Math.max(1, Math.round(placesTotal)),
+      manches_prevues: Number.isFinite(Number(body.manchesPrevues)) && body.manchesPrevues ? Math.max(1, Math.round(Number(body.manchesPrevues))) : undefined,
+      manches_par_match: Number.isFinite(Number(body.manchesParMatch)) && body.manchesParMatch ? Math.max(1, Math.round(Number(body.manchesParMatch))) : undefined,
       debut_inscriptions_le: body.debutInscriptionsTs ? new Date(Number(body.debutInscriptionsTs)) : undefined,
       fin_inscriptions_le: body.finInscriptionsTs ? new Date(Number(body.finInscriptionsTs)) : undefined,
       debut_tournoi_le: new Date(debutTournoiTs),

@@ -1055,6 +1055,8 @@ model tournois {
   cash_prize_engage_xof       Int                           @default(0)
   commission_activee          Boolean                       @default(false)
   places_total                Int
+  manches_prevues             Int?
+  manches_par_match           Int?
   debut_inscriptions_le       DateTime?                     @db.Timestamptz(6)
   fin_inscriptions_le         DateTime?                     @db.Timestamptz(6)
   debut_tournoi_le            DateTime                      @db.Timestamptz(6)

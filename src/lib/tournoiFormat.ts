@@ -13,11 +13,16 @@ export function formatDuTournoi(t: {
   equipeSousType?: string;
   modeEquipe?: string;
   placesTotal: number;
+  /** Best-of par match (1v1/Équipes uniquement) — ex. "BO3". Purement
+   * informatif, n'affecte pas la clôture du tournoi (liée à la finale
+   * jouée, pas à un compte de manches). */
+  manchesParMatch?: number;
 }): string {
-  if (t.type === "1v1") return "1v1";
+  const bo = t.manchesParMatch ? ` · BO${t.manchesParMatch}` : "";
+  if (t.type === "1v1") return `1v1${bo}`;
   if (t.type === "equipes") {
     const taille = t.equipeSousType ? t.equipeSousType.charAt(0).toUpperCase() + t.equipeSousType.slice(1) : "Équipes";
-    return `Équipes · ${taille}${t.modeEquipe === "libre" ? " · libre" : ""}`;
+    return `Équipes · ${taille}${t.modeEquipe === "libre" ? " · libre" : ""}${bo}`;
   }
   return `Battle Royale · ${t.placesTotal} joueurs`;
 }
