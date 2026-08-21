@@ -38,6 +38,11 @@ const DELAI_CHECKIN_MIN_MS = 10 * 60 * 1000;
 /** Point 201 : délai par défaut entre check-in et début, tant que
  * l'organisateur n'a pas ajusté l'heure de check-in lui-même. */
 const DELAI_CHECKIN_DEFAUT_MIN = 15;
+/** Marge par défaut avant le début à laquelle les inscriptions se ferment
+ * si "Fin des inscriptions" n'est pas renseignée — même valeur que
+ * MARGE_CLOTURE_PAR_DEFAUT_MS dans mockTournaments.ts (dupliquée ici en
+ * minutes pour l'auto-remplissage du formulaire). */
+const MARGE_CLOTURE_PAR_DEFAUT_MIN = 12;
 
 function soustraireMinutes(heure: string, minutes: number): string {
   const [h, m] = (heure || "00:00").split(":").map(Number);
@@ -196,6 +201,7 @@ export default function NouveauTournoiPage() {
   const [debutInscHeure, setDebutInscHeure] = useState("");
   const [finInscJour, setFinInscJour] = useState("");
   const [finInscHeure, setFinInscHeure] = useState("");
+  const [finInscAjusteManuellement, setFinInscAjusteManuellement] = useState(false);
   const dateLabel = formatDateLabel(dateJour, dateHeure);
 
   function versTimestamp(jour: string, heure: string): number | undefined {
@@ -205,9 +211,30 @@ export default function NouveauTournoiPage() {
     return new Date(annee, (mois || 1) - 1, j || 1, h || 0, m || 0).getTime();
   }
 
+  function versJourHeure(ts: number): { jour: string; heure: string } {
+    const d = new Date(ts);
+    return {
+      jour: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      heure: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
+    };
+  }
+
   const debutTournoiTs = versTimestamp(dateJour, dateHeure);
   const debutInscriptionsTs = versTimestamp(debutInscJour, debutInscHeure);
   const finInscriptionsTs = versTimestamp(finInscJour, finInscHeure);
+  const AUJOURDHUI = versJourHeure(Date.now()).jour;
+
+  // La fin des inscriptions suit automatiquement la date/heure de début
+  // (marge par défaut de 12 min, même logique que la clôture effective
+  // appliquée côté serveur) tant que l'organisateur ne l'a pas lui-même
+  // ajustée — même pattern que le check-in ci-dessus.
+  useEffect(() => {
+    if (finInscAjusteManuellement || debutTournoiTs === undefined) return;
+    const { jour, heure } = versJourHeure(debutTournoiTs - MARGE_CLOTURE_PAR_DEFAUT_MIN * 60 * 1000);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFinInscJour(jour);
+    setFinInscHeure(heure);
+  }, [debutTournoiTs, finInscAjusteManuellement]);
   const checkin = checkinHeure ? `${checkinHeure.replace(":", "h")}` : "";
   const [reglement, setReglement] = useState("");
   const [informations, setInformations] = useState("");
@@ -261,6 +288,20 @@ export default function NouveauTournoiPage() {
     }
     if (!dateLabel.trim()) {
       setErreur("La date est obligatoire.");
+      return;
+    }
+    // Le tournoi et ses fenêtres d'inscription doivent se dérouler à partir
+    // de maintenant, jamais dans le passé.
+    if (debutTournoiTs !== undefined && debutTournoiTs < Date.now()) {
+      setErreur("La date du tournoi ne peut pas être dans le passé.");
+      return;
+    }
+    if (debutInscriptionsTs !== undefined && debutInscriptionsTs < Date.now()) {
+      setErreur("Le début des inscriptions ne peut pas être dans le passé.");
+      return;
+    }
+    if (finInscriptionsTs !== undefined && finInscriptionsTs < Date.now()) {
+      setErreur("La fin des inscriptions ne peut pas être dans le passé.");
       return;
     }
     if (!reglement.trim()) {
@@ -718,14 +759,18 @@ export default function NouveauTournoiPage() {
         )}
 
         <div className="grid grid-cols-2 gap-2.5">
-          <Field label="Date" type="date" value={dateJour} onChange={(e) => setDateJour(e.target.value)} />
-          <Field label="Heure" type="time" value={dateHeure} onChange={(e) => setDateHeure(e.target.value)} />
+          <Field label="Date du tournoi" type="date" min={AUJOURDHUI} value={dateJour} onChange={(e) => setDateJour(e.target.value)} />
+          <Field label="Heure du tournoi" type="time" value={dateHeure} onChange={(e) => setDateHeure(e.target.value)} />
         </div>
-        {dateLabel && (
-          <p className="text-xs -mt-3" style={{ color: "var(--ds-muted)" }}>
-            Affiché comme : <span style={{ color: "var(--ds-accent-300)" }}>{dateLabel}</span>
-          </p>
-        )}
+        <p className="text-xs -mt-3" style={{ color: "var(--ds-muted)" }}>
+          C&apos;est la date et l&apos;heure auxquelles ton tournoi se déroulera — ne peut pas être dans le passé.
+          {dateLabel && (
+            <>
+              {" "}
+              Affiché comme : <span style={{ color: "var(--ds-accent-300)" }}>{dateLabel}</span>
+            </>
+          )}
+        </p>
         <Field
           label="Heure de check-in"
           type="time"
@@ -758,23 +803,38 @@ export default function NouveauTournoiPage() {
             Début des inscriptions (facultatif)
           </label>
           <div className="grid grid-cols-2 gap-2.5">
-            <Field type="date" value={debutInscJour} onChange={(e) => setDebutInscJour(e.target.value)} />
+            <Field type="date" min={AUJOURDHUI} value={debutInscJour} onChange={(e) => setDebutInscJour(e.target.value)} />
             <Field type="time" value={debutInscHeure} onChange={(e) => setDebutInscHeure(e.target.value)} />
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
-            Fin des inscriptions (facultatif)
+            Fin des inscriptions
           </label>
           <div className="grid grid-cols-2 gap-2.5">
-            <Field type="date" value={finInscJour} onChange={(e) => setFinInscJour(e.target.value)} />
-            <Field type="time" value={finInscHeure} onChange={(e) => setFinInscHeure(e.target.value)} />
+            <Field
+              type="date"
+              min={AUJOURDHUI}
+              value={finInscJour}
+              onChange={(e) => {
+                setFinInscJour(e.target.value);
+                setFinInscAjusteManuellement(true);
+              }}
+            />
+            <Field
+              type="time"
+              value={finInscHeure}
+              onChange={(e) => {
+                setFinInscHeure(e.target.value);
+                setFinInscAjusteManuellement(true);
+              }}
+            />
           </div>
-          {!finInscJour && (
-            <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
-              Non renseigné : les inscriptions se fermeront automatiquement 10 à 15 minutes avant le début du tournoi.
-            </p>
-          )}
+          <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+            {finInscAjusteManuellement
+              ? "Réglée manuellement — ne suit plus automatiquement la date du tournoi."
+              : `Synchronisée automatiquement (${MARGE_CLOTURE_PAR_DEFAUT_MIN} min avant le début) — modifiable ci-dessus.`}
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
