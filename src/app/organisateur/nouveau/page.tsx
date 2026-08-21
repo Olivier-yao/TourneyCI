@@ -38,11 +38,10 @@ const DELAI_CHECKIN_MIN_MS = 10 * 60 * 1000;
 /** Point 201 : délai par défaut entre check-in et début, tant que
  * l'organisateur n'a pas ajusté l'heure de check-in lui-même. */
 const DELAI_CHECKIN_DEFAUT_MIN = 15;
-/** Marge par défaut avant le début à laquelle les inscriptions se ferment
- * si "Fin des inscriptions" n'est pas renseignée — même valeur que
- * MARGE_CLOTURE_PAR_DEFAUT_MS dans mockTournaments.ts (dupliquée ici en
- * minutes pour l'auto-remplissage du formulaire). */
-const MARGE_CLOTURE_PAR_DEFAUT_MIN = 12;
+/** Marge par défaut avant le check-in à laquelle "Fin des inscriptions" se
+ * cale automatiquement (modifiable, mais jamais au-delà du check-in — cf.
+ * validation dans creer()). */
+const MARGE_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN = 20;
 
 function soustraireMinutes(heure: string, minutes: number): string {
   const [h, m] = (heure || "00:00").split(":").map(Number);
@@ -220,21 +219,22 @@ export default function NouveauTournoiPage() {
   }
 
   const debutTournoiTs = versTimestamp(dateJour, dateHeure);
+  const checkinTs = versTimestamp(dateJour, checkinHeure);
   const debutInscriptionsTs = versTimestamp(debutInscJour, debutInscHeure);
   const finInscriptionsTs = versTimestamp(finInscJour, finInscHeure);
   const AUJOURDHUI = versJourHeure(Date.now()).jour;
 
-  // La fin des inscriptions suit automatiquement la date/heure de début
-  // (marge par défaut de 12 min, même logique que la clôture effective
-  // appliquée côté serveur) tant que l'organisateur ne l'a pas lui-même
-  // ajustée — même pattern que le check-in ci-dessus.
+  // La fin des inscriptions suit automatiquement l'heure de check-in (20 min
+  // avant) tant que l'organisateur ne l'a pas lui-même ajustée — même
+  // pattern que le check-in vs. l'heure de début ci-dessus. Ne doit jamais
+  // dépasser le check-in (cf. validation dans creer()).
   useEffect(() => {
-    if (finInscAjusteManuellement || debutTournoiTs === undefined) return;
-    const { jour, heure } = versJourHeure(debutTournoiTs - MARGE_CLOTURE_PAR_DEFAUT_MIN * 60 * 1000);
+    if (finInscAjusteManuellement || checkinTs === undefined) return;
+    const { jour, heure } = versJourHeure(checkinTs - MARGE_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN * 60 * 1000);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFinInscJour(jour);
     setFinInscHeure(heure);
-  }, [debutTournoiTs, finInscAjusteManuellement]);
+  }, [checkinTs, finInscAjusteManuellement]);
   const checkin = checkinHeure ? `${checkinHeure.replace(":", "h")}` : "";
   const [reglement, setReglement] = useState("");
   const [informations, setInformations] = useState("");
@@ -304,12 +304,15 @@ export default function NouveauTournoiPage() {
       setErreur("La fin des inscriptions ne peut pas être dans le passé.");
       return;
     }
+    if (finInscriptionsTs !== undefined && checkinTs !== undefined && finInscriptionsTs > checkinTs) {
+      setErreur("La fin des inscriptions ne peut pas être après l'heure de check-in.");
+      return;
+    }
     if (!reglement.trim()) {
       setErreur("Le règlement est obligatoire.");
       return;
     }
     if (debutTournoiTs !== undefined) {
-      const checkinTs = versTimestamp(dateJour, checkinHeure);
       if (checkinTs === undefined || debutTournoiTs - checkinTs < DELAI_CHECKIN_MIN_MS) {
         setErreur("Le check-in doit être fixé au moins 10 minutes avant le début du tournoi.");
         return;
@@ -344,7 +347,6 @@ export default function NouveauTournoiPage() {
       setErreur("La date est invalide.");
       return;
     }
-    const checkinTs = versTimestamp(dateJour, checkinHeure);
     if (checkinTs === undefined) {
       setErreur("L'heure de check-in est invalide.");
       return;
@@ -787,7 +789,6 @@ export default function NouveauTournoiPage() {
         </p>
         {(() => {
           if (debutTournoiTs === undefined) return null;
-          const checkinTs = versTimestamp(dateJour, checkinHeure);
           const invalide = checkinTs === undefined || debutTournoiTs - checkinTs < DELAI_CHECKIN_MIN_MS;
           return (
             <p className="text-xs -mt-3" style={{ color: invalide ? "var(--ds-danger)" : "var(--ds-muted)" }}>
@@ -832,9 +833,14 @@ export default function NouveauTournoiPage() {
           </div>
           <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
             {finInscAjusteManuellement
-              ? "Réglée manuellement — ne suit plus automatiquement la date du tournoi."
-              : `Synchronisée automatiquement (${MARGE_CLOTURE_PAR_DEFAUT_MIN} min avant le début) — modifiable ci-dessus.`}
+              ? "Réglée manuellement — ne suit plus automatiquement le check-in."
+              : `Synchronisée automatiquement (${MARGE_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN} min avant le check-in) — modifiable ci-dessus.`}
           </p>
+          {finInscriptionsTs !== undefined && checkinTs !== undefined && finInscriptionsTs > checkinTs && (
+            <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
+              Ne peut pas être après l&apos;heure de check-in.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
