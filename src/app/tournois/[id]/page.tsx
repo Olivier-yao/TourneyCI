@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, XCircle } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
@@ -32,6 +32,8 @@ import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";
 import { AvisCoeur } from "@/components/ds/AvisCoeur";
 import { AppelResultats } from "@/components/ds/AppelResultats";
 import { CtaInscription } from "./CtaInscription";
+import { CarteOrganisateur } from "./CarteOrganisateur";
+import { FicheDirectSpectateur } from "./FicheDirectSpectateur";
 
 const SEUIL_TEXTE_LONG = 140;
 
@@ -149,52 +151,6 @@ function TuileStat({ valeur, label, accent = false }: { valeur: string; label: s
       <div className="text-[15px]" style={{ fontFamily: "var(--ds-font-mono)", color: accent ? "var(--ds-accent-300)" : "var(--ds-text)" }}>{valeur}</div>
       <div className="mt-0.5 text-[11px]" style={{ color: "var(--ds-muted)" }}>{label}</div>
     </div>
-  );
-}
-
-/** Carte organisateur affichée sur la fiche tournoi en direct — nom, sceau de
- * certification, note moyenne, réutilise les données réelles du classement
- * organisateurs plutôt qu'un score inventé. */
-function CarteOrganisateur({ nom }: { nom: string }) {
-  const [info, setInfo] = useState<{ certifie: boolean; note: number } | undefined>(undefined);
-
-  useEffect(() => {
-    classementOrganisateurs().then((classement) => {
-      const entree = classement.find((o) => o.nom === nom);
-      setInfo(entree ? { certifie: entree.certifie, note: entree.note } : undefined);
-    });
-  }, [nom]);
-
-  return (
-    <Link
-      href={`/organisateur/profil/${encodeURIComponent(nom)}`}
-      className="flex items-center gap-2.5 p-[11px]"
-      style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
-    >
-      <div className="relative shrink-0">
-        <div
-          className="flex items-center justify-center w-[34px] h-[34px] text-[11px] font-medium"
-          style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-800)", color: "var(--ds-accent-300)" }}
-        >
-          {initiales(nom)}
-        </div>
-        {info?.certifie && (
-          <div
-            className="absolute -right-[3px] -bottom-[3px] flex items-center justify-center"
-            style={{ width: 15, height: 15, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-accent-700)", border: "1.5px solid var(--ds-surface)" }}
-          >
-            <ShieldCheck size={8} strokeWidth={2} style={{ color: "var(--ds-accent-100, var(--ds-accent-300))" }} />
-          </div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium truncate">{nom}</div>
-        <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          {info?.certifie ? "CERTIFIÉ · " : ""}NOTE {info ? info.note.toFixed(1) : "–"}
-        </div>
-      </div>
-      <ChevronRight size={14} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
-    </Link>
   );
 }
 
@@ -381,6 +337,7 @@ function DetailTournoiInterne() {
   const [peutContester, setPeutContester] = useState(false);
   const [monAppel, setMonAppel] = useState<Appel | undefined>(undefined);
   const [estMonTournoi, setEstMonTournoi] = useState(false);
+  const [estInscritTournoi, setEstInscritTournoi] = useState(false);
   const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
   const [matchsTournoi, setMatchsTournoi] = useState<MatchTournoi[]>([]);
 
@@ -405,7 +362,9 @@ function DetailTournoiInterne() {
       setTournoi(t);
       const monTournoi = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
       setEstMonTournoi(monTournoi);
-      setAccesChat((await estInscrit(params.id)) || monTournoi);
+      const inscrit = await estInscrit(params.id);
+      setEstInscritTournoi(inscrit);
+      setAccesChat(inscrit || monTournoi);
       if (t) setFermeInscriptions(inscriptionsFermees(t));
       // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
       // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
@@ -438,6 +397,16 @@ function DetailTournoiInterne() {
         </Link>
       </div>
     );
+  }
+
+  // Point 209 : un spectateur non inscrit (ni organisateur, ni participant)
+  // qui clique sur un tournoi en direct doit atterrir directement sur le
+  // match en cours, dans le langage visuel de la vue Match en direct, plutôt
+  // que sur la fiche tournoi statique — celle-ci reste inchangée pour
+  // l'organisateur et les inscrits. Réservé aux formats à bracket (le Battle
+  // Royale garde son bloc dédié, système de scoring différent).
+  if (tournoi.enDirect && tournoi.type !== "battle_royale" && !estMonTournoi && !estInscritTournoi) {
+    return <FicheDirectSpectateur tournoi={tournoi} />;
   }
 
   const pourcentagePlaces = Math.round(
