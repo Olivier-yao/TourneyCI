@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { GestionMatches } from "../gestion/GestionMatches";
@@ -21,7 +21,8 @@ export default function QualificationTournoiPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
-  const [, setRafraichir] = useState(0);
+  const [matches, setMatches] = useState<MatchTournoi[]>([]);
+  const [rafraichir, setRafraichir] = useState(0);
 
   useEffect(() => {
     async function charger() {
@@ -32,6 +33,10 @@ export default function QualificationTournoiPage() {
     }
     charger();
   }, [params.id]);
+
+  useEffect(() => {
+    matchsDuTournoi(params.id).then(setMatches);
+  }, [params.id, rafraichir]);
 
   if (!pret) return null;
 
@@ -73,7 +78,7 @@ export default function QualificationTournoiPage() {
         <GestionMatches
           tournoiId={params.id}
           tournoiTitre={tournoi.titre}
-          matches={matchsDuTournoi(params.id)}
+          matches={matches}
           onEnregistre={() => setRafraichir((n) => n + 1)}
         />
       )}

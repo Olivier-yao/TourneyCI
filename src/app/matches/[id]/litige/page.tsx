@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, X, Camera, CheckCircle2, Clock, Circle, TriangleAlert } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
-import { matchParId } from "@/lib/mockBracket";
+import { matchParId, type MatchTournoi } from "@/lib/mockBracket";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { lireProfil } from "@/lib/mockProfil";
 import { creerLitige, litigeDuMatch, ajouterPreuveLitige, mesLitiges, type Litige } from "@/lib/mockLitige";
@@ -53,7 +53,7 @@ function EnTete({ titre, etapeNum, onBack }: { titre: string; etapeNum?: number;
 export default function LitigePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const match = matchParId(params.id);
+  const [match, setMatch] = useState<MatchTournoi | undefined>(undefined);
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
 
@@ -66,21 +66,25 @@ export default function LitigePage() {
   const fichierRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const existant = litigeDuMatch(params.id);
-    if (existant) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLitige(existant);
-      setEtape("suivi");
-    }
-    setHistorique(mesLitiges().filter((l) => l.matchId !== params.id).slice(0, 3));
-    if (!match) {
-      setPret(true);
-      return;
-    }
-    tournoiParId(match.tournoiId).then((t) => {
+    async function charger() {
+      const existant = litigeDuMatch(params.id);
+      if (existant) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setLitige(existant);
+        setEtape("suivi");
+      }
+      setHistorique(mesLitiges().filter((l) => l.matchId !== params.id).slice(0, 3));
+      const m = await matchParId(params.id);
+      setMatch(m);
+      if (!m) {
+        setPret(true);
+        return;
+      }
+      const t = await tournoiParId(m.tournoiId);
       setTournoi(t);
       setPret(true);
-    });
+    }
+    charger();
   }, [params.id]);
 
   if (!pret) return null;

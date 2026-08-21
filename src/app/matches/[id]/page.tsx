@@ -9,7 +9,7 @@ export default async function MatchLivePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const match = matchParId(id);
+  const match = await matchParId(id);
 
   if (!match) {
     notFound();

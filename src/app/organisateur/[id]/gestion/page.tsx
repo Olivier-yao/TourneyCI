@@ -7,12 +7,18 @@ import { XCircle, Settings2, Users, ListChecks, Flag, Zap, KeyRound, Network } f
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 
 function CarteActionRequise({ tournoi }: { tournoi: Tournoi }) {
+  const [matches, setMatches] = useState<MatchTournoi[]>([]);
+  useEffect(() => {
+    if (tournoi.type === "battle_royale") return;
+    matchsDuTournoi(tournoi.id).then(setMatches);
+  }, [tournoi.id, tournoi.type]);
+
   if (tournoi.termine || tournoi.annule) return null;
 
   if (tournoi.type === "battle_royale") {
@@ -39,7 +45,6 @@ function CarteActionRequise({ tournoi }: { tournoi: Tournoi }) {
     );
   }
 
-  const matches = matchsDuTournoi(tournoi.id);
   const enAttente = matches.filter((m) => m.statut !== "termine" && m.joueur1 && m.joueur2).length;
   if (enAttente === 0) return null;
   return (

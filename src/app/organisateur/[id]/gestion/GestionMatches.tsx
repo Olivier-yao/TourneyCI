@@ -98,36 +98,40 @@ export function GestionMatches({
     });
   }
 
-  function demarrer(match: MatchTournoi) {
-    demarrerMatch(tournoiId, match.id);
+  async function demarrer(match: MatchTournoi) {
+    const resultat = await demarrerMatch(tournoiId, match.id);
+    if (!resultat.ok) return;
     notifierParticipants(tournoiId, tournoiTitre, `Le match ${match.joueur1} vs ${match.joueur2} commence !`);
     onEnregistre();
   }
 
-  function validerScoreEnDirect(match: MatchTournoi) {
+  async function validerScoreEnDirect(match: MatchTournoi) {
     const { s1, s2 } = saisie(match);
-    mettreAJourScoreEnDirect(tournoiId, match.id, s1, s2);
+    const resultat = await mettreAJourScoreEnDirect(tournoiId, match.id, s1, s2);
+    if (!resultat.ok) return;
     onEnregistre();
   }
 
-  function cloturer(match: MatchTournoi) {
+  async function cloturer(match: MatchTournoi) {
     const { s1, s2 } = saisie(match);
     if (s1 === s2) return;
-    mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
+    const resultat = await mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
+    if (!resultat.ok) return;
     notifierParticipants(tournoiId, tournoiTitre, `Score final : ${match.joueur1} ${s1} - ${s2} ${match.joueur2}`);
     onEnregistre();
   }
 
-  function confirmerCloture() {
+  async function confirmerCloture() {
     if (!confirmationCloture) return;
-    cloturer(confirmationCloture);
+    await cloturer(confirmationCloture);
     setConfirmationCloture(null);
   }
 
-  function modifierTermine(match: MatchTournoi) {
+  async function modifierTermine(match: MatchTournoi) {
     const { s1, s2 } = saisie(match);
     if (s1 === s2) return;
-    mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
+    const resultat = await mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
+    if (!resultat.ok) return;
     onEnregistre();
   }
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Lock, Shuffle } from "lucide-react";
 import { tournoiParId, bracketVerrouillee, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi, genererBracket } from "@/lib/mockBracket";
+import { matchsDuTournoi, genererBracket, type MatchTournoi } from "@/lib/mockBracket";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { notifierParticipants } from "@/lib/mockNotifications";
@@ -28,7 +28,7 @@ export default function BracketPage() {
   const router = useRouter();
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
-  const [, setRafraichir] = useState(0);
+  const [matches, setMatches] = useState<MatchTournoi[]>([]);
 
   useEffect(() => {
     tournoiParId(params.id).then((t) => {
@@ -37,16 +37,20 @@ export default function BracketPage() {
     });
   }, [params.id]);
 
-  const matches = matchsDuTournoi(params.id);
+  useEffect(() => {
+    matchsDuTournoi(params.id).then(setMatches);
+  }, [params.id]);
+
   const fermees = tournoi ? inscriptionsFermees(tournoi) : false;
   const assezDeMonde = (tournoi?.inscrits.length ?? 0) >= 2;
 
   useEffect(() => {
     if (!tournoi || matches.length > 0 || !fermees || !assezDeMonde) return;
-    genererBracket(tournoi.id, melanger(tournoi.inscrits));
-    notifierParticipants(tournoi.id, tournoi.titre, "le bracket est disponible !");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRafraichir((n) => n + 1);
+    genererBracket(tournoi.id, melanger(tournoi.inscrits)).then((genere) => {
+      if (genere.length === 0) return;
+      notifierParticipants(tournoi.id, tournoi.titre, "le bracket est disponible !");
+      setMatches(genere);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournoi?.id, matches.length, fermees, assezDeMonde]);
 

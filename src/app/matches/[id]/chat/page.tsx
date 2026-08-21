@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowDown, Eye, Hourglass, Info, CornerRightUp, MessagesSquare } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { CLIP_HEXAGONE } from "@/components/ds/Palier";
-import { matchParId, spectateursDerives } from "@/lib/mockBracket";
+import { matchParId, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
@@ -33,7 +33,7 @@ function heure(horodatage: number): string {
 export default function ChatSpectateursMatchPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const match = matchParId(params.id);
+  const [match, setMatch] = useState<MatchTournoi | undefined>(undefined);
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [inscrit, setInscrit] = useState(false);
@@ -44,26 +44,27 @@ export default function ChatSpectateursMatchPage() {
   const minuteurRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (!match) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPret(true);
-      return;
-    }
+    let intervalId: ReturnType<typeof setInterval> | undefined;
     async function charger() {
-      if (!match) return;
-      const t = await tournoiParId(match.tournoiId);
-      const suisInscrit = await estInscrit(match.tournoiId);
+      const m = await matchParId(params.id);
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMatch(m);
+      if (!m) {
+        setPret(true);
+        return;
+      }
+      const t = await tournoiParId(m.tournoiId);
+      const suisInscrit = await estInscrit(m.tournoiId);
       setTournoi(t);
       setInscrit(suisInscrit);
       setOrganisateur(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
       setMessages(messagesChat(cleSpectateurs(params.id)));
       setPret(true);
+      intervalId = setInterval(() => setMessages(messagesChat(cleSpectateurs(params.id))), RAFRAICHISSEMENT_MS);
     }
     charger();
-    const id = setInterval(() => setMessages(messagesChat(cleSpectateurs(params.id))), RAFRAICHISSEMENT_MS);
     return () => {
-      clearInterval(id);
+      if (intervalId) clearInterval(intervalId);
       if (minuteurRef.current) clearInterval(minuteurRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

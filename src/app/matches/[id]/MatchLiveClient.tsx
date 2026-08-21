@@ -31,8 +31,8 @@ export function MatchLiveClient({
   const [role, setRole] = useState<Role>("chargement");
   const [monPseudo, setMonPseudo] = useState("");
 
-  function rafraichir() {
-    setMatch(matchParId(matchInitial.id) ?? matchInitial);
+  async function rafraichir() {
+    setMatch((await matchParId(matchInitial.id)) ?? matchInitial);
   }
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function MatchLiveClient({
       // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMonPseudo(lireProfil().pseudo);
-      rafraichir();
+      await rafraichir();
       const tournoi = await tournoiParId(tournoiId);
       if (tournoi && peutSuperviser(tournoi.organisateur, nomOrganisateurActuel())) setRole("organisateur");
       else if (await estInscrit(tournoiId)) setRole("participant");

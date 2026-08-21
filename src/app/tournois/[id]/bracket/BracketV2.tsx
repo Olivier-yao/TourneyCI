@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { History } from "lucide-react";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
-import type { MatchTournoi } from "@/lib/mockBracket";
+import { evenementsDuMatch, type MatchTournoi, type EvenementMatch } from "@/lib/mockBracket";
 
 type Ligne = { id: string; d: string };
 
@@ -131,6 +131,15 @@ function CarteVainqueur({ nom, refCallback }: { nom: string | null; refCallback:
 export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
   const [filtre, setFiltre] = useState<"top8" | "tout">("top8");
   const [matchHistorique, setMatchHistorique] = useState<MatchTournoi | null>(null);
+  const [evenementsHistorique, setEvenementsHistorique] = useState<EvenementMatch[]>([]);
+
+  useEffect(() => {
+    if (!matchHistorique) {
+      setEvenementsHistorique([]);
+      return;
+    }
+    evenementsDuMatch(matchHistorique.id).then(setEvenementsHistorique);
+  }, [matchHistorique]);
   const conteneurRef = useRef<HTMLDivElement>(null);
   const cartesRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const vainqueurRef = useRef<HTMLDivElement | null>(null);
@@ -332,12 +341,12 @@ export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
             <div className="text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
               Fil du match
             </div>
-            {matchHistorique.evenements && matchHistorique.evenements.length > 0 ? (
+            {evenementsHistorique.length > 0 ? (
               <div className="flex flex-col gap-2">
-                {matchHistorique.evenements.map((evt, i) => (
-                  <div key={i} className="flex items-start gap-2.5">
+                {evenementsHistorique.map((evt) => (
+                  <div key={evt.id} className="flex items-start gap-2.5">
                     <span className="shrink-0 text-xs" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                      {evt.minute}&apos;
+                      {new Date(evt.creeLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                     </span>
                     <span className="text-sm">{evt.texte}</span>
                   </div>

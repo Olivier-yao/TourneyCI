@@ -34,7 +34,7 @@ import {
   Package,
   type LucideIcon,
 } from "lucide-react";
-import { mettreAJourScoreMatch, ajouterEvenementMatch, matchsDuTournoi, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
+import { mettreAJourScoreMatch, ajouterEvenementMatch, evenementsDuMatch, matchsDuTournoi, libelleRound, type MatchTournoi, type EvenementMatch } from "@/lib/mockBracket";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { litigeDuMatch, resoudreLitige, type Litige } from "@/lib/mockLitige";
 import { tournoiParId, genreDuJeu } from "@/lib/mockTournaments";
@@ -91,6 +91,7 @@ export function VueOrganisateurMatch({
   const [acteurIndex, setActeurIndex] = useState<0 | 1>(0);
   const [evenementId, setEvenementId] = useState<string | null>(null);
   const [roundLabel, setRoundLabel] = useState("");
+  const [derniersEvenements, setDerniersEvenements] = useState<EvenementMatch[]>([]);
 
   useEffect(() => {
     async function charger() {
@@ -98,9 +99,10 @@ export function VueOrganisateurMatch({
       setLitige(litigeDuMatch(matchInitial.id));
       const tournoi = await tournoiParId(tournoiId);
       setCategorie(mappeGenre(tournoi ? genreDuJeu(tournoi.jeuId) : undefined));
-      const matchs = matchsDuTournoi(tournoiId);
+      const matchs = await matchsDuTournoi(tournoiId);
       const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : matchInitial.round;
       setRoundLabel(libelleRound(matchInitial.round, totalRounds));
+      setDerniersEvenements((await evenementsDuMatch(matchInitial.id)).slice(0, 2));
     }
     charger();
   }, [matchInitial.id, matchInitial.round, tournoiId]);
@@ -116,11 +118,11 @@ export function VueOrganisateurMatch({
   const eventSelectionne = eventsCategorie.find((e) => e.id === evenementId) ?? null;
   const besoinCible = eventSelectionne ? eventSelectionne.gabarit.includes("{B}") : false;
   const previewTexte = eventSelectionne ? texteEvenement(eventSelectionne.gabarit, nomActeur, nomCible) : "";
-  const derniersEvenements = (matchInitial.evenements ?? []).slice(0, 2);
 
-  function valider() {
+  async function valider() {
     if (s1 === s2) return;
-    mettreAJourScoreMatch(tournoiId, matchInitial.id, s1, s2);
+    const resultat = await mettreAJourScoreMatch(tournoiId, matchInitial.id, s1, s2);
+    if (!resultat.ok) return;
     notifierParticipants(tournoiId, tournoiTitre, `Score validé : ${matchInitial.joueur1} ${s1} - ${s2} ${matchInitial.joueur2}`);
     setEnregistre(true);
     onMaj();
@@ -137,9 +139,11 @@ export function VueOrganisateurMatch({
     setEvenementId(null);
   }
 
-  function validerEvenement() {
+  async function validerEvenement() {
     if (!eventSelectionne) return;
-    ajouterEvenementMatch(tournoiId, matchInitial.id, texteEvenement(eventSelectionne.gabarit, nomActeur, nomCible));
+    const resultat = await ajouterEvenementMatch(tournoiId, matchInitial.id, texteEvenement(eventSelectionne.gabarit, nomActeur, nomCible));
+    if (!resultat.ok) return;
+    setDerniersEvenements(await evenementsDuMatch(matchInitial.id).then((liste) => liste.slice(0, 2)));
     setEvenementId(null);
     onMaj();
   }
@@ -364,8 +368,10 @@ export function VueOrganisateurMatch({
                 <span className="text-[9px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Derniers événements</span>
                 <div className="mt-1.5 flex flex-col gap-1.5">
                   {derniersEvenements.map((e, i) => (
-                    <div key={i} className="flex items-baseline gap-2">
-                      <span className="w-[22px] shrink-0 text-[10px]" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>{e.minute}&apos;</span>
+                    <div key={e.id} className="flex items-baseline gap-2">
+                      <span className="w-[38px] shrink-0 text-[10px]" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                        {new Date(e.creeLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                       <span className="flex-1 min-w-0 text-xs" style={{ color: i === 0 ? "var(--ds-text)" : "var(--ds-muted)" }}>{e.texte}</span>
                       <X size={11} strokeWidth={2} style={{ color: "var(--ds-border-strong)" }} className="shrink-0" />
                     </div>

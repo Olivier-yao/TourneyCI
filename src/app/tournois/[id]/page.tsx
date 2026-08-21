@@ -220,6 +220,12 @@ function CashPrizeEnTete({ montantXof, badgeTexte }: { montantXof: number; badge
 }
 
 function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
+  const [tousMatchs, setTousMatchs] = useState<MatchTournoi[]>([]);
+  useEffect(() => {
+    if (tournoi.type === "battle_royale") return;
+    matchsDuTournoi(tournoi.id).then(setTousMatchs);
+  }, [tournoi.id, tournoi.type]);
+
   if (tournoi.type === "battle_royale") {
     const classement = classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo");
     const manches = manchesBR(tournoi.id);
@@ -261,7 +267,6 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
     );
   }
 
-  const tousMatchs = matchsDuTournoi(tournoi.id);
   const matchsEnCours = tousMatchs.filter((m) => m.statut === "en_cours");
   const totalRounds = tousMatchs.length > 0 ? Math.max(...tousMatchs.map((m) => m.round)) : 0;
   const matchVedette = matchsEnCours[0];
@@ -377,6 +382,18 @@ function DetailTournoiInterne() {
   const [monAppel, setMonAppel] = useState<Appel | undefined>(undefined);
   const [estMonTournoi, setEstMonTournoi] = useState(false);
   const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
+  const [matchsTournoi, setMatchsTournoi] = useState<MatchTournoi[]>([]);
+
+  useEffect(() => {
+    async function charger() {
+      if (!tournoi || tournoi.type === "battle_royale") {
+        setMatchsTournoi([]);
+        return;
+      }
+      setMatchsTournoi(await matchsDuTournoi(params.id));
+    }
+    charger();
+  }, [tournoi, params.id]);
 
   useEffect(() => {
     // État dépendant de l'API (tournoi) : introuvable au premier rendu
@@ -443,14 +460,14 @@ function DetailTournoiInterne() {
   const aUnBracket =
     tournoi.type === "battle_royale"
       ? participantsBR(params.id).length > 0
-      : matchsDuTournoi(params.id).length > 0;
+      : matchsTournoi.length > 0;
   const lienBracket =
     tournoi.type === "battle_royale"
       ? `/tournois/${params.id}/battle-royale`
       : `/tournois/${params.id}/bracket`;
   const matchVedetteStream =
     tournoi.enDirect && tournoi.type !== "battle_royale"
-      ? matchsDuTournoi(params.id).find((m) => m.statut === "en_cours")
+      ? matchsTournoi.find((m) => m.statut === "en_cours")
       : undefined;
   const sousTitreStream = matchVedetteStream ? `${matchVedetteStream.joueur1 ?? "?"} VS ${matchVedetteStream.joueur2 ?? "?"}` : "";
 

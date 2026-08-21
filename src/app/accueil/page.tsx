@@ -17,7 +17,7 @@ import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type GenreJeu, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
@@ -66,6 +66,19 @@ export default function AccueilV2Page() {
   const [streamOuvert, setStreamOuvert] = useState<Tournoi | null>(null);
   const [, setFavorisVersion] = useState(0);
   const [pageDirect, setPageDirect] = useState(0);
+  const [matchEnCoursStream, setMatchEnCoursStream] = useState<MatchTournoi | null>(null);
+
+  useEffect(() => {
+    if (!streamOuvert) {
+      setMatchEnCoursStream(null);
+      return;
+    }
+    async function charger() {
+      const matches = await matchsDuTournoi(streamOuvert!.id);
+      setMatchEnCoursStream(matches.find((m) => m.statut === "en_cours") ?? null);
+    }
+    charger();
+  }, [streamOuvert]);
 
   useEffect(() => {
     // État dépendant du localStorage (tournois créés localement) : liste
@@ -526,20 +539,16 @@ export default function AccueilV2Page() {
                   <Eye size={11} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
                   <span className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{spectateurs(streamOuvert)}</span>
                 </div>
-                {(() => {
-                  const enCours = matchsDuTournoi(streamOuvert.id).find((m) => m.statut === "en_cours");
-                  if (!enCours) return null;
-                  return (
-                    <div className="absolute left-2.5 right-2.5 bottom-2.5 flex items-center gap-2 px-2.5 py-2" style={{ borderRadius: "var(--ds-radius-sm)", background: "rgba(22,24,38,.82)" }}>
-                      <div className="flex-1 min-w-0 text-xs truncate">
-                        {enCours.joueur1} <span style={{ color: "var(--ds-muted)" }}>vs</span> {enCours.joueur2}
-                      </div>
-                      <div className="text-sm shrink-0" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                        {enCours.score1 ?? 0} — {enCours.score2 ?? 0}
-                      </div>
+                {matchEnCoursStream && (
+                  <div className="absolute left-2.5 right-2.5 bottom-2.5 flex items-center gap-2 px-2.5 py-2" style={{ borderRadius: "var(--ds-radius-sm)", background: "rgba(22,24,38,.82)" }}>
+                    <div className="flex-1 min-w-0 text-xs truncate">
+                      {matchEnCoursStream.joueur1} <span style={{ color: "var(--ds-muted)" }}>vs</span> {matchEnCoursStream.joueur2}
                     </div>
-                  );
-                })()}
+                    <div className="text-sm shrink-0" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                      {matchEnCoursStream.score1 ?? 0} — {matchEnCoursStream.score2 ?? 0}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2.5">

@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { symboleParId } from "@/lib/mockSymboles";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { manchesBR } from "@/lib/mockBattleRoyale";
 import { compterAvis } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -36,12 +36,11 @@ function spectateurs(tournoi: Tournoi): number {
   return 80 + (h % 400) + tournoi.placesInscrites * 6;
 }
 
-function infosDirect(tournoi: Tournoi): { score: string; phase: string } {
+function infosDirect(tournoi: Tournoi, matches: MatchTournoi[]): { score: string; phase: string } {
   if (tournoi.type === "battle_royale") {
     const nb = manchesBR(tournoi.id).length;
     return { score: nb > 0 ? `Manche ${nb}` : "—", phase: "Battle Royale" };
   }
-  const matches = matchsDuTournoi(tournoi.id);
   const enCours = matches.find((m) => m.statut === "en_cours");
   if (enCours) {
     const totalRounds = Math.max(...matches.map((m) => m.round), enCours.round);
@@ -54,6 +53,7 @@ export default function EnDirectPage() {
   const connecte = useExigerConnexion();
   const [tri, setTri] = useState<Tri>("cashprize");
   const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
+  const [matchsParTournoi, setMatchsParTournoi] = useState<Record<string, MatchTournoi[]>>({});
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
@@ -64,6 +64,18 @@ export default function EnDirectPage() {
     }
     charger();
   }, []);
+
+  useEffect(() => {
+    async function charger() {
+      const entrees = await Promise.all(
+        tousLesTournoisState
+          .filter((t) => t.enDirect && t.type !== "battle_royale")
+          .map(async (t) => [t.id, await matchsDuTournoi(t.id)] as const),
+      );
+      setMatchsParTournoi(Object.fromEntries(entrees));
+    }
+    charger();
+  }, [tousLesTournoisState]);
 
   const enDirect = useMemo(() => {
     const liste = tousLesTournoisState.filter((t) => t.enDirect);
@@ -109,7 +121,7 @@ export default function EnDirectPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {enDirect.map((t) => {
-              const { score, phase } = infosDirect(t);
+              const { score, phase } = infosDirect(t, matchsParTournoi[t.id] ?? []);
               const symbole = symboleParId(t.symboleId);
               const IconeSymbole = symbole.icone;
               return (

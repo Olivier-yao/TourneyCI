@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Video, X, Users, Minus, Plus, Trophy } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { Avatar } from "@/components/ds/Avatar";
-import { matchParId, mettreAJourScoreMatch } from "@/lib/mockBracket";
+import { matchParId, mettreAJourScoreMatch, type MatchTournoi } from "@/lib/mockBracket";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 
 function initiales(nom: string): string {
@@ -22,26 +22,32 @@ function initiales(nom: string): string {
 export default function SignalerScorePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const match = matchParId(params.id);
   const [pretPage, setPretPage] = useState(false);
+  const [match, setMatch] = useState<MatchTournoi | undefined>(undefined);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
 
-  const [s1, setS1] = useState(match?.score1?.toString() ?? "");
-  const [s2, setS2] = useState(match?.score2?.toString() ?? "");
+  const [s1, setS1] = useState("");
+  const [s2, setS2] = useState("");
   const [preuves, setPreuves] = useState<string[]>([]);
   const [envoye, setEnvoye] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
   const captureRef = useRef<HTMLInputElement>(null);
   const clipRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!match) {
+    async function charger() {
+      const m = await matchParId(params.id);
+      setMatch(m);
+      setS1(m?.score1?.toString() ?? "");
+      setS2(m?.score2?.toString() ?? "");
+      if (!m) {
+        setPretPage(true);
+        return;
+      }
+      setTournoi(await tournoiParId(m.tournoiId));
       setPretPage(true);
-      return;
     }
-    tournoiParId(match.tournoiId).then((t) => {
-      setTournoi(t);
-      setPretPage(true);
-    });
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
@@ -64,9 +70,14 @@ export default function SignalerScorePage() {
     if (fichier) setPreuves((p) => [...p, fichier.name]);
   }
 
-  function envoyer() {
+  async function envoyer() {
     if (!pret) return;
-    mettreAJourScoreMatch(tournoi!.id, match!.id, Number(s1), Number(s2));
+    const resultat = await mettreAJourScoreMatch(tournoi!.id, match!.id, Number(s1), Number(s2));
+    if (!resultat.ok) {
+      setErreur(resultat.erreur ?? "Erreur lors de l'enregistrement du score.");
+      return;
+    }
+    setErreur(null);
     setEnvoye(true);
   }
 
@@ -233,6 +244,11 @@ export default function SignalerScorePage() {
         </div>
       </div>
 
+      {erreur && (
+        <p className="px-5 text-xs" style={{ color: "var(--ds-danger)" }}>
+          {erreur}
+        </p>
+      )}
       <div className="px-5 py-4 flex gap-2.5" style={{ borderTop: "1px solid var(--ds-border)" }}>
         <Link
           href={`/matches/${match.id}/litige`}

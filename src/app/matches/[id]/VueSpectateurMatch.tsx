@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Share2, MessagesSquare } from "lucide-react";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { PRESS } from "@/components/ds/Button";
-import { matchsDuTournoi, libelleRound, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, libelleRound, spectateursDerives, evenementsDuMatch, type MatchTournoi, type EvenementMatch } from "@/lib/mockBracket";
 
 function initiales(nom: string): string {
   return nom
@@ -56,13 +56,24 @@ export function VueSpectateurMatch({
   const router = useRouter();
   const spectateurs = spectateursDerives(match.id);
   const [roundLabel, setRoundLabel] = useState<string>("");
+  const [evenements, setEvenements] = useState<EvenementMatch[]>([]);
 
   useEffect(() => {
-    const matchs = matchsDuTournoi(tournoiId);
-    const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : match.round;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setRoundLabel(libelleRound(match.round, totalRounds));
+    async function charger() {
+      const matchs = await matchsDuTournoi(tournoiId);
+      const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : match.round;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRoundLabel(libelleRound(match.round, totalRounds));
+    }
+    charger();
   }, [tournoiId, match.round]);
+
+  useEffect(() => {
+    async function charger() {
+      setEvenements(await evenementsDuMatch(match.id));
+    }
+    charger();
+  }, [match.id]);
 
   const s1 = match.score1 ?? 0;
   const s2 = match.score2 ?? 0;
@@ -127,15 +138,15 @@ export function VueSpectateurMatch({
         <div className="text-[10px] tracking-wide uppercase mb-2" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
           Fil du match
         </div>
-        {(match.evenements ?? []).length === 0 ? (
+        {evenements.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
             Aucun événement pour l&apos;instant.
           </p>
         ) : (
-          (match.evenements ?? []).map((ev, i) => (
-            <div key={i} className="flex gap-3">
+          evenements.map((ev, i) => (
+            <div key={ev.id} className="flex gap-3">
               <div className="w-[26px] shrink-0 text-right text-[10px] pt-2.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                {ev.minute}&apos;
+                {new Date(ev.creeLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
               </div>
               <div className="relative w-px shrink-0" style={{ background: "var(--ds-border)" }}>
                 <div

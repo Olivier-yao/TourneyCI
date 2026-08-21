@@ -30,6 +30,7 @@ export default function RoomTournoiPage() {
   const [lien, setLien] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [envoiConfirme, setEnvoiConfirme] = useState<string | null>(null);
+  const [matchsListe, setMatchsListe] = useState<MatchTournoi[]>([]);
 
   useEffect(() => {
     async function charger() {
@@ -43,6 +44,17 @@ export default function RoomTournoiPage() {
     }
     charger();
   }, [params.id]);
+
+  useEffect(() => {
+    async function charger() {
+      if (!tournoi || tournoi.type === "battle_royale") {
+        setMatchsListe([]);
+        return;
+      }
+      setMatchsListe(await matchsDuTournoi(params.id));
+    }
+    charger();
+  }, [tournoi, params.id]);
 
   if (!pret) return null;
 
@@ -107,7 +119,6 @@ export default function RoomTournoiPage() {
   }
 
   const estBracket = tournoi.type !== "battle_royale";
-  const matchsListe = estBracket ? matchsDuTournoi(params.id) : [];
   const totalRounds = matchsListe.length > 0 ? Math.max(...matchsListe.map((m) => m.round)) : 0;
   const participants = !estBracket ? participantsBR(params.id) : [];
   const messagePret = Boolean(lien.trim());
