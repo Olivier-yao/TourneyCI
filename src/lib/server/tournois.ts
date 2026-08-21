@@ -31,6 +31,18 @@ export function depuisTypeCompetition(valeur: type_competition): "1v1" | "equipe
   return valeur === "v1" ? "1v1" : valeur;
 }
 
+/** Un tournoi passe "en direct" tout seul dès que l'heure de début est
+ * atteinte (et qu'il n'est ni terminé ni annulé) — pas besoin d'action
+ * organisateur ni de tâche planifiée : calculé à la lecture, comme
+ * termine/annule/checkin. en_direct (colonne stockée) reste disponible pour
+ * un futur déclenchement manuel anticipé, mais rien ne l'écrit à true
+ * aujourd'hui. */
+export function estEnDirect(row: { en_direct: boolean; termine_le: Date | null; annule_le: Date | null; debut_tournoi_le: Date }): boolean {
+  if (row.en_direct) return true;
+  if (row.termine_le || row.annule_le) return false;
+  return Date.now() >= row.debut_tournoi_le.getTime();
+}
+
 const includeTournoiDetail = {
   jeux: true,
   villes: true,
@@ -75,7 +87,7 @@ export function versTournoiJSON(row: TournoiDetailRow | TournoiListeRow) {
     placesInscrites: row._count.inscriptions,
     placesTotal: row.places_total,
     checkin: formaterHeureCheckin(row.checkin_le.getTime()),
-    enDirect: row.en_direct,
+    enDirect: estEnDirect(row),
     reglement: row.reglement,
     informations: row.informations ?? undefined,
     inscrits: inscriptions?.map((i) => i.equipe_nom ?? i.profiles.pseudo) ?? [],

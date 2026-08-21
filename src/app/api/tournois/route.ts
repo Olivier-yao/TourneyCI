@@ -24,7 +24,12 @@ export async function GET(request: Request) {
   const tournois = await prisma.tournois.findMany({
     where: {
       ...(organisateurId ? { organisateur_id: organisateurId } : {}),
-      ...(enDirect ? { en_direct: true } : {}),
+      // Même définition qu'estEnDirect() (calculée à la lecture) : en_direct
+      // stocké à true, OU l'heure de début est passée sans que le tournoi
+      // soit terminé/annulé.
+      ...(enDirect
+        ? { OR: [{ en_direct: true }, { termine_le: null, annule_le: null, debut_tournoi_le: { lte: new Date() } }] }
+        : {}),
     },
     include: INCLUDE_TOURNOI_LISTE,
     orderBy: { created_at: "desc" },
