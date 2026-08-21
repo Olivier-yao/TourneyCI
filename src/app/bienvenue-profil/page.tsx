@@ -75,17 +75,23 @@ export default function BienvenueProfilPage() {
     setErreur(null);
     setSuggestions([]);
     setEnregistrement(true);
-    const resultatProfil = await sauvegarderProfil({ pseudo: pseudoSaisi, ville });
-    if (!resultatProfil.ok) {
+    try {
+      const resultatProfil = await sauvegarderProfil({ pseudo: pseudoSaisi, ville });
+      if (!resultatProfil.ok) {
+        setEnregistrement(false);
+        setErreur(resultatProfil.erreur ?? "Ce pseudo est déjà pris.");
+        setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+        return;
+      }
+      const resultatPhoto = await sauvegarderPhoto(photoUrl);
+      if (!resultatPhoto.ok) {
+        setEnregistrement(false);
+        setErreur(resultatPhoto.erreur ?? "Erreur lors de l'enregistrement de la photo.");
+        return;
+      }
+    } catch {
       setEnregistrement(false);
-      setErreur(resultatProfil.erreur ?? "Ce pseudo est déjà pris.");
-      setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
-      return;
-    }
-    const resultatPhoto = await sauvegarderPhoto(photoUrl);
-    if (!resultatPhoto.ok) {
-      setEnregistrement(false);
-      setErreur(resultatPhoto.erreur ?? "Erreur lors de l'enregistrement de la photo.");
+      setErreur("Erreur de connexion. Réessaie.");
       return;
     }
     // Point 190 : replace (pas push) — sinon la sortie d'un écran de

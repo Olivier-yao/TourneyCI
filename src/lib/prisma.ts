@@ -17,8 +17,15 @@ import { PrismaPg } from "@prisma/adapter-pg";
  * retombe dessus plutôt que de dupliquer une variable sensible. */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+// Le pooler Supabase est joignable en TLS mais son certificat n'est pas
+// vérifiable par la chaîne de confiance par défaut de Node — sslmode=require
+// dans l'URL est désormais interprété comme verify-full (durcissement de
+// pg-connection-string), d'où l'échec "self-signed certificate in
+// certificate chain" en prod. rejectUnauthorized: false retrouve l'ancien
+// comportement (connexion chiffrée, sans vérification du certificat).
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
