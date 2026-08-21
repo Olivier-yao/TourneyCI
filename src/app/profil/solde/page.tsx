@@ -91,7 +91,7 @@ export default function SoldePage() {
             Gains totaux
           </div>
           <div className="text-base font-medium" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-            {gains.toLocaleString("fr-FR")} F
+            {gains.toLocaleString("fr-FR")} CFA
           </div>
         </div>
         <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
@@ -99,7 +99,7 @@ export default function SoldePage() {
             Gains récents
           </div>
           <div className="text-base font-medium" style={{ fontFamily: "var(--ds-font-mono)" }}>
-            {gainsRecents.toLocaleString("fr-FR")} F
+            {gainsRecents.toLocaleString("fr-FR")} CFA
           </div>
         </div>
       </div>
@@ -171,7 +171,7 @@ export default function SoldePage() {
               <span style={{ color: "var(--ds-muted)" }}>Montant</span>
               <span style={{ color: mouvementSelectionne.montantXof > 0 ? "var(--ds-accent-300)" : "var(--ds-text)" }}>
                 {mouvementSelectionne.montantXof > 0 ? "+" : ""}
-                {mouvementSelectionne.montantXof.toLocaleString("fr-FR")} F
+                {mouvementSelectionne.montantXof.toLocaleString("fr-FR")} CFA
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">

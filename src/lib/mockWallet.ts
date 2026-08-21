@@ -100,7 +100,7 @@ export function montantNetRetrait(montantXof: number): number {
 }
 
 export function retirer(montantXof: number, moyen: string): { ok: boolean; erreur?: string } {
-  if (montantXof < 1000) return { ok: false, erreur: "Le retrait minimum est de 1 000 F." };
+  if (montantXof < 1000) return { ok: false, erreur: "Le retrait minimum est de 1 000 CFA." };
   if (lireSolde() < montantXof) return { ok: false, erreur: "Solde insuffisant pour ce retrait." };
   enregistrerMouvement({
     type: "retrait",

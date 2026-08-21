@@ -169,7 +169,7 @@ export function bracketVerrouillee(
 
 /** Frais fixes payés par l'organisateur à la création d'un tournoi payant à
  * l'inscription (bloquant, distinct de la commission ci-dessous). */
-export const FRAIS_CREATION_TOURNOI_PAYANT_XOF = 150;
+export const FRAIS_CREATION_TOURNOI_PAYANT_XOF = 200;
 
 /** Seule commission du système (point 125) : celle de l'organisateur,
  * optionnelle et activée tournoi par tournoi, prélevée sur les frais

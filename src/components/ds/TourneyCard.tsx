@@ -3,7 +3,7 @@
 import type { Profil } from "@/lib/mockProfil";
 
 function formatMontant(montant: number): string {
-  return `${montant.toLocaleString("fr-FR")} F`;
+  return `${montant.toLocaleString("fr-FR")} CFA`;
 }
 
 export function TourneyCard({ profil, solde }: { profil: Profil; solde: number }) {

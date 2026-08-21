@@ -206,8 +206,6 @@ export default function NouveauTournoiPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCheckinHeure(soustraireMinutes(dateHeure, DELAI_CHECKIN_DEFAUT_MIN));
   }, [dateHeure, checkinAjusteManuellement]);
-  const [debutInscJour, setDebutInscJour] = useState("");
-  const [debutInscHeure, setDebutInscHeure] = useState("");
   const [finInscJour, setFinInscJour] = useState("");
   const [finInscHeure, setFinInscHeure] = useState("");
   const [finInscAjusteManuellement, setFinInscAjusteManuellement] = useState(false);
@@ -230,7 +228,6 @@ export default function NouveauTournoiPage() {
 
   const debutTournoiTs = versTimestamp(dateJour, dateHeure);
   const checkinTs = versTimestamp(dateJour, checkinHeure);
-  const debutInscriptionsTs = versTimestamp(debutInscJour, debutInscHeure);
   const finInscriptionsTs = versTimestamp(finInscJour, finInscHeure);
   const AUJOURDHUI = versJourHeure(Date.now()).jour;
 
@@ -306,10 +303,6 @@ export default function NouveauTournoiPage() {
       setErreur("La date du tournoi ne peut pas être dans le passé.");
       return;
     }
-    if (debutInscriptionsTs !== undefined && debutInscriptionsTs < Date.now()) {
-      setErreur("Le début des inscriptions ne peut pas être dans le passé.");
-      return;
-    }
     if (finInscriptionsTs !== undefined && finInscriptionsTs < Date.now()) {
       setErreur("La fin des inscriptions ne peut pas être dans le passé.");
       return;
@@ -343,7 +336,7 @@ export default function NouveauTournoiPage() {
     setErreur(null);
 
     if (payant && Number(fraisXof) > 0) {
-      // Frais de création bloquants (150F), distincts de la commission :
+      // Frais de création bloquants (200 CFA), distincts de la commission :
       // le tournoi n'est créé qu'une fois ce paiement confirmé.
       setPaiementFraisOuvert(true);
       return;
@@ -380,7 +373,10 @@ export default function NouveauTournoiPage() {
       banniereUrl,
       symboleId,
       debutTournoiTs,
-      debutInscriptionsTs,
+      // Les inscriptions s'ouvrent dès la création du tournoi — pas de champ
+      // "début des inscriptions" à saisir, contrairement à la fin qui reste
+      // réglable (cf. finInscriptionsTs ci-dessous).
+      debutInscriptionsTs: Date.now(),
       finInscriptionsTs,
       modeEquipe: type === "equipes" ? modeEquipe : undefined,
       brSousType: type === "battle_royale" ? brSousType : undefined,
@@ -820,17 +816,11 @@ export default function NouveauTournoiPage() {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
-            Début des inscriptions (facultatif)
-          </label>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Field type="date" min={AUJOURDHUI} value={debutInscJour} onChange={(e) => setDebutInscJour(e.target.value)} />
-            <Field type="time" value={debutInscHeure} onChange={(e) => setDebutInscHeure(e.target.value)} />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
             Fin des inscriptions
           </label>
+          <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
+            Les inscriptions s&apos;ouvrent dès la création du tournoi.
+          </p>
           <div className="grid grid-cols-2 gap-2.5">
             <Field
               type="date"

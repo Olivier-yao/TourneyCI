@@ -255,6 +255,15 @@ export function GestionMatches({
                           </span>
                         )}
                       </div>
+                      {enCours && (
+                        <Link
+                          href={`/matches/${m.id}`}
+                          className="mt-2.5 pt-2.5 flex items-center gap-1.5 text-xs font-medium"
+                          style={{ borderTop: "1px solid var(--ds-border)", color: "var(--ds-accent-300)" }}
+                        >
+                          Alimenter le fil d&apos;événements (spectateurs) →
+                        </Link>
+                      )}
                     </div>
                   );
                 })}

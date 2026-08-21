@@ -61,7 +61,7 @@ export function PaiementFraisFixes({
         <CreditCard size={17} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
         <span className="flex-1 text-sm font-medium">TourneyCard</span>
         <span className="text-xs" style={{ color: soldeInsuffisant ? "var(--ds-danger)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          {soldeCarte.toLocaleString("fr-FR")} F
+          {soldeCarte.toLocaleString("fr-FR")} CFA
         </span>
       </div>
 

@@ -58,7 +58,7 @@ export default function RechargerPage() {
         <CheckCircle2 size={36} style={{ color: "var(--ds-accent-300)" }} />
         <p className="text-base font-medium">Recharge effectuée</p>
         <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
-          {montantSaisi.toLocaleString("fr-FR")} F ajoutés à ta TourneyCard.
+          {montantSaisi.toLocaleString("fr-FR")} CFA ajoutés à ta TourneyCard.
         </p>
       </div>
     );
@@ -73,7 +73,7 @@ export default function RechargerPage() {
           Montant
         </div>
         <div className="mt-1.5 text-3xl font-medium" style={{ fontFamily: "var(--ds-font-mono)" }}>
-          {montantSaisi.toLocaleString("fr-FR")} F
+          {montantSaisi.toLocaleString("fr-FR")} CFA
         </div>
       </div>
 
@@ -120,8 +120,8 @@ export default function RechargerPage() {
           min={MONTANT_MIN_XOF}
           value={montantPerso}
           onChange={(e) => setMontantPerso(e.target.value.replace(/[^0-9]/g, ""))}
-          placeholder={`Minimum ${MONTANT_MIN_XOF} F`}
-          erreur={montantInvalide ? `Le montant minimum est de ${MONTANT_MIN_XOF} F.` : undefined}
+          placeholder={`Minimum ${MONTANT_MIN_XOF} CFA`}
+          erreur={montantInvalide ? `Le montant minimum est de ${MONTANT_MIN_XOF} CFA.` : undefined}
         />
       )}
 
@@ -174,7 +174,7 @@ export default function RechargerPage() {
 
       <div className="mt-auto">
         <Button variante="primary" bloc onClick={confirmer} disabled={!montantValide || !telephoneValide}>
-          Recharger {montantSaisi.toLocaleString("fr-FR")} F
+          Recharger {montantSaisi.toLocaleString("fr-FR")} CFA
         </Button>
       </div>
     </div>

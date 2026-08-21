@@ -1,5 +1,5 @@
-/** Format monétaire du chantier V2 : "2 000 F" (espace fine, symbole F). */
+/** Format monétaire du chantier V2 : "2 000 CFA" (espace fine, devise CFA). */
 export function formatXof(montant: number): string {
   if (montant === 0) return "Gratuit";
-  return `${montant.toLocaleString("fr-FR")} F`;
+  return `${montant.toLocaleString("fr-FR")} CFA`;
 }

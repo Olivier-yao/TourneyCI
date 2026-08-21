@@ -230,7 +230,7 @@ export default function ProfilPage() {
                 Mon solde
               </div>
               <div className="mt-1 text-2xl font-medium" style={{ fontFamily: "var(--ds-font-mono)" }}>
-                {solde.toLocaleString("fr-FR")} F
+                {solde.toLocaleString("fr-FR")} CFA
               </div>
             </div>
             <div className="w-11 h-7" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-accent-600)", border: "1px solid var(--ds-accent)" }} />
