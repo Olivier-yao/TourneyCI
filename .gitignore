@@ -49,3 +49,6 @@ next-env.d.ts
 /.claude/skills
 /.windsurf
 skills-lock.json
+
+# préférences Claude Code personnelles (pas partagées avec l'équipe)
+/.claude/settings.local.json

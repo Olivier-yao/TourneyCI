@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Splash } from "@/components/ds/Splash";
-import { estConnecte, estOnboarde, reglementAccepte, attendreSession } from "@/lib/mockAuth";
-import { profilExiste, attendreProfil } from "@/lib/mockProfil";
+import { estConnecte, estOnboarde, attendreSession } from "@/lib/mockAuth";
+import { profilExiste, reglementAccepte, attendreProfil } from "@/lib/mockProfil";
 
 export function LanceurApp() {
   const router = useRouter();

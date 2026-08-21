@@ -6,8 +6,8 @@ import { UserRound } from "lucide-react";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
-import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, attendreProfil, profilExiste } from "@/lib/mockProfil";
-import { estConnecte, reglementAccepte, attendreSession } from "@/lib/mockAuth";
+import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, suggererPseudosDisponibles, attendreProfil, profilExiste, reglementAccepte } from "@/lib/mockProfil";
+import { estConnecte, attendreSession } from "@/lib/mockAuth";
 import { PAYS, villesDuPays, paysDeVille } from "@/lib/mockGeographie";
 
 /** Étape obligatoire après la création de compte (points 142, 154) : pseudo

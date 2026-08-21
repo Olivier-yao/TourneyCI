@@ -44,6 +44,7 @@ export async function PUT(request: Request) {
   const pseudo = typeof body?.pseudo === "string" ? body.pseudo.trim() : undefined;
   const ville = typeof body?.ville === "string" ? body.ville.trim() : undefined;
   const photoUrl = typeof body?.photoUrl === "string" ? body.photoUrl : undefined;
+  const reglementAccepte = body?.reglementAccepte === true;
 
   if (pseudo !== undefined && !pseudo) {
     return NextResponse.json({ success: false, error: "Pseudo invalide." }, { status: 400 });
@@ -83,12 +84,17 @@ export async function PUT(request: Request) {
         pseudo: pseudo ?? user.email?.split("@")[0] ?? `joueur-${user.id.slice(0, 8)}`,
         ville_id: villeId,
         photo_url: photoUrl,
+        ...(reglementAccepte ? { reglement_interieur_accepte_le: new Date() } : {}),
       },
       update: {
         ...(pseudo !== undefined ? { pseudo } : {}),
         ...(pseudoChange ? { pseudo_modifie_le: new Date() } : {}),
         ...(villeId !== undefined ? { ville_id: villeId } : {}),
         ...(photoUrl !== undefined ? { photo_url: photoUrl } : {}),
+        // Une fois acceptée, l'acceptation ne se réécrit jamais (pas de
+        // "reglementAccepte: false" possible) — évite de perdre la date
+        // d'origine si l'écran se rejoue par erreur.
+        ...(reglementAccepte && !existant?.reglement_interieur_accepte_le ? { reglement_interieur_accepte_le: new Date() } : {}),
       },
       include: { villes: true },
     });

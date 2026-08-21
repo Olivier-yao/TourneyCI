@@ -4,8 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ScrollText } from "lucide-react";
 import { Button } from "@/components/ds/Button";
-import { estConnecte, reglementAccepte, marquerReglementAccepte, attendreSession } from "@/lib/mockAuth";
-import { profilExiste, attendreProfil } from "@/lib/mockProfil";
+import { estConnecte, attendreSession } from "@/lib/mockAuth";
+import { profilExiste, reglementAccepte, marquerReglementAccepte, attendreProfil } from "@/lib/mockProfil";
 
 const REGLEMENT = `# Règlement intérieur — Tourney
 
@@ -148,6 +148,8 @@ export default function ReglementInterieurPage() {
   const router = useRouter();
   const [pret, setPret] = useState(false);
   const [accepte, setAccepte] = useState(false);
+  const [enregistrement, setEnregistrement] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
     async function verifier() {
@@ -171,9 +173,16 @@ export default function ReglementInterieurPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function continuer() {
+  async function continuer() {
     if (!accepte) return;
-    marquerReglementAccepte();
+    setErreur(null);
+    setEnregistrement(true);
+    const resultat = await marquerReglementAccepte().catch(() => ({ ok: false as const }));
+    if (!resultat.ok) {
+      setEnregistrement(false);
+      setErreur("Erreur de connexion. Réessaie.");
+      return;
+    }
     // Point 190 : replace, pas push — voir bienvenue-profil pour le détail.
     router.replace("/accueil");
   }
@@ -212,8 +221,14 @@ export default function ReglementInterieurPage() {
           <span className="text-sm">J&apos;ai lu et j&apos;accepte le règlement intérieur</span>
         </label>
 
-        <Button variante="primary" bloc onClick={continuer} disabled={!accepte}>
-          Continuer
+        {erreur && (
+          <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
+            {erreur}
+          </p>
+        )}
+
+        <Button variante="primary" bloc onClick={continuer} disabled={!accepte || enregistrement}>
+          {enregistrement ? "Enregistrement..." : "Continuer"}
         </Button>
       </div>
     </div>

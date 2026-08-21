@@ -11,11 +11,10 @@ import { creerClientSupabaseNavigateur } from "@/lib/supabase/client";
 import {
   marquerOnboarde,
   armerTransitionEntree,
-  reglementAccepte,
   attendreSession,
   estConnecte,
 } from "@/lib/mockAuth";
-import { profilExiste, attendreProfil } from "@/lib/mockProfil";
+import { profilExiste, reglementAccepte, attendreProfil } from "@/lib/mockProfil";
 
 /** Points 142 et 147 : après une connexion réussie, deux étapes obligatoires
  * (profil puis règlement intérieur) tant qu'elles n'ont pas été complétées,

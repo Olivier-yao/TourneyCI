@@ -3,12 +3,12 @@
  * est désormais la vraie session Supabase Auth (Google OAuth + email/mot de
  * passe, plus de numéro de téléphone/SMS/Twilio), pas un flag localStorage.
  * Onboarding/rôle préféré/transition d'entrée restent des préférences
- * locales à l'appareil, indépendantes du compte. Le règlement est une
- * donnée de compte (cf. cleCompte()) : un deuxième compte sur le même
- * appareil ne doit pas hériter de l'état du premier. Le profil lui-même
- * (pseudo/ville/photo) n'est plus mock du tout, cf. mockProfil.ts —
- * profilExiste()/attendreProfil() y remplacent l'ancien flag local
- * profilInitialComplet().
+ * locales à l'appareil, indépendantes du compte. Le profil (pseudo/ville/
+ * photo) et l'acceptation du règlement intérieur ne sont plus mock du tout,
+ * cf. mockProfil.ts — profilExiste()/reglementAccepte()/attendreProfil() y
+ * remplacent les anciens flags locaux profilInitialComplet() et
+ * tourney-reglement-accepte (par appareil, jamais synchronisés entre deux
+ * navigateurs pour un même compte).
  */
 
 import { creerClientSupabaseNavigateur } from "./supabase/client";
@@ -27,13 +27,6 @@ function ecrire(cle: string) {
 
 export const estOnboarde = () => lire(CLE_ONBOARDE);
 export const marquerOnboarde = () => ecrire(CLE_ONBOARDE);
-
-const CLE_REGLEMENT_ACCEPTE = "tourney-reglement-accepte";
-
-/** Point 147 : acceptation obligatoire du règlement intérieur avant
- * d'atteindre l'accueil, une seule fois par appareil — cf. /reglement-interieur. */
-export const reglementAccepte = () => lire(cleCompte(CLE_REGLEMENT_ACCEPTE));
-export const marquerReglementAccepte = () => ecrire(cleCompte(CLE_REGLEMENT_ACCEPTE));
 
 export type SourceConnexion = "email" | "google";
 

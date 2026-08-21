@@ -38,7 +38,7 @@ export const MON_PROFIL: Profil = {
   victoires: 61,
 };
 
-type SurchargeServeur = { pseudo?: string; ville?: string; photoUrl?: string };
+type SurchargeServeur = { pseudo?: string; ville?: string; photoUrl?: string; reglementAccepteLe?: string };
 
 /** null = aucun profil serveur pour ce compte (ou pas encore chargé). */
 let surchargeCache: SurchargeServeur | null = null;
@@ -55,8 +55,18 @@ function marquerInitialise() {
   }
 }
 
-function surchargeDepuisReponse(data: { pseudo: string; photo_url: string | null; villes: { nom: string } | null }): SurchargeServeur {
-  return { pseudo: data.pseudo, ville: data.villes?.nom, photoUrl: data.photo_url ?? undefined };
+function surchargeDepuisReponse(data: {
+  pseudo: string;
+  photo_url: string | null;
+  villes: { nom: string } | null;
+  reglement_interieur_accepte_le: string | null;
+}): SurchargeServeur {
+  return {
+    pseudo: data.pseudo,
+    ville: data.villes?.nom,
+    photoUrl: data.photo_url ?? undefined,
+    reglementAccepteLe: data.reglement_interieur_accepte_le ?? undefined,
+  };
 }
 
 async function rafraichirProfilServeur() {
@@ -94,6 +104,27 @@ export async function attendreProfil(): Promise<void> {
  * complétude, pas besoin d'un drapeau séparé à poser après coup. */
 export function profilExiste(): boolean {
   return surchargeCache !== null;
+}
+
+/** Point 147 : acceptation obligatoire du règlement intérieur, une seule
+ * fois par COMPTE (pas par appareil) — remplace l'ancien flag localStorage
+ * de mockAuth.ts, qui redemandait le règlement à chaque nouvel appareil ou
+ * navigateur puisqu'il ne vivait jamais côté serveur. */
+export function reglementAccepte(): boolean {
+  return !!surchargeCache?.reglementAccepteLe;
+}
+
+export async function marquerReglementAccepte(): Promise<ResultatSauvegardeProfil> {
+  const reponse = await fetch("/api/profil", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reglementAccepte: true }),
+  });
+  const json = await reponse.json();
+  if (!json.success) return { ok: false, erreur: json.error };
+  surchargeCache = surchargeDepuisReponse(json.data);
+  marquerInitialise();
+  return { ok: true };
 }
 
 /** Profil de base (pseudo/ville/photo) sans le grade calculé — utilisé en
