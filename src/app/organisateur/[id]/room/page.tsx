@@ -100,20 +100,20 @@ export default function RoomTournoiPage() {
       : `Room disponible : ${lien.trim()}`;
   }
 
-  function envoyerATous() {
+  async function envoyerATous() {
     const message = messageRoom();
     if (!message) return;
     sauvegarder();
-    notifierParticipants(params.id, tournoi!.titre, message);
+    await notifierParticipants(params.id, tournoi!.titre, message);
     setEnvoiConfirme("tous");
     setTimeout(() => setEnvoiConfirme(null), 2500);
   }
 
-  function envoyerDuel(m: MatchTournoi) {
+  async function envoyerDuel(m: MatchTournoi) {
     const message = messageRoom();
     if (!message || !m.joueur1 || !m.joueur2) return;
     sauvegarder();
-    notifierParticipants(params.id, tournoi!.titre, `${message} · pour ton match ${m.joueur1} vs ${m.joueur2}`);
+    await notifierParticipants(params.id, tournoi!.titre, `${message} · pour ton match ${m.joueur1} vs ${m.joueur2}`);
     setEnvoiConfirme(m.id);
     setTimeout(() => setEnvoiConfirme(null), 2500);
   }

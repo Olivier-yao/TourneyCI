@@ -1,5 +1,17 @@
+/**
+ * Notifications & suivi d'un tournoi — tables `notifications` et
+ * `notifs_tournoi_suivis` (Postgres), même pattern que les migrations
+ * précédentes (fonctions async, mêmes noms/signatures que la version
+ * localStorage quand c'est possible).
+ *
+ * notifierParticipants() garde exactement la même sémantique qu'avant :
+ * auto-notification (le destinataire réel est toujours l'appelant connecté)
+ * — diffuser une vraie notification à tous les inscrits d'un tournoi est un
+ * changement de fonctionnalité, pas une migration de stockage, et reste hors
+ * périmètre de cette étape.
+ */
+
 import { estInscrit } from "./mockInscriptions";
-import { cleCompte } from "./mockAuth";
 
 export type NotificationApp = {
   id: string;
@@ -7,89 +19,64 @@ export type NotificationApp = {
   temps: string;
   horodatage: number;
   tournoiId?: string;
+  lue: boolean;
 };
 
-const CLE_NOTIFICATIONS = "tourney-notifications";
-const CLE_SUIVIS = "tourney-notifs-suivies";
-const CLE_LUES = "tourney-notifs-lues";
-
-const NOTIFICATIONS_INITIALES: NotificationApp[] = [
-  { id: "n1", texte: "Ton match commence dans 10 minutes", temps: "Il y a 2 min", horodatage: 3, tournoiId: "abidjan-cup-12" },
-  { id: "n2", texte: "Nouveau tournoi Free Fire disponible", temps: "Il y a 1 h", horodatage: 2, tournoiId: "freefire-night" },
-  { id: "n3", texte: "Ton inscription à Abidjan Cup #12 est confirmée", temps: "Hier", horodatage: 1, tournoiId: "abidjan-cup-12" },
-];
-
-function lireBrut<T>(cle: string, defaut: T): T {
-  if (typeof window === "undefined") return defaut;
-  try {
-    const brut = localStorage.getItem(cle);
-    return brut ? (JSON.parse(brut) as T) : defaut;
-  } catch {
-    return defaut;
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-export function mesNotifications(): NotificationApp[] {
-  return lireBrut(cleCompte(CLE_NOTIFICATIONS), NOTIFICATIONS_INITIALES);
+export async function mesNotifications(): Promise<NotificationApp[]> {
+  const reponse = await fetch("/api/notifications");
+  const resultat = await reponseJson<NotificationApp[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
 /** Point 189 : exportée pour permettre l'envoi de notifications ponctuelles
  * hors contexte tournoi (ex. décision admin sur une demande de certification). */
-export function ajouterNotification(texte: string, tournoiId?: string) {
-  if (typeof window === "undefined") return;
-  const existantes = mesNotifications();
-  const nouvelle: NotificationApp = {
-    id: `notif-${Date.now().toString(36)}`,
-    texte,
-    temps: "À l'instant",
-    horodatage: Date.now(),
-    tournoiId,
-  };
-  localStorage.setItem(cleCompte(CLE_NOTIFICATIONS), JSON.stringify([nouvelle, ...existantes]));
+export async function ajouterNotification(texte: string, tournoiId?: string): Promise<void> {
+  await fetch("/api/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texte, tournoiId }),
+  });
 }
 
-function lireSuivis(): string[] {
-  return lireBrut(cleCompte(CLE_SUIVIS), []);
+export async function mesNotifsTournoi(): Promise<string[]> {
+  const reponse = await fetch("/api/notifs-tournoi");
+  const resultat = await reponseJson<string[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-export function notifsActivees(tournoiId: string): boolean {
-  return lireSuivis().includes(tournoiId);
+export async function notifsActivees(tournoiId: string): Promise<boolean> {
+  return (await mesNotifsTournoi()).includes(tournoiId);
 }
 
-export function basculerNotifsTournoi(tournoiId: string): boolean {
-  if (typeof window === "undefined") return false;
-  const suivis = lireSuivis();
-  const index = suivis.indexOf(tournoiId);
-  const nouveaux = index === -1 ? [...suivis, tournoiId] : suivis.filter((id) => id !== tournoiId);
-  localStorage.setItem(cleCompte(CLE_SUIVIS), JSON.stringify(nouveaux));
-  return index === -1;
+export async function basculerNotifsTournoi(tournoiId: string): Promise<boolean> {
+  const reponse = await fetch(`/api/notifs-tournoi/${tournoiId}`, { method: "POST" });
+  const resultat = await reponseJson<{ estActivee: boolean }>(reponse);
+  return resultat.ok ? resultat.data.estActivee : false;
 }
 
-/** Notifie l'utilisateur local si (a) il est inscrit au tournoi, ou (b) il a
- * activé les notifications dessus — mock mono-compte : "notifier les
- * participants" se traduit par pousser la notif dans notre propre liste
- * quand l'une de ces deux conditions est vraie. */
-export function notifierParticipants(tournoiId: string, titre: string, message: string) {
-  if (!estInscrit(tournoiId) && !notifsActivees(tournoiId)) return;
-  ajouterNotification(`${titre} — ${message}`, tournoiId);
+/** Notifie l'utilisateur connecté si (a) il est inscrit au tournoi, ou (b) il
+ * a activé les notifications dessus. */
+export async function notifierParticipants(tournoiId: string, titre: string, message: string): Promise<void> {
+  if (!(await estInscrit(tournoiId)) && !(await notifsActivees(tournoiId))) return;
+  await ajouterNotification(`${titre} — ${message}`, tournoiId);
 }
 
-export function estLue(id: string): boolean {
-  return lireBrut<string[]>(cleCompte(CLE_LUES), []).includes(id);
+export async function marquerLue(id: string): Promise<void> {
+  await fetch(`/api/notifications/${id}`, { method: "PATCH" });
 }
 
-export function marquerLue(id: string) {
-  if (typeof window === "undefined") return;
-  const lues = lireBrut<string[]>(cleCompte(CLE_LUES), []);
-  if (!lues.includes(id)) localStorage.setItem(cleCompte(CLE_LUES), JSON.stringify([...lues, id]));
+export async function toutMarquerLu(): Promise<void> {
+  await fetch("/api/notifications/tout-lu", { method: "POST" });
 }
 
-export function toutMarquerLu() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_LUES), JSON.stringify(mesNotifications().map((n) => n.id)));
-}
-
-export function nombreNonLues(): number {
-  const lues = new Set(lireBrut<string[]>(cleCompte(CLE_LUES), []));
-  return mesNotifications().filter((n) => !lues.has(n.id)).length;
+/** Pure : dérive le nombre de non-lues d'une liste déjà chargée (évite un
+ * second appel réseau quand on a déjà mesNotifications()). */
+export function nombreNonLues(notifications: NotificationApp[]): number {
+  return notifications.filter((n) => !n.lue).length;
 }

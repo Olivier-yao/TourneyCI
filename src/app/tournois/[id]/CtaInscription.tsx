@@ -107,9 +107,8 @@ export function CtaInscription({
     // Lu depuis le localStorage/l'API : état neutre au premier rendu serveur,
     // synchronisé côté client une fois monté (cf. LanceurApp.tsx).
     async function charger() {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFavori(estFavori(tournoiId));
-      setNotifs(notifsActivees(tournoiId));
+      setFavori(await estFavori(tournoiId));
+      setNotifs(await notifsActivees(tournoiId));
       setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
       const profil = lireProfil();
       setMonPseudo(profil.pseudo);
@@ -392,7 +391,7 @@ export function CtaInscription({
           {boutonSoutien}
           <button
             type="button"
-            onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
+            onClick={() => basculerNotifsTournoi(tournoiId).then(setNotifs)}
             className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
             style={{
               borderRadius: "var(--ds-radius-md)",
@@ -613,7 +612,7 @@ export function CtaInscription({
       <div className="flex gap-2.5 items-center">
         <button
           type="button"
-          onClick={() => setFavori(basculerFavori(tournoiId))}
+          onClick={() => basculerFavori(tournoiId).then(setFavori)}
           className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
           style={{
             borderRadius: "var(--ds-radius-md)",
@@ -627,7 +626,7 @@ export function CtaInscription({
         {boutonSoutien}
         <button
           type="button"
-          onClick={() => setNotifs(basculerNotifsTournoi(tournoiId))}
+          onClick={() => basculerNotifsTournoi(tournoiId).then(setNotifs)}
           className={`flex items-center justify-center w-10 h-10 shrink-0 ${PRESS}`}
           style={{
             borderRadius: "var(--ds-radius-md)",

@@ -586,7 +586,7 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
     if (commission > 0) await crediter(commission, `Commission · ${tournoi.titre}`, "commission", tournoi.id);
   }
 
-  notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
+  await notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
   supprimerEquipesDuTournoi(tournoiId);
   return { pointsAttribues, gainCredite };
 }

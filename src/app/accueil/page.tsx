@@ -15,7 +15,7 @@ import { PRESS } from "@/components/ds/Button";
 import { consommerTransitionEntree } from "@/lib/mockAuth";
 import { lireProfil } from "@/lib/mockProfil";
 import { formatXof } from "@/lib/formatXof";
-import { estFavori, basculerFavori } from "@/lib/mockFavoris";
+import { mesFavoris, basculerFavori } from "@/lib/mockFavoris";
 import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type GenreJeu, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -64,7 +64,7 @@ export default function AccueilV2Page() {
   const [utilisateur, setUtilisateur] = useState({ nom: "Joueur", initiales: "JO", photoUrl: undefined as string | undefined, ville: "" });
   const [tournois, setTournois] = useState<Tournoi[]>([]);
   const [streamOuvert, setStreamOuvert] = useState<Tournoi | null>(null);
-  const [, setFavorisVersion] = useState(0);
+  const [favoris, setFavoris] = useState<Set<string>>(new Set());
   const [pageDirect, setPageDirect] = useState(0);
   const [matchEnCoursStream, setMatchEnCoursStream] = useState<MatchTournoi | null>(null);
 
@@ -85,9 +85,10 @@ export default function AccueilV2Page() {
     // vide au premier rendu serveur, synchronisée côté client une fois
     // montée, pour éviter un mismatch d'hydratation.
     async function charger() {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setNotifications(mesNotifications());
-      setNonLues(nombreNonLues());
+      const notifs = await mesNotifications();
+      setNotifications(notifs);
+      setNonLues(nombreNonLues(notifs));
+      setFavoris(new Set(await mesFavoris()));
       setTransitionCube(consommerTransitionEntree());
       setTournois(await tousLesTournois());
       const profil = lireProfil();
@@ -194,7 +195,9 @@ export default function AccueilV2Page() {
                               type="button"
                               onClick={() => {
                                 marquerLue(n.id);
-                                setNonLues(nombreNonLues());
+                                const misAJour = notifications.map((x) => (x.id === n.id ? { ...x, lue: true } : x));
+                                setNotifications(misAJour);
+                                setNonLues(nombreNonLues(misAJour));
                                 setNotifOuvertes(false);
                                 if (n.tournoiId) router.push(`/tournois/${n.tournoiId}`);
                                 else setNotifDetail(n);
@@ -314,7 +317,7 @@ export default function AccueilV2Page() {
                 style={{ scrollbarWidth: "none" }}
               >
                 {enDirect.map((t) => {
-                  const suivi = estFavori(t.id);
+                  const suivi = favoris.has(t.id);
                   return (
                     <Link key={t.id} href={`/tournois/${t.id}`} className="shrink-0 snap-center" style={{ width: "78%" }}>
                       <Card style={{ boxShadow: suivi ? "0 0 0 1px var(--ds-accent)" : undefined }}>
@@ -361,8 +364,14 @@ export default function AccueilV2Page() {
                               type="button"
                               onClick={(e) => {
                                 e.preventDefault();
-                                basculerFavori(t.id);
-                                setFavorisVersion((v) => v + 1);
+                                basculerFavori(t.id).then((estFavori) => {
+                                  setFavoris((prev) => {
+                                    const suivant = new Set(prev);
+                                    if (estFavori) suivant.add(t.id);
+                                    else suivant.delete(t.id);
+                                    return suivant;
+                                  });
+                                });
                               }}
                               className={`h-8 px-3 flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${PRESS}`}
                               style={{

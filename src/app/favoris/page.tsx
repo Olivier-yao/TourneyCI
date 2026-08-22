@@ -19,7 +19,8 @@ export default function FavorisPage() {
 
   useEffect(() => {
     async function charger() {
-      const resultats = await Promise.all(mesFavoris().map((id) => tournoiParId(id)));
+      const favoris = await mesFavoris();
+      const resultats = await Promise.all(favoris.map((id) => tournoiParId(id)));
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTournois(resultats.filter((t): t is Tournoi => Boolean(t)));
     }

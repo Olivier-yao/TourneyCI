@@ -227,8 +227,8 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
   const [copie, setCopie] = useState(false);
 
   useEffect(() => {
-    setFavori(estFavori(tournoi.id));
-    setNotifs(notifsActivees(tournoi.id));
+    estFavori(tournoi.id).then(setFavori);
+    notifsActivees(tournoi.id).then(setNotifs);
   }, [tournoi.id]);
 
   useEffect(() => {
@@ -300,7 +300,7 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
           evenements={evenements}
           spectateurs={spectateurs}
           favori={favori}
-          onFavori={() => setFavori(basculerFavori(tournoi.id))}
+          onFavori={() => basculerFavori(tournoi.id).then(setFavori)}
           onPartager={partager}
           copie={copie}
         />
@@ -312,7 +312,7 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
           matchsTermines={matchsTermines}
           spectateurs={spectateurs}
           notifs={notifs}
-          onNotifs={() => setNotifs(basculerNotifsTournoi(tournoi.id))}
+          onNotifs={() => basculerNotifsTournoi(tournoi.id).then(setNotifs)}
         />
       )}
 

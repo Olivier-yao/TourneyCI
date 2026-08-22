@@ -9,7 +9,6 @@ import { Modal } from "@/components/ds/Modal";
 import { PRESS, Button } from "@/components/ds/Button";
 import {
   mesNotifications,
-  estLue,
   marquerLue,
   toutMarquerLu,
   nombreNonLues,
@@ -45,11 +44,13 @@ export default function NotificationsPage() {
   const [notifSelectionnee, setNotifSelectionnee] = useState<NotificationApp | null>(null);
 
   useEffect(() => {
-    const liste = mesNotifications();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNotifications(liste);
-    setLues(new Set(liste.filter((n) => estLue(n.id)).map((n) => n.id)));
-    setNonLues(nombreNonLues());
+    async function charger() {
+      const liste = await mesNotifications();
+      setNotifications(liste);
+      setLues(new Set(liste.filter((n) => n.lue).map((n) => n.id)));
+      setNonLues(nombreNonLues(liste));
+    }
+    charger();
   }, []);
 
   if (!connecte) return null;

@@ -59,7 +59,7 @@ export default function ProfilPage() {
       const historique = tournoisInscrits.filter((t) => t && t.termine).length;
       setSolde(await lireSolde());
       const moi = lireProfil().pseudo;
-      setCompteurs({ historique, inscriptions: inscriptions.length, favoris: mesFavoris().length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
+      setCompteurs({ historique, inscriptions: inscriptions.length, favoris: (await mesFavoris()).length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
       const tournoisOrganises = await mesTournoisOrganises();
       setOrganisateur({ estOrganisateur: tournoisOrganises.length > 0, certifie: estCertifie() });
       setRole(rolePrefere());

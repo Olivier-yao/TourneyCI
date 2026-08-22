@@ -1,30 +1,27 @@
-import { cleCompte } from "./mockAuth";
+/**
+ * Favoris — table `favoris` (Postgres via /api/favoris), même pattern que
+ * les migrations précédentes (fonctions async, mêmes noms/signatures que la
+ * version localStorage).
+ */
 
-const CLE_FAVORIS = "tourney-favoris";
-
-function lireFavoris(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(cleCompte(CLE_FAVORIS));
-    return brut ? (JSON.parse(brut) as string[]) : [];
-  } catch {
-    return [];
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-export function estFavori(tournoiId: string): boolean {
-  return lireFavoris().includes(tournoiId);
+export async function mesFavoris(): Promise<string[]> {
+  const reponse = await fetch("/api/favoris");
+  const resultat = await reponseJson<string[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-export function basculerFavori(tournoiId: string): boolean {
-  if (typeof window === "undefined") return false;
-  const favoris = lireFavoris();
-  const index = favoris.indexOf(tournoiId);
-  const nouveaux = index === -1 ? [...favoris, tournoiId] : favoris.filter((id) => id !== tournoiId);
-  localStorage.setItem(cleCompte(CLE_FAVORIS), JSON.stringify(nouveaux));
-  return index === -1;
+export async function estFavori(tournoiId: string): Promise<boolean> {
+  return (await mesFavoris()).includes(tournoiId);
 }
 
-export function mesFavoris(): string[] {
-  return lireFavoris();
+export async function basculerFavori(tournoiId: string): Promise<boolean> {
+  const reponse = await fetch(`/api/favoris/${tournoiId}`, { method: "POST" });
+  const resultat = await reponseJson<{ estFavori: boolean }>(reponse);
+  return resultat.ok ? resultat.data.estFavori : false;
 }

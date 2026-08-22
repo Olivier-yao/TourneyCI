@@ -123,7 +123,7 @@ export function VueOrganisateurMatch({
     if (s1 === s2) return;
     const resultat = await mettreAJourScoreMatch(tournoiId, matchInitial.id, s1, s2);
     if (!resultat.ok) return;
-    notifierParticipants(tournoiId, tournoiTitre, `Score validé : ${matchInitial.joueur1} ${s1} - ${s2} ${matchInitial.joueur2}`);
+    await notifierParticipants(tournoiId, tournoiTitre, `Score validé : ${matchInitial.joueur1} ${s1} - ${s2} ${matchInitial.joueur2}`);
     setEnregistre(true);
     onMaj();
   }

@@ -45,3 +45,19 @@ export function formaterHeureCheckin(ts: number): string {
   if (Date.now() >= ts) return "Terminé";
   return heureUtc(ts);
 }
+
+const MINUTE_MS = 60_000;
+const HEURE_MS = 3_600_000;
+const JOUR_MS = 86_400_000;
+
+/** Horodatage relatif à l'instant présent (notifications) — recalculé côté
+ * serveur à chaque lecture plutôt que stocké, comme les autres libellés de
+ * ce fichier. */
+export function formaterTempsRelatif(horodatage: number): string {
+  const ecoule = Date.now() - horodatage;
+  if (ecoule < MINUTE_MS) return "À l'instant";
+  if (ecoule < HEURE_MS) return `Il y a ${Math.floor(ecoule / MINUTE_MS)} min`;
+  if (ecoule < JOUR_MS) return `Il y a ${Math.floor(ecoule / HEURE_MS)} h`;
+  if (ecoule < 2 * JOUR_MS) return "Hier";
+  return `Il y a ${Math.floor(ecoule / JOUR_MS)} j`;
+}

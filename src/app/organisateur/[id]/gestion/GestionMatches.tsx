@@ -101,7 +101,7 @@ export function GestionMatches({
   async function demarrer(match: MatchTournoi) {
     const resultat = await demarrerMatch(tournoiId, match.id);
     if (!resultat.ok) return;
-    notifierParticipants(tournoiId, tournoiTitre, `Le match ${match.joueur1} vs ${match.joueur2} commence !`);
+    await notifierParticipants(tournoiId, tournoiTitre, `Le match ${match.joueur1} vs ${match.joueur2} commence !`);
     onEnregistre();
   }
 
@@ -117,7 +117,7 @@ export function GestionMatches({
     if (s1 === s2) return;
     const resultat = await mettreAJourScoreMatch(tournoiId, match.id, s1, s2);
     if (!resultat.ok) return;
-    notifierParticipants(tournoiId, tournoiTitre, `Score final : ${match.joueur1} ${s1} - ${s2} ${match.joueur2}`);
+    await notifierParticipants(tournoiId, tournoiTitre, `Score final : ${match.joueur1} ${s1} - ${s2} ${match.joueur2}`);
     onEnregistre();
   }
 
