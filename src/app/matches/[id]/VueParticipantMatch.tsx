@@ -112,10 +112,15 @@ export function VueParticipantMatch({
         <div className="flex items-center gap-3 p-3.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "var(--ds-shadow-sm, 0 1px 2px rgba(0,0,0,.3))" }}>
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <div
-              className="flex items-center justify-center shrink-0 font-medium text-[11px]"
+              className="flex items-center justify-center shrink-0 font-medium text-[11px] overflow-hidden"
               style={{ width: 34, height: 34, borderRadius: "var(--ds-radius-pill)", background: jeSuisJoueur1 ? "var(--ds-accent-800)" : "var(--ds-surface-2)", color: jeSuisJoueur1 ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
             >
-              {initiales(match.joueur1 ?? "?")}
+              {match.joueur1PhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={match.joueur1PhotoUrl} alt={match.joueur1 ?? ""} className="w-full h-full object-cover" />
+              ) : (
+                initiales(match.joueur1 ?? "?")
+              )}
             </div>
             <div className="min-w-0">
               <div className="text-[13px] font-medium truncate">{match.joueur1 ?? "À définir"}</div>
@@ -137,10 +142,15 @@ export function VueParticipantMatch({
               )}
             </div>
             <div
-              className="flex items-center justify-center shrink-0 font-medium text-[11px]"
+              className="flex items-center justify-center shrink-0 font-medium text-[11px] overflow-hidden"
               style={{ width: 34, height: 34, borderRadius: "var(--ds-radius-pill)", background: jeSuisJoueur2 ? "var(--ds-accent-800)" : "var(--ds-surface-2)", color: jeSuisJoueur2 ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
             >
-              {initiales(match.joueur2 ?? "?")}
+              {match.joueur2PhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={match.joueur2PhotoUrl} alt={match.joueur2 ?? ""} className="w-full h-full object-cover" />
+              ) : (
+                initiales(match.joueur2 ?? "?")
+              )}
             </div>
           </div>
         </div>

@@ -17,11 +17,11 @@ function initiales(nom: string): string {
     .toUpperCase();
 }
 
-function Joueur({ nom, enTete }: { nom: string | null; enTete: boolean }) {
+function Joueur({ nom, enTete, photoUrl }: { nom: string | null; enTete: boolean; photoUrl?: string }) {
   return (
     <div className="flex flex-col items-center gap-2.5">
       <div
-        className="flex items-center justify-center shrink-0 font-medium"
+        className="flex items-center justify-center shrink-0 font-medium overflow-hidden"
         style={{
           width: 78,
           height: 78,
@@ -33,7 +33,12 @@ function Joueur({ nom, enTete }: { nom: string | null; enTete: boolean }) {
           fontSize: 24,
         }}
       >
-        {initiales(nom ?? "?")}
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt={nom ?? ""} className="w-full h-full object-cover" />
+        ) : (
+          initiales(nom ?? "?")
+        )}
       </div>
       <div className="text-[15px] font-medium text-center">{nom ?? "À définir"}</div>
     </div>
@@ -111,7 +116,7 @@ export function VueSpectateurMatch({
         </div>
 
         <div className="relative mt-[30px] grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
-          <Joueur nom={match.joueur1} enTete={j1EnTete} />
+          <Joueur nom={match.joueur1} enTete={j1EnTete} photoUrl={match.joueur1PhotoUrl} />
           <div className="text-center px-1">
             <div className="text-[50px] leading-none" style={{ fontFamily: "var(--ds-font-mono)", color: j1EnTete || (!j1EnTete && !j2EnTete) ? "var(--ds-text)" : "var(--ds-muted)" }}>
               {match.score1 ?? "–"}
@@ -121,7 +126,7 @@ export function VueSpectateurMatch({
               {match.score2 ?? "–"}
             </div>
           </div>
-          <Joueur nom={match.joueur2} enTete={j2EnTete} />
+          <Joueur nom={match.joueur2} enTete={j2EnTete} photoUrl={match.joueur2PhotoUrl} />
         </div>
 
         <div className="relative mt-[22px] text-center">

@@ -441,10 +441,15 @@ function SceneMatchEnCours({
         <div className="relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-1.5">
           <div className="flex flex-col items-center gap-2.5 min-w-0">
             <div
-              className="flex items-center justify-center shrink-0 font-medium"
+              className="flex items-center justify-center shrink-0 font-medium overflow-hidden"
               style={{ width: 76, height: 76, borderRadius: "var(--ds-radius-pill)", background: j1EnTete ? "var(--ds-accent-800)" : "var(--ds-surface-2)", border: `1px solid ${j1EnTete ? "var(--ds-accent)" : "var(--ds-border)"}`, color: j1EnTete ? "var(--ds-accent-300)" : "var(--ds-muted)", fontSize: 23, boxShadow: j1EnTete ? "0 0 34px color-mix(in srgb, var(--ds-accent) 30%, transparent)" : undefined }}
             >
-              {initiales(match.joueur1 ?? "?")}
+              {match.joueur1PhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={match.joueur1PhotoUrl} alt={match.joueur1 ?? ""} className="w-full h-full object-cover" />
+              ) : (
+                initiales(match.joueur1 ?? "?")
+              )}
             </div>
             <div className="text-center min-w-0 w-full">
               <div className="text-[15px] font-medium truncate">{match.joueur1 ?? "À définir"}</div>
@@ -457,10 +462,15 @@ function SceneMatchEnCours({
           </div>
           <div className="flex flex-col items-center gap-2.5 min-w-0">
             <div
-              className="flex items-center justify-center shrink-0 font-medium"
+              className="flex items-center justify-center shrink-0 font-medium overflow-hidden"
               style={{ width: 76, height: 76, borderRadius: "var(--ds-radius-pill)", background: j2EnTete ? "var(--ds-accent-800)" : "var(--ds-surface-2)", border: `1px solid ${j2EnTete ? "var(--ds-accent)" : "var(--ds-border)"}`, color: j2EnTete ? "var(--ds-accent-300)" : "var(--ds-muted)", fontSize: 23, boxShadow: j2EnTete ? "0 0 34px color-mix(in srgb, var(--ds-accent) 30%, transparent)" : undefined }}
             >
-              {initiales(match.joueur2 ?? "?")}
+              {match.joueur2PhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={match.joueur2PhotoUrl} alt={match.joueur2 ?? ""} className="w-full h-full object-cover" />
+              ) : (
+                initiales(match.joueur2 ?? "?")
+              )}
             </div>
             <div className="text-center min-w-0 w-full">
               <div className="text-[15px] font-medium truncate">{match.joueur2 ?? "À définir"}</div>

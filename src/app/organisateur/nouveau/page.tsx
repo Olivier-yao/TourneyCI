@@ -39,9 +39,14 @@ const DELAI_CHECKIN_MIN_MS = 10 * 60 * 1000;
  * l'organisateur n'a pas ajusté l'heure de check-in lui-même. */
 const DELAI_CHECKIN_DEFAUT_MIN = 15;
 /** Marge par défaut avant le check-in à laquelle "Fin des inscriptions" se
- * cale automatiquement (modifiable, mais jamais au-delà du check-in — cf.
- * validation dans creer()). */
+ * cale automatiquement (modifiable dans la fenêtre autorisée — cf.
+ * MARGE_MAX_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN et la validation dans
+ * creer()). */
 const MARGE_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN = 20;
+/** Fenêtre autorisée pour "Fin des inscriptions" : à l'heure du check-in au
+ * plus tard, jusqu'à 1h avant au plus tôt — jamais plus large, pour que les
+ * inscriptions restent proches du moment où les joueurs se présentent. */
+const MARGE_MAX_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN = 60;
 
 function soustraireMinutes(heure: string, minutes: number): string {
   const [h, m] = (heure || "00:00").split(":").map(Number);
@@ -311,6 +316,14 @@ export default function NouveauTournoiPage() {
     }
     if (finInscriptionsTs !== undefined && checkinTs !== undefined && finInscriptionsTs > checkinTs) {
       setErreur("La fin des inscriptions ne peut pas être après l'heure de check-in.");
+      return;
+    }
+    if (
+      finInscriptionsTs !== undefined &&
+      checkinTs !== undefined &&
+      finInscriptionsTs < checkinTs - MARGE_MAX_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN * 60 * 1000
+    ) {
+      setErreur("La fin des inscriptions ne peut pas être plus d'1h avant le check-in.");
       return;
     }
     if (!reglement.trim()) {
@@ -852,6 +865,13 @@ export default function NouveauTournoiPage() {
               Ne peut pas être après l&apos;heure de check-in.
             </p>
           )}
+          {finInscriptionsTs !== undefined &&
+            checkinTs !== undefined &&
+            finInscriptionsTs < checkinTs - MARGE_MAX_FIN_INSCRIPTIONS_AVANT_CHECKIN_MIN * 60 * 1000 && (
+              <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
+                Ne peut pas être plus d&apos;1h avant le check-in.
+              </p>
+            )}
         </div>
 
         <div className="flex flex-col gap-1.5">

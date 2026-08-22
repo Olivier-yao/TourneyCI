@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { versMatchJSON } from "@/lib/server/matches";
+import { versMatchesJSON } from "@/lib/server/matches";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const matches = await prisma.matches.findMany({ where: { tournoi_id: id }, orderBy: [{ round: "asc" }, { position: "asc" }] });
-  return NextResponse.json({ success: true, data: matches.map(versMatchJSON) });
+  return NextResponse.json({ success: true, data: await versMatchesJSON(matches) });
 }
 
 /** Génère l'arbre complet à partir de la liste ordonnée des participants
@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const existants = await prisma.matches.findMany({ where: { tournoi_id: id }, orderBy: [{ round: "asc" }, { position: "asc" }] });
   if (existants.length > 0) {
-    return NextResponse.json({ success: true, data: existants.map(versMatchJSON) });
+    return NextResponse.json({ success: true, data: await versMatchesJSON(existants) });
   }
 
   if (participants.length < 2) {
@@ -57,5 +57,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const matches = await prisma.matches.findMany({ where: { tournoi_id: id }, orderBy: [{ round: "asc" }, { position: "asc" }] });
-  return NextResponse.json({ success: true, data: matches.map(versMatchJSON) });
+  return NextResponse.json({ success: true, data: await versMatchesJSON(matches) });
 }

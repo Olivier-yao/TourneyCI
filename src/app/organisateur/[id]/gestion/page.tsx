@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { XCircle, Settings2, Users, ListChecks, Flag, Zap, KeyRound, Network } from "lucide-react";
+import { XCircle, Settings2, Users, ListChecks, Flag, Zap, KeyRound, Network, MessagesSquare } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
@@ -214,6 +214,19 @@ export default function GestionTournoiPage() {
             <div className="text-[13px] font-medium">Clôture</div>
             <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
               {tournoi.termine ? "Terminé" : "En cours"}
+            </div>
+          </div>
+        </Link>
+        <Link
+          href={`/tournois/${params.id}/chat-spectateurs`}
+          className={`flex flex-col gap-2 p-3 ${PRESS}`}
+          style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
+        >
+          <MessagesSquare size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
+          <div>
+            <div className="text-[13px] font-medium">Tribune</div>
+            <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              Chat spectateurs, ouvert à tous
             </div>
           </div>
         </Link>

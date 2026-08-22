@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const match = await prisma.matches.findUnique({ where: { id } });
   if (!match) return NextResponse.json({ success: false, error: "Match introuvable." }, { status: 404 });
-  return NextResponse.json({ success: true, data: versMatchJSON(match) });
+  return NextResponse.json({ success: true, data: await versMatchJSON(match) });
 }
 
 function interdit() {
@@ -45,7 +45,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       prisma.matches.update({ where: { id }, data: { statut: "en_cours" } }),
     ]);
     const maj = await prisma.matches.findUnique({ where: { id } });
-    return NextResponse.json({ success: true, data: versMatchJSON(maj!) });
+    return NextResponse.json({ success: true, data: await versMatchJSON(maj!) });
   }
 
   if (action === "score_direct") {
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ success: false, error: "Score invalide." }, { status: 400 });
     }
     const maj = await prisma.matches.update({ where: { id }, data: { score1, score2 } });
-    return NextResponse.json({ success: true, data: versMatchJSON(maj) });
+    return NextResponse.json({ success: true, data: await versMatchJSON(maj) });
   }
 
   if (action === "score_final") {
@@ -95,7 +95,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
 
     const maj = await prisma.matches.findUnique({ where: { id } });
-    return NextResponse.json({ success: true, data: versMatchJSON(maj!) });
+    return NextResponse.json({ success: true, data: await versMatchJSON(maj!) });
   }
 
   return NextResponse.json({ success: false, error: "Action inconnue." }, { status: 400 });

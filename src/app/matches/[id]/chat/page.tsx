@@ -2,12 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowDown, Eye, Hourglass, Info, CornerRightUp, MessagesSquare } from "lucide-react";
+import { ArrowDown, Eye, Hourglass } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
-import { CLIP_HEXAGONE } from "@/components/ds/Palier";
 import { matchParId, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
-import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
-import { estInscrit } from "@/lib/mockInscriptions";
 import { estConnecte } from "@/lib/mockAuth";
 import { messagesChatTribune, envoyerMessageChatTribune, type MessageChat } from "@/lib/mockChat";
 
@@ -20,17 +17,15 @@ function heure(horodatage: number): string {
 }
 
 /** Chat des spectateurs d'un match — la "tribune" (design v5, écran I1) :
- * ouvert à tout visiteur, même sans compte, fond neutre, messages en lignes
- * pleine largeur sans bulle. Jamais partagé avec le chat des inscrits, qui
- * vit sous une clé de stockage distincte (/matches/[id]/chat-inscrits). Un
- * inscrit y est redirigé (écran I2) plutôt que d'y accéder. */
+ * ouverte à tous, même sans compte pour la lecture — spectateurs,
+ * organisateur et inscrits partagent le même fil (écriture réservée aux
+ * comptes connectés, cf. envoyer() ci-dessous). Distincte du salon des
+ * inscrits (/matches/[id]/chat-inscrits), entièrement privé celui-là. */
 export default function ChatSpectateursMatchPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [match, setMatch] = useState<MatchTournoi | undefined>(undefined);
   const [pret, setPret] = useState(false);
-  const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
-  const [inscrit, setInscrit] = useState(false);
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
   const [secondesRestantes, setSecondesRestantes] = useState(0);
@@ -46,10 +41,6 @@ export default function ChatSpectateursMatchPage() {
         setPret(true);
         return;
       }
-      const t = await tournoiParId(m.tournoiId);
-      const suisInscrit = await estInscrit(m.tournoiId);
-      setTournoi(t);
-      setInscrit(suisInscrit);
       setMessages(await messagesChatTribune(params.id));
       setPret(true);
       intervalId = setInterval(async () => setMessages(await messagesChatTribune(params.id)), RAFRAICHISSEMENT_MS);
@@ -73,62 +64,6 @@ export default function ChatSpectateursMatchPage() {
   }
 
   const spectateurs = spectateursDerives(match.id);
-
-  if (inscrit) {
-    return (
-      <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-surface-2)", color: "var(--ds-text)" }}>
-        <div className="px-5 pt-[42px] pb-3 flex items-center gap-2.5" style={{ background: "var(--ds-bg)", borderBottom: "1px solid var(--ds-border)" }}>
-          <button
-            type="button"
-            onClick={() => router.push(`/matches/${match.id}`)}
-            className={`flex items-center justify-center w-[30px] h-[30px] shrink-0 ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
-          >
-            <ArrowDown size={14} strokeWidth={2} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-medium">Tribune des spectateurs</div>
-            <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>ACCÈS REFUSÉ · TU ES INSCRIT</div>
-          </div>
-        </div>
-
-        <div className="flex-1 px-6 flex flex-col items-start justify-center gap-4">
-          <div
-            className="flex items-center justify-center"
-            style={{ width: 62, height: 70, background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent-700)", clipPath: CLIP_HEXAGONE }}
-          >
-            <CornerRightUp size={26} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-          </div>
-          <div>
-            <div className="text-[23px] leading-tight" style={{ fontFamily: "var(--ds-font-heading)", fontWeight: "var(--ds-heading-weight)" as React.CSSProperties["fontWeight"] }}>
-              Tu es inscrit à ce tournoi
-            </div>
-            <p className="mt-2.5 text-sm leading-relaxed" style={{ color: "color-mix(in srgb, var(--ds-text) 58%, transparent)" }}>
-              La tribune est réservée aux spectateurs. Les joueurs et l&apos;organisateur discutent dans un salon séparé — c&apos;est là que passent les consignes de match.
-            </p>
-          </div>
-          <div className="self-stretch flex items-center gap-2.5 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-bg)" }}>
-            <Info size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
-            <div className="text-xs leading-relaxed" style={{ color: "color-mix(in srgb, var(--ds-text) 55%, transparent)" }}>
-              Tes messages y sont visibles par les {tournoi?.placesInscrites ?? 0} inscrits, pas par les {spectateurs} spectateurs.
-            </div>
-          </div>
-        </div>
-
-        <div className="px-5" style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)", paddingTop: 12, paddingBottom: 22 }}>
-          <button
-            type="button"
-            onClick={() => router.push(`/matches/${match.id}/chat-inscrits`)}
-            className={`w-full h-12 flex items-center justify-center gap-2 text-sm font-medium ${PRESS}`}
-            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
-          >
-            <MessagesSquare size={16} strokeWidth={2} />
-            Aller au chat des inscrits
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   async function envoyer(contenu: string) {
     const message = contenu.trim();
@@ -223,7 +158,7 @@ export default function ChatSpectateursMatchPage() {
             onChange={(e) => setTexte(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && envoyer(texte)}
             disabled={secondesRestantes > 0}
-            placeholder="Écrire en tant qu'invité…"
+            placeholder="Écrire un message…"
             className="flex-1 h-[42px] px-3.5 text-sm outline-none disabled:opacity-60"
             style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
           />

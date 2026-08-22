@@ -47,6 +47,10 @@ export type MatchTournoi = {
   position: number;
   joueur1: string | null;
   joueur2: string | null;
+  /** Photo de profil du joueur (résolue côté serveur par pseudo) — absente
+   * pour les tournois Équipes, où joueur1/joueur2 portent un nom d'équipe. */
+  joueur1PhotoUrl?: string;
+  joueur2PhotoUrl?: string;
   score1: number | null;
   score2: number | null;
   statut: StatutMatch;
