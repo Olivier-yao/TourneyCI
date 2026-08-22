@@ -34,6 +34,7 @@ import { CtaInscription } from "./CtaInscription";
 import { CarteOrganisateur } from "./CarteOrganisateur";
 import { FicheDirectSpectateur } from "./FicheDirectSpectateur";
 import { MaFicheInscrit } from "./MaFicheInscrit";
+import { AnnonceVainqueur } from "./AnnonceVainqueur";
 
 const SEUIL_TEXTE_LONG = 140;
 
@@ -414,6 +415,14 @@ function DetailTournoiInterne() {
         </Link>
       </div>
     );
+  }
+
+  // Une fois le tournoi clôturé, l'annonce du vainqueur remplace la fiche
+  // pour tout visiteur (organisateur, inscrit ou spectateur) — la mise en
+  // scène ne dépend pas du rôle, contrairement aux écrans "en direct"
+  // ci-dessous. Jamais pour un tournoi annulé (pas de vainqueur à fêter).
+  if (tournoi.termine && !tournoi.annule) {
+    return <AnnonceVainqueur tournoi={tournoi} />;
   }
 
   // Point 209 : un spectateur non inscrit (ni organisateur, ni participant)

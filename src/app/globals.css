@@ -221,6 +221,36 @@
   --ds-shadow-sm: 0 0 0 1px var(--ds-border);
 }
 
+/* Animations de l'écran "Annonce du vainqueur" (AnnonceVainqueur.tsx) —
+ * lumière dessinée avec les tokens du thème (halo, rais, éclats losange qui
+ * tombent, balayage de la carte cash prize), jamais un média importé. */
+@keyframes av-rise {
+  0% { opacity: 0; transform: translateY(26px) scale(0.94); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes av-fade {
+  0%, 22% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes av-halo {
+  0%, 100% { opacity: 0.4; transform: scale(0.96); }
+  50% { opacity: 0.95; transform: scale(1.04); }
+}
+@keyframes av-ray {
+  0% { opacity: 0; transform: scaleY(0.2); }
+  40% { opacity: 0.8; }
+  100% { opacity: 0.25; transform: scaleY(1); }
+}
+@keyframes av-fall {
+  0% { opacity: 0; transform: translateY(-30px) rotate(0deg); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(560px) rotate(420deg); }
+}
+@keyframes av-sheen {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
 :root {
   --background: var(--color-cream-100);
   --foreground: var(--color-ink-900);
