@@ -10,7 +10,7 @@ import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
-import { lireProfil } from "@/lib/mockProfil";
+import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import {
   equipeParId,
   demandesEnAttente,
@@ -50,13 +50,14 @@ export default function GestionEquipeBRPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMonPseudo(lireProfil().pseudo);
-    rafraichir();
-    tournoiParId(params.id).then((t) => {
-      setTournoi(t);
+    async function charger() {
+      await attendreProfil();
+      setMonPseudo(lireProfil().pseudo);
+      await rafraichir();
+      setTournoi(await tournoiParId(params.id));
       setPret(true);
-    });
+    }
+    charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.equipeId]);
 

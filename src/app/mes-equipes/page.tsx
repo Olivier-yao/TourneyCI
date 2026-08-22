@@ -11,7 +11,7 @@ import { AvatarPile } from "@/components/ds/Avatar";
 import { PRESS, Button } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
-import { lireProfil } from "@/lib/mockProfil";
+import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { equipesDuJoueur, demandesEnAttente, TAILLE_EQUIPE_BR, type EquipeBR } from "@/lib/mockEquipesBR";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import {
@@ -59,6 +59,7 @@ export default function MesEquipesPage() {
 
   useEffect(() => {
     async function charger() {
+      await attendreProfil();
       const moi = lireProfil().pseudo;
       setPseudo(moi);
       await rafraichirEquipesProfil();

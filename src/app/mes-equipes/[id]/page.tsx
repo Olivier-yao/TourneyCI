@@ -8,7 +8,7 @@ import { PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { Avatar } from "@/components/ds/Avatar";
 import { EcussonEquipe } from "@/components/ds/Palier";
-import { lireProfil, tagDeJoueur } from "@/lib/mockProfil";
+import { lireProfil, tagDeJoueur, attendreProfil } from "@/lib/mockProfil";
 import {
   equipeProfilParId,
   renommerEquipeProfil,
@@ -68,6 +68,7 @@ export default function EquipeProfilPage() {
 
   useEffect(() => {
     async function charger() {
+      await attendreProfil();
       setMoi(lireProfil().pseudo);
       await rafraichir();
       setPret(true);

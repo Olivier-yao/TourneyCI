@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Crown, Send, Users } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { EcussonEquipe } from "@/components/ds/Palier";
-import { lireProfil } from "@/lib/mockProfil";
+import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { equipeProfilParId, type EquipeProfil } from "@/lib/mockEquipesProfil";
 import { messagesChatEquipe, envoyerMessageChatEquipe, type MessageChatEquipe } from "@/lib/mockChatEquipe";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -33,6 +33,7 @@ export default function ChatEquipePage() {
   useEffect(() => {
     async function charger() {
       const e = await equipeProfilParId(params.id);
+      await attendreProfil();
       const p = lireProfil().pseudo;
       setEquipe(e);
       setMoi(p);

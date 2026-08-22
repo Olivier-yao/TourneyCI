@@ -13,7 +13,7 @@ import { formatXof } from "@/lib/formatXof";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { estInscrit, inscriptionDe, renommerEquipe, enregistrerInscription } from "@/lib/mockInscriptions";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
-import { lireProfil } from "@/lib/mockProfil";
+import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { monSoutienPourOrganisateur, soutenirOrganisateur } from "@/lib/mockSoutien";
 import {
   equipesDuTournoi,
@@ -111,6 +111,7 @@ export function CtaInscription({
       setFavori(await estFavori(tournoiId));
       setNotifs(await notifsActivees(tournoiId));
       setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
+      await attendreProfil();
       const profil = lireProfil();
       setMonPseudo(profil.pseudo);
       setEquipesProfilChef(await equipesProfilDontChef());
