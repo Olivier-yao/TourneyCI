@@ -10,7 +10,7 @@ import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { manchesBR } from "@/lib/mockBattleRoyale";
-import { compterAvis } from "@/lib/mockAvis";
+import { compterAvisPlusieurs } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type Tri = "cashprize" | "participants" | "recent";
@@ -80,12 +80,9 @@ export default function EnDirectPage() {
 
   useEffect(() => {
     async function charger() {
-      const entrees = await Promise.all(
-        tousLesTournoisState
-          .filter((t) => t.enDirect)
-          .map(async (t) => [t.id, (await compterAvis(t.id)).coeurs] as const),
-      );
-      setCoeursParTournoi(Object.fromEntries(entrees));
+      const ids = tousLesTournoisState.filter((t) => t.enDirect).map((t) => t.id);
+      const comptes = await compterAvisPlusieurs(ids);
+      setCoeursParTournoi(Object.fromEntries(ids.map((id) => [id, comptes[id]?.coeurs ?? 0])));
     }
     charger();
   }, [tousLesTournoisState]);

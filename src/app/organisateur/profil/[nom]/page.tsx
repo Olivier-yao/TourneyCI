@@ -46,7 +46,7 @@ import {
 } from "@/lib/mockOrganisateur";
 import { adjointsDe, invitationsRecues, type Adjoint } from "@/lib/mockAdjointsOrganisateur";
 import { PhotoCropper } from "@/components/ds/PhotoCropper";
-import { compterAvis, monAvisPourOrganisateur, laisserAvisOrganisateur, retirerAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
+import { compterAvisPlusieurs, monAvisPourOrganisateur, laisserAvisOrganisateur, retirerAvisOrganisateur, type TypeAvis } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 function BarreReputation({ label, valeurLabel, pourcentage, accentuee }: { label: string; valeurLabel: string; pourcentage: number; accentuee: boolean }) {
@@ -126,8 +126,7 @@ export default function ProfilOrganisateurPage() {
   async function rafraichir() {
     const tournoisDeCetOrganisateur = (await tousLesTournois()).filter((t) => t.organisateur === nom);
     setTournois(tournoisDeCetOrganisateur);
-    const entreesAvis = await Promise.all(tournoisDeCetOrganisateur.map(async (t) => [t.id, await compterAvis(t.id)] as const));
-    setAvisParTournoi(Object.fromEntries(entreesAvis));
+    setAvisParTournoi(await compterAvisPlusieurs(tournoisDeCetOrganisateur.map((t) => t.id)));
     setStats(await statistiquesReputation(nom));
     setMonAvis(await monAvisPourOrganisateur(nom));
     setSuivi(suisOrganisateur(nom));

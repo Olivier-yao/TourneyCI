@@ -36,6 +36,18 @@ export async function compterAvis(tournoiId: string): Promise<{ coeurs: number; 
   return { coeurs, coeursBrises };
 }
 
+/** Version groupée de compterAvis() : un seul appel réseau pour plusieurs
+ * tournois au lieu d'un par tournoi (pattern en cascade repéré sur
+ * /en-direct et les profils organisateur). */
+export async function compterAvisPlusieurs(
+  tournoiIds: string[],
+): Promise<Record<string, { coeurs: number; coeursBrises: number }>> {
+  if (tournoiIds.length === 0) return {};
+  const reponse = await fetch(`/api/tournois/avis-comptes?ids=${tournoiIds.join(",")}`);
+  const resultat = await reponseJson<Record<string, { coeurs: number; coeursBrises: number }>>(reponse);
+  return resultat.ok ? resultat.data : {};
+}
+
 /** Avis du compte connecté pour ce tournoi, s'il en a laissé un. */
 export async function monAvisPourTournoi(tournoiId: string): Promise<AvisTournoi | undefined> {
   return (await chargerAvisTournoi(tournoiId)).mon ?? undefined;
