@@ -15,9 +15,9 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { PRESS } from "@/components/ds/Button";
 import { AvatarPile } from "@/components/ds/Avatar";
-import { ProgressBar } from "@/components/ds/ProgressBar";
 import { formatXof } from "@/lib/formatXof";
 import { cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import {
@@ -40,11 +40,29 @@ function initiales(nom: string): string {
   return nom.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase();
 }
 
+/** Score de qualification d'un joueur pour son prochain match — dérivé du
+ * dernier match terminé qu'il a joué à une ronde antérieure (aucun champ
+ * "qualification" dédié en base, ce n'est qu'une relecture du bracket déjà
+ * chargé). undefined si le joueur n'a pas encore de match terminé avant
+ * cette ronde (ex: tour 1, ou repêchage). */
+function qualifDe(pseudo: string | null | undefined, matchs: MatchTournoi[], round: number): string | undefined {
+  if (!pseudo) return undefined;
+  const precedents = matchs
+    .filter((m) => m.statut === "termine" && m.round < round && (m.joueur1 === pseudo || m.joueur2 === pseudo))
+    .sort((a, b) => b.round - a.round);
+  const dernier = precedents[0];
+  if (!dernier) return undefined;
+  const mon = dernier.joueur1 === pseudo ? dernier.score1 : dernier.score2;
+  const adv = dernier.joueur1 === pseudo ? dernier.score2 : dernier.score1;
+  if (mon == null || adv == null) return undefined;
+  return `QUALIFIÉ ${mon}—${adv}`;
+}
+
 function BoutonSecondaire({ href, onClick, icone: Icone, label }: { href?: string; onClick?: () => void; icone: typeof GitBranch; label: string }) {
   const contenu = (
     <>
-      <Icone size={15} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
-      <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--ds-muted)" }}>{label}</span>
+      <Icone size={15} strokeWidth={2} style={{ color: "var(--ds-neutral-500)" }} />
+      <span className="text-[10px] font-medium whitespace-nowrap" style={{ color: "var(--ds-neutral-500)" }}>{label}</span>
     </>
   );
   const style: React.CSSProperties = { borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)" };
@@ -93,7 +111,7 @@ function FilAriane({ titre, droite }: { titre: string; droite: string }) {
     <div className="relative mt-4 flex items-center gap-2">
       <div className="text-[10px] tracking-wide uppercase truncate" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>{titre}</div>
       <div className="flex-1 h-px" style={{ background: "var(--ds-accent-800)" }} />
-      <div className="shrink-0 text-[10px] whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{droite}</div>
+      <div className="shrink-0 text-[10px] whitespace-nowrap" style={{ color: "var(--ds-neutral-500)", fontFamily: "var(--ds-font-mono)" }}>{droite}</div>
     </div>
   );
 }
@@ -129,12 +147,12 @@ function FeuilleInfos({
       />
       <div
         className="relative flex flex-col gap-3 px-5 pt-3 pb-6 max-h-[82vh] overflow-y-auto"
-        style={{ borderRadius: "var(--ds-radius-lg) var(--ds-radius-lg) 0 0", background: "var(--ds-bg)", boxShadow: "var(--ds-shadow-lg)" }}
+        style={{ borderRadius: "var(--ds-radius-lg) var(--ds-radius-lg) 0 0", background: "color-mix(in srgb, var(--ds-surface) 70%, var(--ds-bg))", boxShadow: "var(--ds-shadow-lg)" }}
       >
-        <div className="w-11 h-1 rounded-full mx-auto shrink-0" style={{ background: "var(--ds-border-strong)" }} />
+        <div className="w-11 h-1 rounded-full mx-auto shrink-0" style={{ background: "var(--ds-border)" }} />
 
         <div>
-          <div className="text-xl font-medium" style={{ fontFamily: "var(--ds-font-heading)" }}>{tournoi.titre}</div>
+          <div className="font-medium" style={{ fontSize: 22, fontFamily: "var(--ds-font-heading)" }}>{tournoi.titre}</div>
           <div className="mt-1 text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
             {tournoi.jeuLabel} · {tournoi.format} · CODE {tournoi.code}
           </div>
@@ -194,6 +212,32 @@ function FeuilleInfos({
           Revenir au match
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Barre d'avancement du tournoi (écran "entre deux matchs"), avec le
+ * liseré animé qui balaie la partie remplie — variante locale de
+ * src/components/ds/ProgressBar.tsx (partagée avec la fiche tournoi
+ * standard et /design-system, pas touchée pour ne pas répercuter ce
+ * traitement décoratif ailleurs). */
+function BarreAvancement({ pourcentage }: { pourcentage: number }) {
+  const valeur = Math.min(100, Math.max(0, pourcentage));
+  return (
+    <div className="relative h-[3px] overflow-hidden" style={{ background: "var(--ds-surface-2)", borderRadius: "var(--ds-radius-pill)" }}>
+      <motion.div
+        className="h-[3px]"
+        style={{ background: "linear-gradient(90deg, var(--ds-accent-700), var(--ds-accent-400))", borderRadius: "var(--ds-radius-pill)" }}
+        initial={{ width: 0 }}
+        animate={{ width: `${valeur}%` }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      />
+      <motion.div
+        className="absolute inset-y-0 left-0"
+        style={{ width: "40%", background: "linear-gradient(90deg, transparent, color-mix(in srgb, var(--ds-accent) 45%, transparent), transparent)" }}
+        animate={{ x: ["-100%", "250%"] }}
+        transition={{ duration: 2.6, ease: "linear", repeat: Infinity }}
+      />
     </div>
   );
 }
@@ -377,7 +421,7 @@ function SceneMatchEnCours({
                 className={`flex items-center justify-center w-8 h-8 ${PRESS}`}
                 style={{ borderRadius: "var(--ds-radius-md)", background: "color-mix(in srgb, var(--ds-bg) 60%, transparent)", border: `1px solid ${favori ? "var(--ds-accent)" : "var(--ds-border)"}`, color: favori ? "var(--ds-accent-300)" : "var(--ds-text)" }}
               >
-                <Bookmark size={14} strokeWidth={2} fill={favori ? "currentColor" : "none"} />
+                <Bookmark size={15} strokeWidth={2} fill={favori ? "currentColor" : "none"} />
               </button>
               <button
                 type="button"
@@ -386,7 +430,7 @@ function SceneMatchEnCours({
                 className={`flex items-center justify-center w-8 h-8 ${PRESS}`}
                 style={{ borderRadius: "var(--ds-radius-md)", background: "color-mix(in srgb, var(--ds-bg) 60%, transparent)", border: "1px solid var(--ds-border)", color: copie ? "var(--ds-accent-300)" : "var(--ds-text)" }}
               >
-                <Share2 size={13} strokeWidth={2} />
+                <Share2 size={14} strokeWidth={2} />
               </button>
             </>
           }
@@ -424,8 +468,8 @@ function SceneMatchEnCours({
           </div>
         </div>
         {tournoi.manchesParMatch && (
-          <div className="relative mt-3 text-center text-[9px] tracking-wide whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-            BO{tournoi.manchesParMatch}
+          <div className="relative mt-3 text-center text-[9px] tracking-wide uppercase whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            {libelleRound(match.round, totalRounds)} · MANCHE {s1 + s2 + 1} · BO{tournoi.manchesParMatch}
           </div>
         )}
       </div>
@@ -458,17 +502,15 @@ function SceneMatchEnCours({
           className={`h-12 flex items-center justify-center gap-2 text-sm font-medium ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
         >
-          <MessagesSquare size={16} strokeWidth={2} />
+          <MessagesSquare size={17} strokeWidth={2} />
           {spectateurs} spectateur{spectateurs > 1 ? "s" : ""} discutent
         </Link>
-        {!tournoi.streamActif && (
-          <div className="flex items-center gap-2">
-            <Radio size={13} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
-            <div className="flex-1 min-w-0 text-[10px] tracking-wide truncate" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              STREAM NON ACTIVÉ · SUIS LE TOURNOI PAR LE FIL DES MATCHS
-            </div>
+        <div className="flex items-center gap-2">
+          <Radio size={13} strokeWidth={2} style={{ color: tournoi.streamActif ? "var(--ds-accent-400)" : "var(--ds-muted)" }} className="shrink-0" />
+          <div className="flex-1 min-w-0 text-[10px] tracking-wide truncate" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+            {tournoi.streamActif ? "STREAM ACTIF · INSCRIPTIONS CLOSES" : "STREAM NON ACTIVÉ · SUIS LE TOURNOI PAR LE FIL DES MATCHS"}
           </div>
-        )}
+        </div>
       </div>
     </>
   );
@@ -540,17 +582,31 @@ function SceneEntreDeuxMatchs({
         {prochainMatch && (
           <div className="relative mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
             <div className="flex flex-col items-center gap-2 min-w-0">
-              <div className="flex items-center justify-center shrink-0 font-medium" style={{ width: 56, height: 56, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontSize: 17 }}>
+              <div className="flex items-center justify-center shrink-0 font-medium" style={{ width: 56, height: 56, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-neutral-400)", fontSize: 17 }}>
                 {initiales(prochainMatch.joueur1 ?? "?")}
               </div>
-              <div className="text-[13px] font-medium text-center truncate w-full">{prochainMatch.joueur1}</div>
+              <div className="text-center min-w-0 w-full">
+                <div className="text-[13px] font-medium truncate">{prochainMatch.joueur1}</div>
+                {qualifDe(prochainMatch.joueur1, matchs, prochainMatch.round) && (
+                  <div className="mt-0.5 text-[9px] whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    {qualifDe(prochainMatch.joueur1, matchs, prochainMatch.round)}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="text-[12px] tracking-wide whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>VS</div>
             <div className="flex flex-col items-center gap-2 min-w-0">
-              <div className="flex items-center justify-center shrink-0 font-medium" style={{ width: 56, height: 56, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontSize: 17 }}>
+              <div className="flex items-center justify-center shrink-0 font-medium" style={{ width: 56, height: 56, borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-neutral-400)", fontSize: 17 }}>
                 {initiales(prochainMatch.joueur2 ?? "?")}
               </div>
-              <div className="text-[13px] font-medium text-center truncate w-full">{prochainMatch.joueur2}</div>
+              <div className="text-center min-w-0 w-full">
+                <div className="text-[13px] font-medium truncate">{prochainMatch.joueur2}</div>
+                {qualifDe(prochainMatch.joueur2, matchs, prochainMatch.round) && (
+                  <div className="mt-0.5 text-[9px] whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    {qualifDe(prochainMatch.joueur2, matchs, prochainMatch.round)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -560,7 +616,7 @@ function SceneEntreDeuxMatchs({
             <div className="text-[9px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Avancement</div>
             <div className="text-[10px] whitespace-nowrap" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>{matchsTermines} / {matchs.length} MATCHS</div>
           </div>
-          <ProgressBar pourcentage={avancement} />
+          <BarreAvancement pourcentage={avancement} />
         </div>
       </div>
 
@@ -602,7 +658,7 @@ function SceneEntreDeuxMatchs({
         <Link
           href={`/tournois/${tournoi.id}/chat-spectateurs`}
           className={`h-10 flex items-center justify-center gap-2 text-xs font-medium ${PRESS}`}
-          style={{ borderRadius: "var(--ds-radius-md)", color: "var(--ds-muted)" }}
+          style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-neutral-500)" }}
         >
           <MessagesSquare size={14} strokeWidth={2} />
           {spectateurs} spectateur{spectateurs > 1 ? "s" : ""} discutent

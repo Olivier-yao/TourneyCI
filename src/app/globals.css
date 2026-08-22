@@ -211,6 +211,14 @@
   --ds-accent-400: color-mix(in srgb, var(--ds-accent-300) 60%, var(--ds-accent-600) 40%);
   --ds-accent-700: color-mix(in srgb, var(--ds-accent-600) 55%, var(--ds-accent-900) 45%);
   --ds-accent-800: color-mix(in srgb, var(--ds-accent-600) 20%, var(--ds-accent-900) 80%);
+  /* Paliers neutres intermédiaires (entre --ds-text et --ds-muted), même
+   * principe que les paliers accent ci-dessus — calibrés pour retomber
+   * exactement sur les hex de la rampe neutre du design system Nocturne
+   * (neutral-400 #b2b6ca, neutral-500 #9397ab) sans dupliquer ces valeurs
+   * en dur par thème. */
+  --ds-neutral-400: color-mix(in srgb, var(--ds-text) 57%, var(--ds-muted) 43%);
+  --ds-neutral-500: color-mix(in srgb, var(--ds-text) 28%, var(--ds-muted) 72%);
+  --ds-shadow-sm: 0 0 0 1px var(--ds-border);
 }
 
 :root {
