@@ -54,6 +54,7 @@ export default function EnDirectPage() {
   const [tri, setTri] = useState<Tri>("cashprize");
   const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
   const [matchsParTournoi, setMatchsParTournoi] = useState<Record<string, MatchTournoi[]>>({});
+  const [coeursParTournoi, setCoeursParTournoi] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
@@ -73,6 +74,18 @@ export default function EnDirectPage() {
           .map(async (t) => [t.id, await matchsDuTournoi(t.id)] as const),
       );
       setMatchsParTournoi(Object.fromEntries(entrees));
+    }
+    charger();
+  }, [tousLesTournoisState]);
+
+  useEffect(() => {
+    async function charger() {
+      const entrees = await Promise.all(
+        tousLesTournoisState
+          .filter((t) => t.enDirect)
+          .map(async (t) => [t.id, (await compterAvis(t.id)).coeurs] as const),
+      );
+      setCoeursParTournoi(Object.fromEntries(entrees));
     }
     charger();
   }, [tousLesTournoisState]);
@@ -151,10 +164,10 @@ export default function EnDirectPage() {
                           <Users size={11} strokeWidth={2} />
                           {spectateurs(t)}
                         </span>
-                        {compterAvis(t.id).coeurs > 0 && (
+                        {(coeursParTournoi[t.id] ?? 0) > 0 && (
                           <span className="flex items-center gap-1">
                             <Heart size={11} strokeWidth={2} />
-                            {compterAvis(t.id).coeurs}
+                            {coeursParTournoi[t.id]}
                           </span>
                         )}
                       </div>

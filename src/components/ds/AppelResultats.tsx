@@ -6,14 +6,10 @@ import { creerAppel, type Appel } from "@/lib/mockAppel";
 
 export function AppelResultats({
   tournoiId,
-  tournoiTitre,
-  auteur,
   appelExistant,
   onEnvoye,
 }: {
   tournoiId: string;
-  tournoiTitre: string;
-  auteur: string;
   appelExistant?: Appel;
   onEnvoye: () => void;
 }) {
@@ -71,9 +67,9 @@ export function AppelResultats({
         </button>
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             if (!motif.trim()) return;
-            creerAppel(tournoiId, tournoiTitre, auteur, motif);
+            await creerAppel(tournoiId, motif);
             setOuvert(false);
             onEnvoye();
           }}

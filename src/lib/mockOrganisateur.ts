@@ -5,7 +5,7 @@
  * mais n'est jamais créditée).
  */
 
-import { avisDeOrganisateur, avisGlobalDeOrganisateur } from "./mockAvis";
+import { reputationOrganisateur } from "./mockAvis";
 import { lireProfil } from "./mockProfil";
 import { estOrganisateurApprouve } from "./mockDemandesOrganisateur";
 import { peutModifierMensuel } from "./limiteMensuelle";
@@ -332,14 +332,8 @@ export const SEUIL_COEURS_BRISES_SUSPENSION = 3;
 
 /** Réputation globale : cumule les avis laissés sur chacun de ses tournois
  * (point 19/51) et les avis laissés directement sur son profil (point 51). */
-export function statistiquesReputation(organisateur: string): { coeurs: number; coeursBrises: number } {
-  const parTournoi = avisDeOrganisateur(organisateur);
-  const global = avisGlobalDeOrganisateur(organisateur);
-  const tout = [...parTournoi, ...global];
-  return {
-    coeurs: tout.filter((a) => a.type === "coeur").length,
-    coeursBrises: tout.filter((a) => a.type === "coeur_brise").length,
-  };
+export async function statistiquesReputation(organisateur: string): Promise<{ coeurs: number; coeursBrises: number }> {
+  return reputationOrganisateur(organisateur);
 }
 
 export type StatutModeration = "actif" | "suspendu" | "banni";
@@ -361,16 +355,16 @@ export type EntreeListeNoire = {
 };
 
 /** Statut de modération de l'organisateur de cet appareil (mock mono-compte). */
-export function statutModeration(organisateur: string): StatutModeration {
+export async function statutModeration(organisateur: string): Promise<StatutModeration> {
   if (typeof window === "undefined") return "actif";
   if (localStorage.getItem(CLE_BANNI) === "1") return "banni";
   const leve = localStorage.getItem(CLE_SUSPENDU) === "1";
-  if (!leve && statistiquesReputation(organisateur).coeursBrises >= SEUIL_COEURS_BRISES_SUSPENSION) return "suspendu";
+  if (!leve && (await statistiquesReputation(organisateur)).coeursBrises >= SEUIL_COEURS_BRISES_SUSPENSION) return "suspendu";
   return "actif";
 }
 
-export function peutCreerTournoiPayant(organisateur: string): boolean {
-  return statutModeration(organisateur) === "actif";
+export async function peutCreerTournoiPayant(organisateur: string): Promise<boolean> {
+  return (await statutModeration(organisateur)) === "actif";
 }
 
 function lireListeNoire(): EntreeListeNoire[] {

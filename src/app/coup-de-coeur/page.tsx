@@ -24,14 +24,16 @@ export default function CoupDeCoeurPage() {
         liste.push(t);
         parOrganisateur.set(t.organisateur, liste);
       }
-      const lignes = Array.from(parOrganisateur.entries())
-        .map(([nom, tournoisOrg]) => {
-          const stats = statistiquesReputation(nom);
-          return { nom, coeurs: stats.coeurs, coeursBrises: stats.coeursBrises, tournois: tournoisOrg };
-        })
+      const lignes = (
+        await Promise.all(
+          Array.from(parOrganisateur.entries()).map(async ([nom, tournoisOrg]) => {
+            const stats = await statistiquesReputation(nom);
+            return { nom, coeurs: stats.coeurs, coeursBrises: stats.coeursBrises, tournois: tournoisOrg };
+          }),
+        )
+      )
         .filter((l) => l.coeurs > 0)
         .sort((a, b) => b.coeurs - a.coeurs);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOrganisateurs(lignes);
     }
     charger();

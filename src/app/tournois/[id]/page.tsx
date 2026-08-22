@@ -26,7 +26,6 @@ import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { lireProfil } from "@/lib/mockProfil";
 import { monAvisPourTournoi, compterAvis } from "@/lib/mockAvis";
 import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";
 import { AvisCoeur } from "@/components/ds/AvisCoeur";
@@ -369,13 +368,13 @@ function DetailTournoiInterne() {
       // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
       // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
       // l'inscription ni pendant le déroulement, et jamais à l'organisateur.
-      setDemanderAvis(!monTournoi && Boolean(t?.termine) && !monAvisPourTournoi(params.id));
-      setAvisCompte(compterAvis(params.id));
+      setDemanderAvis(!monTournoi && Boolean(t?.termine) && !(await monAvisPourTournoi(params.id)));
+      setAvisCompte(await compterAvis(params.id));
       if (t?.termine) {
         await reevaluerPaiementsEnAttente();
         setEnSequestre(cashPrizeEnSequestre(params.id));
         setPeutContester(await estInscrit(params.id));
-        setMonAppel(monAppelPourTournoi(params.id));
+        setMonAppel(await monAppelPourTournoi(params.id));
       }
       setPret(true);
     }
@@ -584,11 +583,9 @@ function DetailTournoiInterne() {
         {peutContester && (
           <AppelResultats
             tournoiId={tournoi.id}
-            tournoiTitre={tournoi.titre}
-            auteur={lireProfil().pseudo}
             appelExistant={monAppel}
             onEnvoye={async () => {
-              setMonAppel(monAppelPourTournoi(tournoi.id));
+              setMonAppel(await monAppelPourTournoi(tournoi.id));
               await reevaluerPaiementsEnAttente();
               setEnSequestre(cashPrizeEnSequestre(tournoi.id));
             }}
@@ -703,13 +700,11 @@ function DetailTournoiInterne() {
         {demanderAvis && (
           <AvisCoeur
             tournoiId={tournoi.id}
-            tournoiTitre={tournoi.titre}
-            organisateur={tournoi.organisateur}
             onEnvoye={async () => {
               setDemanderAvis(false);
               await reevaluerPaiementsEnAttente();
               setEnSequestre(cashPrizeEnSequestre(tournoi.id));
-              setAvisCompte(compterAvis(tournoi.id));
+              setAvisCompte(await compterAvis(tournoi.id));
             }}
           />
         )}

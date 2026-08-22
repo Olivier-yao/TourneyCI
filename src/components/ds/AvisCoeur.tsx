@@ -6,22 +6,18 @@ import { laisserAvis } from "@/lib/mockAvis";
 
 export function AvisCoeur({
   tournoiId,
-  tournoiTitre,
-  organisateur,
   onEnvoye,
 }: {
   tournoiId: string;
-  tournoiTitre: string;
-  organisateur: string;
   onEnvoye: () => void;
 }) {
   const [choix, setChoix] = useState<"coeur" | "coeur_brise" | null>(null);
   const [message, setMessage] = useState("");
   const [envoye, setEnvoye] = useState(false);
 
-  function envoyer() {
+  async function envoyer() {
     if (!choix) return;
-    laisserAvis(tournoiId, tournoiTitre, organisateur, choix, choix === "coeur_brise" ? message : undefined);
+    await laisserAvis(tournoiId, choix, choix === "coeur_brise" ? message : undefined);
     setEnvoye(true);
     onEnvoye();
   }

@@ -45,18 +45,17 @@ function ModerationAdminContenu() {
   const [sequestres, setSequestres] = useState<PaiementEnAttente[]>([]);
   const [appelsOuverts, setAppelsOuverts] = useState<Appel[]>([]);
 
-  function rafraichir() {
+  async function rafraichir() {
     const nom = nomOrganisateurActuel();
     setOrganisateur(nom);
-    setStats(statistiquesReputation(nom));
-    setStatut(statutModeration(nom));
+    setStats(await statistiquesReputation(nom));
+    setStatut(await statutModeration(nom));
     setListe(listeNoire());
     setSequestres(paiementsEnAttente());
-    setAppelsOuverts(tousLesAppelsOuverts());
+    setAppelsOuverts(await tousLesAppelsOuverts());
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     rafraichir();
   }, []);
 
@@ -126,7 +125,7 @@ function ModerationAdminContenu() {
                 <button
                   type="button"
                   onClick={async () => {
-                    traiterAppel(a.id, "valide");
+                    await traiterAppel(a.id, "valide");
                     await reevaluerPaiementsEnAttente();
                     rafraichir();
                   }}
@@ -138,7 +137,7 @@ function ModerationAdminContenu() {
                 <button
                   type="button"
                   onClick={async () => {
-                    traiterAppel(a.id, "rejete");
+                    await traiterAppel(a.id, "rejete");
                     await reevaluerPaiementsEnAttente();
                     rafraichir();
                   }}

@@ -22,7 +22,7 @@ import { crediter } from "./mockWallet";
 import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
 import { estInscrit } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
-import { avisDuTournoi } from "./mockAvis";
+import { compterAvis } from "./mockAvis";
 import { appelOuvertPourTournoi } from "./mockAppel";
 import { supprimerEquipesDuTournoi } from "./mockEquipesBR";
 
@@ -532,8 +532,8 @@ export async function libererSequestreCashPrize(tournoiId: string): Promise<void
  * laissé, ou à l'arrivée sur l'écran d'un tournoi terminé. */
 export async function reevaluerPaiementsEnAttente(): Promise<void> {
   for (const paiement of lirePaiementsAttente()) {
-    const brises = avisDuTournoi(paiement.tournoiId).filter((a) => a.type === "coeur_brise").length;
-    const conteste = appelOuvertPourTournoi(paiement.tournoiId);
+    const brises = (await compterAvis(paiement.tournoiId)).coeursBrises;
+    const conteste = await appelOuvertPourTournoi(paiement.tournoiId);
     if (brises < SEUIL_COEURS_BRISES_SEQUESTRE && !conteste) {
       await crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain", paiement.tournoiId);
       retirerPaiementAttente(paiement.tournoiId);

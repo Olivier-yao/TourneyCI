@@ -161,31 +161,34 @@ export default function NouveauTournoiPage() {
   const [onboardingOk, setOnboardingOk] = useState(false);
 
   useEffect(() => {
-    // Point 167 : un nom d'organisateur suffit pour créer un tournoi
-    // gratuit, sans attendre la demande de statut certifié (point 146/158).
-    if (!onboardingOrganisateurComplet()) {
-      router.replace("/organisateur");
-      return;
+    async function verifier() {
+      // Point 167 : un nom d'organisateur suffit pour créer un tournoi
+      // gratuit, sans attendre la demande de statut certifié (point 146/158).
+      if (!onboardingOrganisateurComplet()) {
+        router.replace("/organisateur");
+        return;
+      }
+      const estCert = estOrganisateurCertifie();
+      // Point 159 : le règlement organisateur certifié doit être accepté avant
+      // le premier tournoi payant — un organisateur qui vient d'être certifié
+      // mais n'est pas encore passé par cet écran y est renvoyé ici.
+      if (estCert && !reglementCertifieAccepte()) {
+        router.replace("/organisateur/reglement-certifie");
+        return;
+      }
+      lireSolde().then(setSolde);
+      // Un tournoi payant demande à la fois un compte en règle (anti-triche)
+      // et le statut organisateur certifié complet (identité vérifiée +
+      // demande validée + règlement accepté, points 158-159) — sans ça, seuls
+      // les tournois gratuits (avec cash prize auto-financé possible) sont permis.
+      const autorise = estCert && (await peutCreerTournoiPayant(nomOrganisateurActuel()));
+      setCertifie(estCert);
+      setIdentiteVerifiee(estCertifie());
+      setPayantAutorise(autorise);
+      if (!autorise) setPayant(false);
+      setOnboardingOk(true);
     }
-    const estCert = estOrganisateurCertifie();
-    // Point 159 : le règlement organisateur certifié doit être accepté avant
-    // le premier tournoi payant — un organisateur qui vient d'être certifié
-    // mais n'est pas encore passé par cet écran y est renvoyé ici.
-    if (estCert && !reglementCertifieAccepte()) {
-      router.replace("/organisateur/reglement-certifie");
-      return;
-    }
-    lireSolde().then(setSolde);
-    // Un tournoi payant demande à la fois un compte en règle (anti-triche)
-    // et le statut organisateur certifié complet (identité vérifiée +
-    // demande validée + règlement accepté, points 158-159) — sans ça, seuls
-    // les tournois gratuits (avec cash prize auto-financé possible) sont permis.
-    const autorise = estCert && peutCreerTournoiPayant(nomOrganisateurActuel());
-    setCertifie(estCert);
-    setIdentiteVerifiee(estCertifie());
-    setPayantAutorise(autorise);
-    if (!autorise) setPayant(false);
-    setOnboardingOk(true);
+    verifier();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [fraisXof, setFraisXof] = useState("1000");

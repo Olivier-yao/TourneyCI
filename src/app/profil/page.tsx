@@ -66,7 +66,7 @@ export default function ProfilPage() {
 
       const onboardingOk = onboardingOrganisateurComplet();
       const nomOrga = nomOrganisateurActuel();
-      const stats = statistiquesReputation(nomOrga);
+      const stats = await statistiquesReputation(nomOrga);
       const classement = await classementOrganisateurs();
       setVueOrga({
         onboardingOk,

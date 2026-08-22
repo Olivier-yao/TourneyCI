@@ -1,14 +1,10 @@
 /**
- * Avis "cœur / cœur brisé" laissés par les participants à la fin d'un
- * tournoi, associés au tournoi et à l'organisateur concerné. Sert de base à
- * la réputation organisateur et aux mécanismes de séquestre du cash prize.
- *
- * Pas de cleCompte() ici : compterAvis()/avisDeOrganisateur() alimentent un
- * compteur PUBLIC affiché à tous les visiteurs (fiche tournoi, /en-direct,
- * profil organisateur) — namespacer par compte le rendrait invisible aux
- * autres comptes du même appareil. Les entrées n'ont d'ailleurs pas de champ
- * auteur : "mon avis" désigne déjà l'avis de CET APPAREIL, pas d'un compte
- * précis (limite du mock assumée, cf. commentaires plus bas).
+ * Avis "cœur / cœur brisé" — tables `avis_tournoi` et `avis_organisateur`
+ * (Postgres), même pattern que les migrations précédentes (fonctions async,
+ * mêmes noms/signatures quand c'est possible). "Mon avis" désigne
+ * désormais vraiment le compte connecté (contrainte unique en base sur
+ * tournoi/auteur et organisateur/auteur) — l'ancienne limitation "mock
+ * mono-appareil" (pas de champ auteur du tout) disparaît avec la migration.
  */
 
 export type TypeAvis = "coeur" | "coeur_brise";
@@ -16,122 +12,80 @@ export type TypeAvis = "coeur" | "coeur_brise";
 export type AvisTournoi = {
   id: string;
   tournoiId: string;
-  tournoiTitre: string;
-  organisateur: string;
   type: TypeAvis;
   message?: string;
   horodatage: number;
 };
 
-const CLE_AVIS = "tourney-avis";
-
-function lireTout(): AvisTournoi[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_AVIS);
-    return brut ? (JSON.parse(brut) as AvisTournoi[]) : [];
-  } catch {
-    return [];
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-export function avisDuTournoi(tournoiId: string): AvisTournoi[] {
-  return lireTout().filter((a) => a.tournoiId === tournoiId);
+type AvisTournoiApiJSON = { coeurs: number; coeursBrises: number; mon: AvisTournoi | null };
+
+async function chargerAvisTournoi(tournoiId: string): Promise<AvisTournoiApiJSON> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/avis`);
+  const resultat = await reponseJson<AvisTournoiApiJSON>(reponse);
+  return resultat.ok ? resultat.data : { coeurs: 0, coeursBrises: 0, mon: null };
 }
 
-export function avisDeOrganisateur(organisateur: string): AvisTournoi[] {
-  return lireTout().filter((a) => a.organisateur === organisateur);
+export async function compterAvis(tournoiId: string): Promise<{ coeurs: number; coeursBrises: number }> {
+  const { coeurs, coeursBrises } = await chargerAvisTournoi(tournoiId);
+  return { coeurs, coeursBrises };
 }
 
-/** Un seul avis par tournoi côté appareil courant (mock mono-utilisateur). */
-export function monAvisPourTournoi(tournoiId: string): AvisTournoi | undefined {
-  return lireTout().find((a) => a.tournoiId === tournoiId);
+/** Avis du compte connecté pour ce tournoi, s'il en a laissé un. */
+export async function monAvisPourTournoi(tournoiId: string): Promise<AvisTournoi | undefined> {
+  return (await chargerAvisTournoi(tournoiId)).mon ?? undefined;
 }
 
-export function laisserAvis(
-  tournoiId: string,
-  tournoiTitre: string,
-  organisateur: string,
-  type: TypeAvis,
-  message?: string,
-) {
-  if (typeof window === "undefined") return;
-  if (monAvisPourTournoi(tournoiId)) return;
-  const avis: AvisTournoi = {
-    id: `avis-${Date.now().toString(36)}`,
-    tournoiId,
-    tournoiTitre,
-    organisateur,
-    type,
-    message: message?.trim() || undefined,
-    horodatage: Date.now(),
-  };
-  localStorage.setItem(CLE_AVIS, JSON.stringify([...lireTout(), avis]));
-}
-
-export function compterAvis(tournoiId: string): { coeurs: number; coeursBrises: number } {
-  const avis = avisDuTournoi(tournoiId);
-  return {
-    coeurs: avis.filter((a) => a.type === "coeur").length,
-    coeursBrises: avis.filter((a) => a.type === "coeur_brise").length,
-  };
+export async function laisserAvis(tournoiId: string, type: TypeAvis, message?: string): Promise<void> {
+  await fetch(`/api/tournois/${tournoiId}/avis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, message }),
+  });
 }
 
 /**
  * Avis global laissé directement à un organisateur, indépendamment de tout
- * tournoi précis (cf. point 51 — un seul avis par organisateur et par
+ * tournoi précis (point 51 — un seul avis par organisateur et par
  * utilisateur, distinct des avis par tournoi ci-dessus).
  */
-export type AvisOrganisateur = {
-  id: string;
-  organisateur: string;
-  type: TypeAvis;
-  horodatage: number;
-};
+type ReputationApiJSON = { coeurs: number; coeursBrises: number; mon: TypeAvis | null };
 
-const CLE_AVIS_ORGANISATEUR = "tourney-avis-organisateur";
-
-function lireToutOrganisateur(): AvisOrganisateur[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_AVIS_ORGANISATEUR);
-    return brut ? (JSON.parse(brut) as AvisOrganisateur[]) : [];
-  } catch {
-    return [];
-  }
+async function chargerReputationOrganisateur(nom: string): Promise<ReputationApiJSON> {
+  const reponse = await fetch(`/api/organisateur/${encodeURIComponent(nom)}/avis`);
+  const resultat = await reponseJson<ReputationApiJSON>(reponse);
+  return resultat.ok ? resultat.data : { coeurs: 0, coeursBrises: 0, mon: null };
 }
 
-export function avisGlobalDeOrganisateur(organisateur: string): AvisOrganisateur[] {
-  return lireToutOrganisateur().filter((a) => a.organisateur === organisateur);
+/** Réputation combinée (avis sur les tournois + avis direct sur le profil)
+ * de cet organisateur — cf. statistiquesReputation() dans mockOrganisateur.ts. */
+export async function reputationOrganisateur(nom: string): Promise<{ coeurs: number; coeursBrises: number }> {
+  const { coeurs, coeursBrises } = await chargerReputationOrganisateur(nom);
+  return { coeurs, coeursBrises };
 }
 
-export function monAvisPourOrganisateur(organisateur: string): AvisOrganisateur | undefined {
-  return lireToutOrganisateur().find((a) => a.organisateur === organisateur);
+export async function monAvisPourOrganisateur(nom: string): Promise<TypeAvis | null> {
+  return (await chargerReputationOrganisateur(nom)).mon;
 }
 
-/** Pose un avis sur l'organisateur, en remplaçant l'avis précédent s'il en
+/** Pose l'avis direct sur ce profil, en remplaçant l'avis précédent s'il en
  * existait un (point 112/113 : toggle direct sur l'icône, avec bascule d'un
  * type à l'autre) — l'unicité du point 51 reste garantie (un seul avis actif
  * à la fois par utilisateur et par organisateur). */
-export function laisserAvisOrganisateur(organisateur: string, type: TypeAvis) {
-  if (typeof window === "undefined") return;
-  const sansAncien = lireToutOrganisateur().filter((a) => a.organisateur !== organisateur);
-  const avis: AvisOrganisateur = {
-    id: `avisorg-${Date.now().toString(36)}`,
-    organisateur,
-    type,
-    horodatage: Date.now(),
-  };
-  localStorage.setItem(CLE_AVIS_ORGANISATEUR, JSON.stringify([...sansAncien, avis]));
+export async function laisserAvisOrganisateur(nom: string, type: TypeAvis): Promise<void> {
+  await fetch(`/api/organisateur/${encodeURIComponent(nom)}/avis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type }),
+  });
 }
 
-/** Retire l'avis (cœur ou cœur brisé) laissé sur cet organisateur — l'unicité
- * du point 51 reste respectée (un seul avis actif à la fois), mais rien
- * n'empêche d'en redonner un différent ensuite (point 77). */
-export function retirerAvisOrganisateur(organisateur: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(
-    CLE_AVIS_ORGANISATEUR,
-    JSON.stringify(lireToutOrganisateur().filter((a) => a.organisateur !== organisateur)),
-  );
+/** Retire l'avis (cœur ou cœur brisé) laissé sur cet organisateur. */
+export async function retirerAvisOrganisateur(nom: string): Promise<void> {
+  await fetch(`/api/organisateur/${encodeURIComponent(nom)}/avis`, { method: "DELETE" });
 }

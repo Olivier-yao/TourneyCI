@@ -94,6 +94,7 @@ export default function ProfilOrganisateurPage() {
   const [brouillonTag, setBrouillonTag] = useState("");
   const [brouillonBio, setBrouillonBio] = useState("");
   const [tournois, setTournois] = useState<Tournoi[]>([]);
+  const [avisParTournoi, setAvisParTournoi] = useState<Record<string, { coeurs: number; coeursBrises: number }>>({});
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [editionPhotoOuverte, setEditionPhotoOuverte] = useState(false);
   const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
@@ -123,9 +124,12 @@ export default function ProfilOrganisateurPage() {
   }, [tournois]);
 
   async function rafraichir() {
-    setTournois((await tousLesTournois()).filter((t) => t.organisateur === nom));
-    setStats(statistiquesReputation(nom));
-    setMonAvis(monAvisPourOrganisateur(nom)?.type ?? null);
+    const tournoisDeCetOrganisateur = (await tousLesTournois()).filter((t) => t.organisateur === nom);
+    setTournois(tournoisDeCetOrganisateur);
+    const entreesAvis = await Promise.all(tournoisDeCetOrganisateur.map(async (t) => [t.id, await compterAvis(t.id)] as const));
+    setAvisParTournoi(Object.fromEntries(entreesAvis));
+    setStats(await statistiquesReputation(nom));
+    setMonAvis(await monAvisPourOrganisateur(nom));
     setSuivi(suisOrganisateur(nom));
     setNbFollowers(compteurFollowers(nom));
     setMasqueFollowers(suiviMasque(nom));
@@ -163,13 +167,13 @@ export default function ProfilOrganisateurPage() {
   const totalAvis = stats.coeurs + stats.coeursBrises;
   const pourcentagePositif = totalAvis > 0 ? Math.round((stats.coeurs / totalAvis) * 100) : 100;
 
-  function voter(type: TypeAvis) {
-    laisserAvisOrganisateur(nom, type);
+  async function voter(type: TypeAvis) {
+    await laisserAvisOrganisateur(nom, type);
     rafraichir();
   }
 
-  function retirerAvis() {
-    retirerAvisOrganisateur(nom);
+  async function retirerAvis() {
+    await retirerAvisOrganisateur(nom);
     rafraichir();
   }
 
@@ -807,7 +811,7 @@ export default function ProfilOrganisateurPage() {
           ) : (
             <div className="flex flex-col gap-2">
               {tournois.map((t) => {
-                const avisT = compterAvis(t.id);
+                const avisT = avisParTournoi[t.id] ?? { coeurs: 0, coeursBrises: 0 };
                 return (
                   <Link key={t.id} href={`/tournois/${t.id}`}>
                     <div className="flex items-center gap-3 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
