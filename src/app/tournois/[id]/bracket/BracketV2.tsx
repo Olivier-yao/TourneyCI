@@ -141,6 +141,9 @@ export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
     evenementsDuMatch(matchHistorique.id).then(setEvenementsHistorique);
   }, [matchHistorique]);
   const conteneurRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const glisser = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number; deplace: boolean } | null>(null);
+  const [enGlissement, setEnGlissement] = useState(false);
   const cartesRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const vainqueurRef = useRef<HTMLDivElement | null>(null);
   const [lignes, setLignes] = useState<Ligne[]>([]);
@@ -230,6 +233,45 @@ export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
   // rounds une fois de plus gros brackets disponibles (phase 8).
   const rounds = Array.from({ length: totalRounds }, (_, i) => i + 1);
 
+  // Déplacement libre dans la vue (clic-glisser, comme un plan) — en plus
+  // du scroll natif déjà possible. Seuil de 5px avant de considérer que
+  // c'est un glissement plutôt qu'un simple clic, pour ne pas casser les
+  // clics sur les cartes de match (lien vers le match en cours, historique
+  // d'un match terminé).
+  const SEUIL_GLISSEMENT_PX = 5;
+
+  // La capture du pointeur n'est prise qu'une fois le seuil dépassé (pas dès
+  // le pointerdown) : un simple clic sur une carte de match (lien vers le
+  // match en cours, bouton d'historique d'un match terminé) doit rester un
+  // clic normal, jamais intercepté par le glissement.
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    if (!el) return;
+    glisser.current = { x: e.clientX, y: e.clientY, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop, deplace: false };
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    const depart = glisser.current;
+    if (!el || !depart) return;
+    const dx = e.clientX - depart.x;
+    const dy = e.clientY - depart.y;
+    if (!depart.deplace) {
+      if (Math.abs(dx) < SEUIL_GLISSEMENT_PX && Math.abs(dy) < SEUIL_GLISSEMENT_PX) return;
+      depart.deplace = true;
+      setEnGlissement(true);
+      el.setPointerCapture(e.pointerId);
+    }
+    el.scrollLeft = depart.scrollLeft - dx;
+    el.scrollTop = depart.scrollTop - dy;
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (glisser.current?.deplace) scrollRef.current?.releasePointerCapture(e.pointerId);
+    glisser.current = null;
+    setEnGlissement(false);
+  }
+
   return (
     <div>
       <div className="flex justify-end mb-3">
@@ -255,7 +297,15 @@ export function BracketV2({ matches }: { matches: MatchTournoi[] }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto pb-4">
+      <div
+        ref={scrollRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className="overflow-auto pb-4 max-h-[70vh]"
+        style={{ cursor: enGlissement ? "grabbing" : "grab", touchAction: "none" }}
+      >
         <div
           ref={conteneurRef}
           className="relative flex items-stretch gap-12"
