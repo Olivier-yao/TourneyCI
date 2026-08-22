@@ -6,25 +6,19 @@
 
 export type InfosRoom = { lien: string; motDePasse: string };
 
-const CLE_ROOM_INFOS = "tourney-room-infos";
 const VIDE: InfosRoom = { lien: "", motDePasse: "" };
 
-function lireTout(): Record<string, InfosRoom> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_ROOM_INFOS);
-    return brut ? (JSON.parse(brut) as Record<string, InfosRoom>) : {};
-  } catch {
-    return {};
-  }
+export async function infosRoomDuTournoi(tournoiId: string): Promise<InfosRoom> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/room`);
+  if (!reponse.ok) return VIDE;
+  const json = await reponse.json();
+  return json.success ? json.data : VIDE;
 }
 
-export function infosRoomDuTournoi(tournoiId: string): InfosRoom {
-  return lireTout()[tournoiId] ?? VIDE;
-}
-
-export function definirInfosRoom(tournoiId: string, infos: InfosRoom) {
-  if (typeof window === "undefined") return;
-  const tout = lireTout();
-  localStorage.setItem(CLE_ROOM_INFOS, JSON.stringify({ ...tout, [tournoiId]: infos }));
+export async function definirInfosRoom(tournoiId: string, infos: InfosRoom): Promise<void> {
+  await fetch(`/api/tournois/${tournoiId}/room`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(infos),
+  });
 }

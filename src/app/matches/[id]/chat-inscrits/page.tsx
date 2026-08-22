@@ -10,16 +10,12 @@ import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
-import { lireProfil } from "@/lib/mockProfil";
+import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { presentsDuTournoi } from "@/lib/mockCheckin";
-import { messagesChat, envoyerMessageChat, type MessageChat } from "@/lib/mockChat";
+import { messagesChatInscrits, envoyerMessageChatInscrits, type MessageChat } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 const RAFRAICHISSEMENT_MS = 8_000;
-
-function cleInscrits(matchId: string): string {
-  return `${matchId}-inscrits`;
-}
 
 function heure(horodatage: number): string {
   return new Date(horodatage).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).toUpperCase();
@@ -66,11 +62,12 @@ export default function ChatInscritsMatchPage() {
       setOrganisateur(estOrg);
       setInscritMoi(suisInscrit);
       setAutorise(suisInscrit || estOrg);
+      await attendreProfil();
       setMonPseudo(lireProfil().pseudo);
       setPresents(presentsDuTournoi(m.tournoiId));
-      setMessages(messagesChat(cleInscrits(params.id)));
+      setMessages(await messagesChatInscrits(params.id));
       setPret(true);
-      intervalId = setInterval(() => setMessages(messagesChat(cleInscrits(params.id))), RAFRAICHISSEMENT_MS);
+      intervalId = setInterval(async () => setMessages(await messagesChatInscrits(params.id)), RAFRAICHISSEMENT_MS);
     }
     charger();
     return () => {
@@ -91,11 +88,11 @@ export default function ChatInscritsMatchPage() {
     );
   }
 
-  function envoyer() {
+  async function envoyer() {
     if (!texte.trim()) return;
-    envoyerMessageChat(cleInscrits(params.id), monPseudo, texte, organisateur ? "organisateur" : "participant");
+    await envoyerMessageChatInscrits(params.id, texte);
     setTexte("");
-    setMessages(messagesChat(cleInscrits(params.id)));
+    setMessages(await messagesChatInscrits(params.id));
   }
 
   const inscrits = tournoi?.placesInscrites ?? 0;

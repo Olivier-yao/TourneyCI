@@ -1,7 +1,12 @@
 /**
- * Chat mock réservé aux inscrits d'un tournoi (+ organisateur), actif dès la
- * clôture des inscriptions et pendant le déroulement du tournoi. Persisté en
- * localStorage, à remplacer par un vrai canal temps réel en phase 8.
+ * Chats en direct d'un tournoi, désormais réels (Postgres, table
+ * messages_chat) : trois salons distincts partagent le même backend.
+ * - Chat du tournoi (salon "general") : réservé aux inscrits + organisateur.
+ * - Tribune des spectateurs d'un match (salon "tribune") : lecture ouverte
+ *   à tous, écriture réservée aux comptes connectés.
+ * - Salon des inscrits d'un match (salon "inscrits") : entièrement privé.
+ * auteur (pseudo) et role (organisateur/participant) sont dérivés côté
+ * serveur à partir de la session — plus besoin de les passer au client.
  */
 
 export type MessageChat = {
@@ -12,26 +17,42 @@ export type MessageChat = {
   role: "organisateur" | "participant";
 };
 
-const CLE_CHAT = "tourney-chat";
-
-function lireTout(): Record<string, MessageChat[]> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_CHAT);
-    return brut ? (JSON.parse(brut) as Record<string, MessageChat[]>) : {};
-  } catch {
-    return {};
-  }
+async function recupererMessages(url: string): Promise<MessageChat[]> {
+  const reponse = await fetch(url);
+  if (!reponse.ok) return [];
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : [];
 }
 
-export function messagesChat(tournoiId: string): MessageChat[] {
-  return lireTout()[tournoiId] ?? [];
+async function envoyerMessage(url: string, texte: string): Promise<void> {
+  if (!texte.trim()) return;
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texte: texte.trim() }),
+  });
 }
 
-export function envoyerMessageChat(tournoiId: string, auteur: string, texte: string, role: "organisateur" | "participant") {
-  if (typeof window === "undefined" || !texte.trim()) return;
-  const tout = lireTout();
-  const existants = tout[tournoiId] ?? [];
-  const message: MessageChat = { id: `msg-${Date.now().toString(36)}`, auteur, texte: texte.trim(), horodatage: Date.now(), role };
-  localStorage.setItem(CLE_CHAT, JSON.stringify({ ...tout, [tournoiId]: [...existants, message] }));
+export function messagesChatTournoi(tournoiId: string): Promise<MessageChat[]> {
+  return recupererMessages(`/api/tournois/${tournoiId}/chat`);
+}
+
+export function envoyerMessageChatTournoi(tournoiId: string, texte: string): Promise<void> {
+  return envoyerMessage(`/api/tournois/${tournoiId}/chat`, texte);
+}
+
+export function messagesChatTribune(matchId: string): Promise<MessageChat[]> {
+  return recupererMessages(`/api/matches/${matchId}/chat`);
+}
+
+export function envoyerMessageChatTribune(matchId: string, texte: string): Promise<void> {
+  return envoyerMessage(`/api/matches/${matchId}/chat`, texte);
+}
+
+export function messagesChatInscrits(matchId: string): Promise<MessageChat[]> {
+  return recupererMessages(`/api/matches/${matchId}/chat-inscrits`);
+}
+
+export function envoyerMessageChatInscrits(matchId: string, texte: string): Promise<void> {
+  return envoyerMessage(`/api/matches/${matchId}/chat-inscrits`, texte);
 }

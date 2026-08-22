@@ -8,8 +8,7 @@ import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
-import { lireProfil } from "@/lib/mockProfil";
-import { messagesChat, envoyerMessageChat, type MessageChat } from "@/lib/mockChat";
+import { messagesChatTournoi, envoyerMessageChatTournoi, type MessageChat } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 const RAFRAICHISSEMENT_MS = 15_000;
@@ -24,7 +23,6 @@ export default function ChatTournoiPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
-  const [organisateur, setOrganisateur] = useState(false);
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
 
@@ -34,15 +32,14 @@ export default function ChatTournoiPage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTournoi(t);
       const org = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
-      setOrganisateur(org);
       // Accessible dès l'inscription (pas besoin d'attendre la clôture des
       // inscriptions ni le début de la compétition).
       setAutorise((await estInscrit(params.id)) || org);
-      setMessages(messagesChat(params.id));
+      setMessages(await messagesChatTournoi(params.id));
       setPret(true);
     }
     charger();
-    const id = setInterval(() => setMessages(messagesChat(params.id)), RAFRAICHISSEMENT_MS);
+    const id = setInterval(async () => setMessages(await messagesChatTournoi(params.id)), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
   }, [params.id]);
 
@@ -58,11 +55,11 @@ export default function ChatTournoiPage() {
     );
   }
 
-  function envoyer() {
+  async function envoyer() {
     if (!texte.trim()) return;
-    envoyerMessageChat(params.id, lireProfil().pseudo, texte, organisateur ? "organisateur" : "participant");
+    await envoyerMessageChatTournoi(params.id, texte);
     setTexte("");
-    setMessages(messagesChat(params.id));
+    setMessages(await messagesChatTournoi(params.id));
   }
 
   return (

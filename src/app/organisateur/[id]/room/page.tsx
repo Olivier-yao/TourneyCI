@@ -38,7 +38,7 @@ export default function RoomTournoiPage() {
       const t = await tournoiParId(params.id);
       setTournoi(t);
       setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
-      const infos = infosRoomDuTournoi(params.id);
+      const infos = await infosRoomDuTournoi(params.id);
       setLien(infos.lien);
       setMotDePasse(infos.motDePasse);
       setPret(true);
@@ -101,8 +101,8 @@ export default function RoomTournoiPage() {
     );
   }
 
-  function sauvegarder() {
-    definirInfosRoom(params.id, { lien: lien.trim(), motDePasse: motDePasse.trim() });
+  async function sauvegarder() {
+    await definirInfosRoom(params.id, { lien: lien.trim(), motDePasse: motDePasse.trim() });
   }
 
   function messageRoom(): string | null {
@@ -115,7 +115,7 @@ export default function RoomTournoiPage() {
   async function envoyerATous() {
     const message = messageRoom();
     if (!message) return;
-    sauvegarder();
+    await sauvegarder();
     await notifierParticipants(params.id, tournoi!.titre, message);
     setEnvoiConfirme("tous");
     setTimeout(() => setEnvoiConfirme(null), 2500);
@@ -124,7 +124,7 @@ export default function RoomTournoiPage() {
   async function envoyerDuel(m: MatchTournoi) {
     const message = messageRoom();
     if (!message || !m.joueur1 || !m.joueur2) return;
-    sauvegarder();
+    await sauvegarder();
     await notifierParticipants(params.id, tournoi!.titre, `${message} · pour ton match ${m.joueur1} vs ${m.joueur2}`);
     setEnvoiConfirme(m.id);
     setTimeout(() => setEnvoiConfirme(null), 2500);

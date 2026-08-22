@@ -645,11 +645,11 @@ model equipes_profil_membres {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model adjoints_organisateur {
   proprietaire_id                                          String         @db.Uuid
-  adjoint_id                                                String         @db.Uuid
-  statut                                                    statut_adjoint @default(en_attente)
-  created_at                                                DateTime       @default(now()) @db.Timestamptz(6)
-  profiles_adjoints_organisateur_proprietaire_idToprofiles  profiles       @relation("adjoints_organisateur_proprietaire_idToprofiles", fields: [proprietaire_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  profiles_adjoints_organisateur_adjoint_idToprofiles       profiles       @relation("adjoints_organisateur_adjoint_idToprofiles", fields: [adjoint_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  adjoint_id                                               String         @db.Uuid
+  statut                                                   statut_adjoint @default(en_attente)
+  created_at                                               DateTime       @default(now()) @db.Timestamptz(6)
+  profiles_adjoints_organisateur_adjoint_idToprofiles      profiles       @relation("adjoints_organisateur_adjoint_idToprofiles", fields: [adjoint_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles_adjoints_organisateur_proprietaire_idToprofiles profiles       @relation("adjoints_organisateur_proprietaire_idToprofiles", fields: [proprietaire_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([proprietaire_id, adjoint_id])
   @@schema("public")
@@ -813,6 +813,7 @@ model matches {
   litiges          litiges[]
   match_evenements match_evenements[]
   tournois         tournois           @relation(fields: [tournoi_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  messages_chat    messages_chat[]
 
   @@unique([tournoi_id, round, position])
   @@schema("public")
@@ -820,14 +821,19 @@ model matches {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model messages_chat {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tournoi_id String   @db.Uuid
-  auteur_id  String   @db.Uuid
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tournoi_id String     @db.Uuid
+  auteur_id  String     @db.Uuid
   texte      String
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  profiles   profiles @relation(fields: [auteur_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  tournois   tournois @relation(fields: [tournoi_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  match_id   String?    @db.Uuid
+  salon      salon_chat @default(general)
+  profiles   profiles   @relation(fields: [auteur_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matches    matches?   @relation(fields: [match_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tournois   tournois   @relation(fields: [tournoi_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  @@index([match_id, salon], map: "messages_chat_match_salon_idx", where: raw("(match_id IS NOT NULL)"))
+  @@index([tournoi_id, salon], map: "messages_chat_tournoi_salon_idx", where: raw("(match_id IS NULL)"))
   @@schema("public")
 }
 
@@ -929,26 +935,26 @@ model plaintes {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model profiles {
-  id                                                                    String                      @id @db.Uuid
-  pseudo                                                                String                      @unique
-  tag                                                                   String?                     @default(dbgenerated("upper(regexp_replace(pseudo, '[^a-zA-Z0-9]+'::text, '_'::text, 'g'::text))"))
+  id                                                                    String                         @id @db.Uuid
+  pseudo                                                                String                         @unique
+  tag                                                                   String?                        @default(dbgenerated("upper(regexp_replace(pseudo, '[^a-zA-Z0-9]+'::text, '_'::text, 'g'::text))"))
   photo_url                                                             String?
   ville_id                                                              Int?
-  langue                                                                String                      @default("fr")
-  role_prefere                                                          String                      @default("joueur")
-  pseudo_modifie_le                                                     DateTime?                   @db.Timestamptz(6)
-  reglement_interieur_accepte_le                                        DateTime?                   @db.Timestamptz(6)
-  created_at                                                            DateTime                    @default(now()) @db.Timestamptz(6)
-  adjoints_organisateur_adjoints_organisateur_proprietaire_idToprofiles adjoints_organisateur[]     @relation("adjoints_organisateur_proprietaire_idToprofiles")
-  adjoints_organisateur_adjoints_organisateur_adjoint_idToprofiles      adjoints_organisateur[]     @relation("adjoints_organisateur_adjoint_idToprofiles")
+  langue                                                                String                         @default("fr")
+  role_prefere                                                          String                         @default("joueur")
+  pseudo_modifie_le                                                     DateTime?                      @db.Timestamptz(6)
+  reglement_interieur_accepte_le                                        DateTime?                      @db.Timestamptz(6)
+  created_at                                                            DateTime                       @default(now()) @db.Timestamptz(6)
+  adjoints_organisateur_adjoints_organisateur_adjoint_idToprofiles      adjoints_organisateur[]        @relation("adjoints_organisateur_adjoint_idToprofiles")
+  adjoints_organisateur_adjoints_organisateur_proprietaire_idToprofiles adjoints_organisateur[]        @relation("adjoints_organisateur_proprietaire_idToprofiles")
   appels                                                                appels[]
-  avis_organisateur_avis_organisateur_auteur_idToprofiles               avis_organisateur[]         @relation("avis_organisateur_auteur_idToprofiles")
-  avis_organisateur_avis_organisateur_organisateur_idToprofiles         avis_organisateur[]         @relation("avis_organisateur_organisateur_idToprofiles")
+  avis_organisateur_avis_organisateur_auteur_idToprofiles               avis_organisateur[]            @relation("avis_organisateur_auteur_idToprofiles")
+  avis_organisateur_avis_organisateur_organisateur_idToprofiles         avis_organisateur[]            @relation("avis_organisateur_organisateur_idToprofiles")
   avis_tournoi                                                          avis_tournoi[]
   demandes_annulation                                                   demandes_annulation[]
   demandes_equipe_br                                                    demandes_equipe_br[]
-  demandes_organisateur_demandes_organisateur_profile_idToprofiles      demandes_organisateur[]     @relation("demandes_organisateur_profile_idToprofiles")
-  demandes_organisateur_demandes_organisateur_traite_parToprofiles      demandes_organisateur[]     @relation("demandes_organisateur_traite_parToprofiles")
+  demandes_organisateur_demandes_organisateur_profile_idToprofiles      demandes_organisateur[]        @relation("demandes_organisateur_profile_idToprofiles")
+  demandes_organisateur_demandes_organisateur_traite_parToprofiles      demandes_organisateur[]        @relation("demandes_organisateur_traite_parToprofiles")
   equipes_br                                                            equipes_br[]
   equipes_br_membres                                                    equipes_br_membres[]
   equipes_profil                                                        equipes_profil[]
@@ -965,14 +971,14 @@ model profiles {
   organisateur_profils                                                  organisateur_profils?
   organisateur_reseaux_sociaux                                          organisateur_reseaux_sociaux[]
   plaintes                                                              plaintes[]
-  users                                                                 users                       @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  villes                                                                villes?                     @relation(fields: [ville_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                                                 users                          @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  villes                                                                villes?                        @relation(fields: [ville_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   propositions_equipe                                                   propositions_equipe[]
   retraits_equipe_br                                                    retraits_equipe_br[]
-  soutiens_organisateur_soutiens_organisateur_auteur_idToprofiles       soutiens_organisateur[]     @relation("soutiens_organisateur_auteur_idToprofiles")
-  soutiens_organisateur_soutiens_organisateur_organisateur_idToprofiles soutiens_organisateur[]     @relation("soutiens_organisateur_organisateur_idToprofiles")
-  suivis_organisateur_suivis_organisateur_follower_idToprofiles         suivis_organisateur[]       @relation("suivis_organisateur_follower_idToprofiles")
-  suivis_organisateur_suivis_organisateur_organisateur_idToprofiles     suivis_organisateur[]       @relation("suivis_organisateur_organisateur_idToprofiles")
+  soutiens_organisateur_soutiens_organisateur_auteur_idToprofiles       soutiens_organisateur[]        @relation("soutiens_organisateur_auteur_idToprofiles")
+  soutiens_organisateur_soutiens_organisateur_organisateur_idToprofiles soutiens_organisateur[]        @relation("soutiens_organisateur_organisateur_idToprofiles")
+  suivis_organisateur_suivis_organisateur_follower_idToprofiles         suivis_organisateur[]          @relation("suivis_organisateur_follower_idToprofiles")
+  suivis_organisateur_suivis_organisateur_organisateur_idToprofiles     suivis_organisateur[]          @relation("suivis_organisateur_organisateur_idToprofiles")
   tournois                                                              tournois[]
 
   @@schema("public")
@@ -1084,8 +1090,6 @@ model tournois {
   cash_prize_engage_xof       Int                           @default(0)
   commission_activee          Boolean                       @default(false)
   places_total                Int
-  manches_prevues             Int?
-  manches_par_match           Int?
   debut_inscriptions_le       DateTime?                     @db.Timestamptz(6)
   fin_inscriptions_le         DateTime?                     @db.Timestamptz(6)
   debut_tournoi_le            DateTime                      @db.Timestamptz(6)
@@ -1099,6 +1103,8 @@ model tournois {
   termine_le                  DateTime?                     @db.Timestamptz(6)
   annule_le                   DateTime?                     @db.Timestamptz(6)
   created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
+  manches_prevues             Int?
+  manches_par_match           Int?
   appels                      appels[]
   avis_tournoi                avis_tournoi[]
   demandes_annulation         demandes_annulation[]
@@ -1314,6 +1320,14 @@ enum type_mouvement {
   commission
   financement
   remboursement
+
+  @@schema("public")
+}
+
+enum salon_chat {
+  general
+  tribune
+  inscrits
 
   @@schema("public")
 }

@@ -8,18 +8,12 @@ import { CLIP_HEXAGONE } from "@/components/ds/Palier";
 import { matchParId, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
-import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
-import { lireProfil } from "@/lib/mockProfil";
-import { messagesChat, envoyerMessageChat, type MessageChat } from "@/lib/mockChat";
+import { estConnecte } from "@/lib/mockAuth";
+import { messagesChatTribune, envoyerMessageChatTribune, type MessageChat } from "@/lib/mockChat";
 
 const RAFRAICHISSEMENT_MS = 8_000;
 const COOLDOWN_S = 10;
 const REPONSES_RAPIDES = ["🔥", "GG !", "Allez !"];
-
-function cleSpectateurs(matchId: string): string {
-  return `${matchId}-spectateurs`;
-}
 
 function heure(horodatage: number): string {
   return new Date(horodatage).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).toUpperCase();
@@ -37,7 +31,6 @@ export default function ChatSpectateursMatchPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [inscrit, setInscrit] = useState(false);
-  const [organisateur, setOrganisateur] = useState(false);
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
   const [secondesRestantes, setSecondesRestantes] = useState(0);
@@ -57,10 +50,9 @@ export default function ChatSpectateursMatchPage() {
       const suisInscrit = await estInscrit(m.tournoiId);
       setTournoi(t);
       setInscrit(suisInscrit);
-      setOrganisateur(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
-      setMessages(messagesChat(cleSpectateurs(params.id)));
+      setMessages(await messagesChatTribune(params.id));
       setPret(true);
-      intervalId = setInterval(() => setMessages(messagesChat(cleSpectateurs(params.id))), RAFRAICHISSEMENT_MS);
+      intervalId = setInterval(async () => setMessages(await messagesChatTribune(params.id)), RAFRAICHISSEMENT_MS);
     }
     charger();
     return () => {
@@ -138,12 +130,16 @@ export default function ChatSpectateursMatchPage() {
     );
   }
 
-  function envoyer(contenu: string) {
+  async function envoyer(contenu: string) {
     const message = contenu.trim();
     if (!message || secondesRestantes > 0) return;
-    envoyerMessageChat(cleSpectateurs(params.id), lireProfil().pseudo || "Spectateur", message, organisateur ? "organisateur" : "participant");
+    if (!estConnecte()) {
+      router.push("/verify");
+      return;
+    }
+    await envoyerMessageChatTribune(params.id, message);
     setTexte("");
-    setMessages(messagesChat(cleSpectateurs(params.id)));
+    setMessages(await messagesChatTribune(params.id));
     setSecondesRestantes(COOLDOWN_S);
     minuteurRef.current = setInterval(() => {
       setSecondesRestantes((s) => {
