@@ -81,6 +81,14 @@ export async function POST(request: Request) {
   const organisateurNom = typeof body.organisateurNom === "string" ? body.organisateurNom : "";
   if (organisateurNom) await synchroniserNomOrganisateur(user.id, organisateurNom);
 
+  const repartitionCashPrize: unknown = body.repartitionCashPrize;
+  const repartitionValide = Array.isArray(repartitionCashPrize)
+    ? repartitionCashPrize.filter(
+        (r): r is { label: string; montantXof: number } =>
+          typeof r?.label === "string" && Number.isFinite(Number(r?.montantXof)) && Number(r.montantXof) > 0,
+      )
+    : [];
+
   const tournoi = await prisma.tournois.create({
     data: {
       jeu_id: jeuId,
@@ -107,6 +115,10 @@ export async function POST(request: Request) {
       informations: typeof body.informations === "string" ? body.informations.trim() || undefined : undefined,
       banniere_url: typeof body.banniereUrl === "string" ? body.banniereUrl : undefined,
       symbole_id: typeof body.symboleId === "string" ? body.symboleId : undefined,
+      repartition_cash_prize:
+        repartitionValide.length > 0
+          ? { create: repartitionValide.map((r, i) => ({ rang: i + 1, label: r.label, montant_xof: Math.round(r.montantXof) })) }
+          : undefined,
     },
     include: INCLUDE_TOURNOI_LISTE,
   });

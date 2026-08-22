@@ -17,7 +17,7 @@
 
 import { classementFinalBracket } from "./mockBracket";
 import { classementFinalBR } from "./mockBattleRoyale";
-import { attribuerPoints, lireProfil } from "./mockProfil";
+import { attribuerPoints } from "./mockProfil";
 import { crediter } from "./mockWallet";
 import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
 import { estInscrit } from "./mockInscriptions";
@@ -509,14 +509,6 @@ export function cashPrizeEnSequestre(tournoiId: string): boolean {
   return lirePaiementsAttente().some((p) => p.tournoiId === tournoiId);
 }
 
-function ajouterPaiementAttente(tournoiId: string, titre: string, montantXof: number) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(
-    CLE_PAIEMENTS_ATTENTE,
-    JSON.stringify([...lirePaiementsAttente(), { tournoiId, titre, montantXof, horodatage: Date.now() }]),
-  );
-}
-
 function retirerPaiementAttente(tournoiId: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(CLE_PAIEMENTS_ATTENTE, JSON.stringify(lirePaiementsAttente().filter((p) => p.tournoiId !== tournoiId)));
@@ -546,12 +538,15 @@ export async function reevaluerPaiementsEnAttente(): Promise<void> {
 
 /**
  * Clôture un tournoi : distribue les points de classement de façon
- * automatique et équilibrée selon la place finale (bracket ou battle royale),
- * puis crédite le solde de l'utilisateur local s'il fait partie des gagnants
- * du cash prize. La commission de l'organisateur n'est créditée que
- * s'il est certifié (cf. mockOrganisateur). Seul termine_le devient réel
- * (POST /api/tournois/[id]/terminer) ; le reste (points, cash prize,
- * commission, notifications) reste géré ici, inchangé.
+ * automatique et équilibrée selon la place finale (bracket ou battle royale).
+ * Le versement du cash prize est désormais entièrement géré côté serveur
+ * (cf. verserCashPrizeCloture dans src/lib/server/cloture.ts, appelée par
+ * POST /api/tournois/[id]/terminer) : il crédite directement le(s) vrai(s)
+ * gagnant(s), quel que soit l'appareil qui déclenche cette fonction — avant
+ * cette correction, seul le compte de l'appareil appelant était crédité
+ * (jamais le vainqueur réel s'il s'agissait d'un autre compte). La
+ * commission de l'organisateur n'est créditée que s'il est certifié (cf.
+ * mockOrganisateur) et reste gérée ici, encore côté client.
  */
 export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttribues: number; gainCredite: number }> {
   const tournoi = await tournoiParId(tournoiId);
@@ -559,6 +554,8 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
 
   const reponse = await fetch(`/api/tournois/${tournoiId}/terminer`, { method: "POST" });
   if (!reponse.ok) return { pointsAttribues: 0, gainCredite: 0 };
+  const resultatCloture = await reponse.json().catch(() => null);
+  const gainCredite: number = resultatCloture?.success ? (resultatCloture.data?.cashPrizeTotalXof ?? 0) : 0;
 
   const classement =
     tournoi.type === "battle_royale"
@@ -572,26 +569,6 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
     attribuerPoints(tournoi.jeuId, nom, points, tournoi.ville);
     pointsAttribues += points;
   });
-
-  let gainCredite = 0;
-  const profil = lireProfil();
-  // Le cash prize versé se recalcule ici sur les inscriptions réelles
-  // (point 123) — jamais sur la capacité maximale théorique figée à la
-  // création. Seul le nombre de finalistes choisi par l'organisateur est
-  // repris de la répartition d'origine, pas les montants.
-  const nbFinalistes = tournoi.repartitionCashPrize?.length ?? 0;
-  const repartitionReelle = nbFinalistes > 0 ? repartitionAutomatique(cashPrizeAffiche(tournoi), nbFinalistes) : undefined;
-  if (repartitionReelle) {
-    for (let i = 0; i < repartitionReelle.length; i++) {
-      if (classement[i] && classement[i] === profil.pseudo) {
-        // Le gain part en attente (séquestre potentiel, cf. point 24) plutôt
-        // que d'être crédité directement : reevaluerPaiementsEnAttente() le
-        // libère aussitôt s'il n'y a pas assez de cœurs brisés signalés.
-        ajouterPaiementAttente(tournoiId, tournoi.titre, repartitionReelle[i].montantXof);
-        gainCredite += repartitionReelle[i].montantXof;
-      }
-    }
-  }
 
   if (tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()) {
     const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);

@@ -49,6 +49,7 @@ const includeTournoiDetail = {
   profiles: { include: { organisateur_profils: true } },
   _count: { select: { inscriptions: true } },
   inscriptions: { include: { profiles: true } },
+  repartition_cash_prize: { orderBy: { rang: "asc" } },
 } satisfies Prisma.tournoisInclude;
 
 const includeTournoiListe = {
@@ -56,6 +57,7 @@ const includeTournoiListe = {
   villes: true,
   profiles: { include: { organisateur_profils: true } },
   _count: { select: { inscriptions: true } },
+  repartition_cash_prize: { orderBy: { rang: "asc" } },
 } satisfies Prisma.tournoisInclude;
 
 export const INCLUDE_TOURNOI_DETAIL = includeTournoiDetail;
@@ -103,6 +105,9 @@ export function versTournoiJSON(row: TournoiDetailRow | TournoiListeRow) {
     equipeSousType: row.equipe_sous_type ?? undefined,
     financementCashPrize: row.financement_cash_prize === "organisateur" ? "organisateur" : "inscriptions",
     commissionActivee: row.commission_activee,
+    repartitionCashPrize: row.repartition_cash_prize.length > 0
+      ? row.repartition_cash_prize.map((r) => ({ label: r.label, montantXof: r.montant_xof }))
+      : undefined,
     banniereUrl: row.banniere_url ?? undefined,
     symboleId: row.symbole_id ?? undefined,
     termine: !!row.termine_le,
