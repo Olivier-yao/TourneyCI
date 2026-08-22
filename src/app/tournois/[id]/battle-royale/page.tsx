@@ -17,9 +17,9 @@ export default function BattleRoyalePage() {
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [rafraichir, setRafraichir] = useState(0);
   const [organisateur, setOrganisateur] = useState(false);
-  const [manches, setManches] = useState<ReturnType<typeof manchesBR>>([]);
-  const [classement, setClassement] = useState<ReturnType<typeof classementCumuleBR>>([]);
-  const [mancheEnCours, setMancheEnCours] = useState<ReturnType<typeof mancheEnCoursBR>>([]);
+  const [manches, setManches] = useState<Awaited<ReturnType<typeof manchesBR>>>([]);
+  const [classement, setClassement] = useState<Awaited<ReturnType<typeof classementCumuleBR>>>([]);
+  const [mancheEnCours, setMancheEnCours] = useState<Awaited<ReturnType<typeof mancheEnCoursBR>>>([]);
   const [recherche, setRecherche] = useState("");
 
   useEffect(() => {
@@ -35,9 +35,9 @@ export default function BattleRoyalePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTournoi(t);
       setOrganisateur(t?.organisateur === nomOrganisateurActuel());
-      setManches(manchesBR(params.id));
-      setClassement(classementCumuleBR(params.id, t?.brSousType ?? "solo"));
-      setMancheEnCours(mancheEnCoursBR(params.id));
+      setManches(await manchesBR(params.id));
+      setClassement(await classementCumuleBR(params.id, t?.brSousType ?? "solo"));
+      setMancheEnCours(await mancheEnCoursBR(params.id));
       setPret(true);
     }
     charger();

@@ -36,10 +36,9 @@ function spectateurs(tournoi: Tournoi): number {
   return 80 + (h % 400) + tournoi.placesInscrites * 6;
 }
 
-function infosDirect(tournoi: Tournoi, matches: MatchTournoi[]): { score: string; phase: string } {
+function infosDirect(tournoi: Tournoi, matches: MatchTournoi[], nbManchesBR: number): { score: string; phase: string } {
   if (tournoi.type === "battle_royale") {
-    const nb = manchesBR(tournoi.id).length;
-    return { score: nb > 0 ? `Manche ${nb}` : "—", phase: "Battle Royale" };
+    return { score: nbManchesBR > 0 ? `Manche ${nbManchesBR}` : "—", phase: "Battle Royale" };
   }
   const enCours = matches.find((m) => m.statut === "en_cours");
   if (enCours) {
@@ -55,6 +54,7 @@ export default function EnDirectPage() {
   const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
   const [matchsParTournoi, setMatchsParTournoi] = useState<Record<string, MatchTournoi[]>>({});
   const [coeursParTournoi, setCoeursParTournoi] = useState<Record<string, number>>({});
+  const [manchesBRParTournoi, setManchesBRParTournoi] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
@@ -86,6 +86,18 @@ export default function EnDirectPage() {
           .map(async (t) => [t.id, (await compterAvis(t.id)).coeurs] as const),
       );
       setCoeursParTournoi(Object.fromEntries(entrees));
+    }
+    charger();
+  }, [tousLesTournoisState]);
+
+  useEffect(() => {
+    async function charger() {
+      const entrees = await Promise.all(
+        tousLesTournoisState
+          .filter((t) => t.enDirect && t.type === "battle_royale")
+          .map(async (t) => [t.id, (await manchesBR(t.id)).length] as const),
+      );
+      setManchesBRParTournoi(Object.fromEntries(entrees));
     }
     charger();
   }, [tousLesTournoisState]);
@@ -134,7 +146,7 @@ export default function EnDirectPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {enDirect.map((t) => {
-              const { score, phase } = infosDirect(t, matchsParTournoi[t.id] ?? []);
+              const { score, phase } = infosDirect(t, matchsParTournoi[t.id] ?? [], manchesBRParTournoi[t.id] ?? 0);
               const symbole = symboleParId(t.symboleId);
               const IconeSymbole = symbole.icone;
               return (

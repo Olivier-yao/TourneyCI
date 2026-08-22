@@ -9,7 +9,7 @@ import { Field } from "@/components/ds/Input";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
-import { participantsBR } from "@/lib/mockBattleRoyale";
+import { participantsBR, type ParticipantBR } from "@/lib/mockBattleRoyale";
 import { infosRoomDuTournoi, definirInfosRoom } from "@/lib/mockRoomInfo";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
@@ -31,6 +31,7 @@ export default function RoomTournoiPage() {
   const [motDePasse, setMotDePasse] = useState("");
   const [envoiConfirme, setEnvoiConfirme] = useState<string | null>(null);
   const [matchsListe, setMatchsListe] = useState<MatchTournoi[]>([]);
+  const [participantsBRListe, setParticipantsBRListe] = useState<ParticipantBR[]>([]);
 
   useEffect(() => {
     async function charger() {
@@ -52,6 +53,17 @@ export default function RoomTournoiPage() {
         return;
       }
       setMatchsListe(await matchsDuTournoi(params.id));
+    }
+    charger();
+  }, [tournoi, params.id]);
+
+  useEffect(() => {
+    async function charger() {
+      if (!tournoi || tournoi.type !== "battle_royale") {
+        setParticipantsBRListe([]);
+        return;
+      }
+      setParticipantsBRListe(await participantsBR(params.id));
     }
     charger();
   }, [tournoi, params.id]);
@@ -120,7 +132,7 @@ export default function RoomTournoiPage() {
 
   const estBracket = tournoi.type !== "battle_royale";
   const totalRounds = matchsListe.length > 0 ? Math.max(...matchsListe.map((m) => m.round)) : 0;
-  const participants = !estBracket ? participantsBR(params.id) : [];
+  const participants = participantsBRListe;
   const messagePret = Boolean(lien.trim());
 
   return (

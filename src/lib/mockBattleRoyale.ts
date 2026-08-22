@@ -1,12 +1,25 @@
 /**
- * Données mock pour un tournoi Battle Royale multi-manches avec points
- * cumulés (barème façon PUBG). Persisté en localStorage (overlay par-dessus
- * la génération aléatoire initiale du roster), pour survivre aux
- * rechargements et nourrir la distribution automatique des gains en fin de
- * tournoi.
+ * Battle Royale multi-manches avec points cumulés (barème façon PUBG) —
+ * tables `manches_br`/`manches_br_resultats`/`manche_br_en_cours` (Postgres
+ * via /api/tournois/[id]/manches-br), même pattern que les migrations
+ * précédentes (fonctions async, mêmes noms/signatures quand c'est possible).
+ *
+ * participantsBR()/unitesBR() ne dérivent plus d'un roster de démo généré
+ * aléatoirement (l'ancien mock ne fonctionnait qu'avec une poignée d'ids de
+ * tournois codés en dur) : ils viennent désormais des vraies inscriptions du
+ * tournoi (déjà migrées, cf. mockInscriptions.ts). Un participant est
+ * identifié par son pseudo (solo) ou le nom de son équipe (duo/trio/squad) —
+ * même identifiant que celui stocké dans manches_br_resultats.participant,
+ * pas d'id opaque séparé à maintenir.
+ *
+ * Champ perdu, accepté : le statut "éliminé"/l'ordre d'élimination en direct
+ * (StatutBR/ordreElimination) n'existait que dans le générateur de démo,
+ * jamais alimenté par une vraie action côté organisateur — aucune régression
+ * puisque rien ne l'écrivait réellement. classementFinalBR() retombe sur
+ * l'ordre d'inscription si aucune manche n'a été jouée, au lieu d'un ordre
+ * d'élimination qui n'a jamais existé pour de vraies données.
  */
 
-export type StatutBR = "en_jeu" | "elimine";
 export type SousTypeBR = "solo" | "duo" | "trio" | "squad";
 
 /** Libellés d'unité par sous-type (point 177 : ajout de Trio), utilisés
@@ -18,41 +31,11 @@ export const LABEL_UNITE_BR: Record<SousTypeBR, { nom: string; singulier: string
   squad: { nom: "Squad", singulier: "SQUAD", pluriel: "SQUADS" },
 };
 
-export type ParticipantBR = {
-  id: string;
-  nom: string;
-  statut: StatutBR;
-  ordreElimination?: number;
-  /** Nom de la duo/squad d'appartenance (absent en solo). */
-  equipe?: string;
-};
-
+export type ParticipantBR = { id: string; nom: string; equipe?: string };
 export type UniteBR = { id: string; nom: string };
 
-/** Unités classées : un joueur en solo, une équipe en duo/squad. */
-export function unitesBR(tournoiId: string, sousType: SousTypeBR = "solo"): UniteBR[] {
-  const participants = participantsBR(tournoiId);
-  if (sousType === "solo") {
-    return participants.map((p) => ({ id: p.id, nom: p.nom }));
-  }
-  const equipes = new Set<string>();
-  for (const p of participants) {
-    if (p.equipe) equipes.add(p.equipe);
-  }
-  return Array.from(equipes).map((nom) => ({ id: `equipe-${nom}`, nom }));
-}
-
-export type ResultatManche = {
-  participantId: string;
-  placement: number;
-  eliminations: number;
-};
-
-export type MancheBR = {
-  numero: number;
-  resultats: ResultatManche[];
-  horodatage: number;
-};
+export type ResultatManche = { participantId: string; placement: number; eliminations: number };
+export type MancheBR = { numero: number; resultats: ResultatManche[]; horodatage: number };
 
 export type LigneClassementBR = {
   participantId: string;
@@ -73,113 +56,46 @@ export function pointsManche(r: { placement: number; eliminations: number }): nu
   return pointsPlacementBR(r.placement) + r.eliminations;
 }
 
-const NOMS = [
-  "Kader B.", "Yao M.", "Aya K.", "Sory D.", "Ismaël T.", "Fofana", "Traoré", "Bamba",
-  "Malik K.", "Fatou T.", "Gohou", "Halima", "Nour", "Zeka", "Petit", "Delta",
-  "Mariam D.", "Issa K.", "Abou S.", "Awa C.", "Kouassi", "Adjoua", "Brou", "Konan",
-  "Yves L.", "Nadège", "Serge P.", "Aminata", "Moussa D.", "Rokia", "Boubacar", "Christelle",
-  "Franck O.", "Grace A.", "Hervé", "Inès B.", "Jean-Luc", "Kadidia", "Lamine", "Marc T.",
-  "Nadia S.", "Oumar B.", "Priscille", "Quentin", "Rachelle", "Salif K.", "Tenin", "Ulrich",
-  "Vanessa", "William K.",
-];
-
-/** PRNG déterministe (mulberry32) : évite un ordre différent entre le rendu
- * serveur et le rendu client (Math.random() casserait l'hydratation). */
-function alea(graine: number): () => number {
-  let t = graine;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
+async function inscriptionsDuTournoi(tournoiId: string): Promise<{ pseudo: string; equipe?: string }[]> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`);
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : [];
 }
 
-function melangerNoms(graine: number): string[] {
-  const suivant = alea(graine);
-  const melanges = [...NOMS];
-  for (let i = melanges.length - 1; i > 0; i--) {
-    const j = Math.floor(suivant() * (i + 1));
-    [melanges[i], melanges[j]] = [melanges[j], melanges[i]];
+export async function participantsBR(tournoiId: string): Promise<ParticipantBR[]> {
+  const inscriptions = await inscriptionsDuTournoi(tournoiId);
+  return inscriptions.map((i) => ({ id: i.pseudo, nom: i.pseudo, equipe: i.equipe }));
+}
+
+/** Unités classées : un joueur en solo, une équipe en duo/trio/squad. */
+export async function unitesBR(tournoiId: string, sousType: SousTypeBR = "solo"): Promise<UniteBR[]> {
+  const participants = await participantsBR(tournoiId);
+  if (sousType === "solo") {
+    return participants.map((p) => ({ id: p.id, nom: p.nom }));
   }
-  return melanges;
-}
-
-function genererParticipants(nbElimines: number, graine = 42): ParticipantBR[] {
-  return melangerNoms(graine).map((nom, i) => ({
-    id: `br-${i}`,
-    nom,
-    statut: i < nbElimines ? "elimine" : "en_jeu",
-    ordreElimination: i < nbElimines ? i + 1 : undefined,
-  }));
-}
-
-/** Roster groupé en squads de taille fixe (demo mode duo/squad). */
-function genererParticipantsSquad(effectif: number, tailleEquipe: number, nbElimines: number, graine: number): ParticipantBR[] {
-  return melangerNoms(graine)
-    .slice(0, effectif)
-    .map((nom, i) => ({
-      id: `br-${i}`,
-      nom,
-      statut: i < nbElimines ? ("elimine" as const) : ("en_jeu" as const),
-      ordreElimination: i < nbElimines ? i + 1 : undefined,
-      equipe: `Squad ${Math.floor(i / tailleEquipe) + 1}`,
-    }));
-}
-
-const PARTICIPANTS_INITIAUX: Record<string, ParticipantBR[]> = {
-  "freefire-night": genererParticipants(15),
-  "br-solo-yopougon": genererParticipants(14, 7),
-  "br-squad-treichville": genererParticipantsSquad(48, 4, 16, 13),
-  // Démo en cours (point 85), organisateur = utilisateur courant.
-  "demo-br-solo-en-cours": genererParticipants(10, 77),
-  "demo-br-duo-en-cours": genererParticipantsSquad(30, 2, 8, 91),
-  "demo-br-squad-en-cours": genererParticipantsSquad(32, 4, 8, 63),
-};
-
-const CLE_PARTICIPANTS_BR = "tourney-participants-br";
-const CLE_MANCHES_BR = "tourney-manches-br";
-
-function lireOverlayParticipants(): Record<string, ParticipantBR[]> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_PARTICIPANTS_BR);
-    return brut ? (JSON.parse(brut) as Record<string, ParticipantBR[]>) : {};
-  } catch {
-    return {};
+  const equipes = new Set<string>();
+  for (const p of participants) {
+    if (p.equipe) equipes.add(p.equipe);
   }
+  return Array.from(equipes).map((nom) => ({ id: nom, nom }));
 }
 
-export function participantsBR(tournoiId: string): ParticipantBR[] {
-  const overlay = lireOverlayParticipants()[tournoiId];
-  if (overlay) return overlay;
-  return PARTICIPANTS_INITIAUX[tournoiId] ?? [];
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-function lireOverlayManches(): Record<string, MancheBR[]> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_MANCHES_BR);
-    return brut ? (JSON.parse(brut) as Record<string, MancheBR[]>) : {};
-  } catch {
-    return {};
-  }
+type ManchesBRApiJSON = { manches: MancheBR[]; enCours: ResultatManche[] };
+
+async function chargerManchesBR(tournoiId: string): Promise<ManchesBRApiJSON> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/manches-br`);
+  const resultat = await reponseJson<ManchesBRApiJSON>(reponse);
+  return resultat.ok ? resultat.data : { manches: [], enCours: [] };
 }
 
-export function manchesBR(tournoiId: string): MancheBR[] {
-  return lireOverlayManches()[tournoiId] ?? [];
-}
-
-const CLE_MANCHE_EN_COURS_BR = "tourney-manche-en-cours-br";
-
-function lireManchesEnCours(): Record<string, ResultatManche[]> {
-  if (typeof window === "undefined") return {};
-  try {
-    const brut = localStorage.getItem(CLE_MANCHE_EN_COURS_BR);
-    return brut ? (JSON.parse(brut) as Record<string, ResultatManche[]>) : {};
-  } catch {
-    return {};
-  }
+export async function manchesBR(tournoiId: string): Promise<MancheBR[]> {
+  return (await chargerManchesBR(tournoiId)).manches;
 }
 
 /** Point 205 : aperçu provisoire de la manche en cours de saisie, poussé par
@@ -187,38 +103,31 @@ function lireManchesEnCours(): Record<string, ResultatManche[]> {
  * sans clôturer la manche. Volontairement séparé de manchesBR/
  * classementCumuleBR (source du classement final, point 118) : un brouillon
  * jamais clôturé ne doit jamais compter dans les points officiels. */
-export function mancheEnCoursBR(tournoiId: string): ResultatManche[] {
-  return lireManchesEnCours()[tournoiId] ?? [];
+export async function mancheEnCoursBR(tournoiId: string): Promise<ResultatManche[]> {
+  return (await chargerManchesBR(tournoiId)).enCours;
 }
 
-export function validerMancheEnDirect(tournoiId: string, resultats: ResultatManche[]) {
-  if (typeof window === "undefined") return;
-  const tout = lireManchesEnCours();
-  localStorage.setItem(CLE_MANCHE_EN_COURS_BR, JSON.stringify({ ...tout, [tournoiId]: resultats }));
+export async function validerMancheEnDirect(tournoiId: string, resultats: ResultatManche[]): Promise<void> {
+  await fetch(`/api/tournois/${tournoiId}/manches-br/en-cours`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resultats }),
+  });
 }
 
-function effacerMancheEnCours(tournoiId: string) {
-  if (typeof window === "undefined") return;
-  const tout = lireManchesEnCours();
-  delete tout[tournoiId];
-  localStorage.setItem(CLE_MANCHE_EN_COURS_BR, JSON.stringify(tout));
-}
-
-export function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]) {
-  if (typeof window === "undefined") return;
-  const overlay = lireOverlayManches();
-  const manches = overlay[tournoiId] ?? [];
-  const nouvelle: MancheBR = { numero: manches.length + 1, resultats, horodatage: Date.now() };
-  localStorage.setItem(CLE_MANCHES_BR, JSON.stringify({ ...overlay, [tournoiId]: [...manches, nouvelle] }));
-  effacerMancheEnCours(tournoiId);
+export async function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]): Promise<void> {
+  await fetch(`/api/tournois/${tournoiId}/manches-br`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resultats }),
+  });
 }
 
 /** Classement cumulé sur toutes les manches jouées, trié par points décroissants.
- * Une unité = un joueur (solo) ou une équipe (duo/squad). Les moitié supérieure
- * (avec au moins un point) sont marqués "Qualifié". */
-export function classementCumuleBR(tournoiId: string, sousType: SousTypeBR = "solo"): LigneClassementBR[] {
-  const unites = unitesBR(tournoiId, sousType);
-  const manches = manchesBR(tournoiId);
+ * Une unité = un joueur (solo) ou une équipe (duo/squad). La moitié supérieure
+ * (avec au moins un point) est marquée "Qualifié". */
+export async function classementCumuleBR(tournoiId: string, sousType: SousTypeBR = "solo"): Promise<LigneClassementBR[]> {
+  const [unites, manches] = await Promise.all([unitesBR(tournoiId, sousType), manchesBR(tournoiId)]);
   const totaux = new Map<string, number>();
   const joues = new Map<string, number>();
 
@@ -243,17 +152,13 @@ export function classementCumuleBR(tournoiId: string, sousType: SousTypeBR = "so
 }
 
 /** Classement final (pour la distribution automatique des points/gains en fin
- * de tournoi) : cumul des manches si disponible, sinon ancien ordre par élimination. */
-export function classementFinalBR(tournoiId: string, sousType: SousTypeBR = "solo"): string[] {
-  const manches = manchesBR(tournoiId);
+ * de tournoi) : cumul des manches si disponible, sinon ordre d'inscription
+ * (aucune manche jouée — rien à départager). */
+export async function classementFinalBR(tournoiId: string, sousType: SousTypeBR = "solo"): Promise<string[]> {
+  const manches = await manchesBR(tournoiId);
   if (manches.length > 0) {
-    return classementCumuleBR(tournoiId, sousType).map((l) => l.nom);
+    return (await classementCumuleBR(tournoiId, sousType)).map((l) => l.nom);
   }
-  const participants = participantsBR(tournoiId);
-  const enJeu = participants.filter((p) => p.statut === "en_jeu").map((p) => p.nom);
-  const elimines = [...participants]
-    .filter((p) => p.statut === "elimine")
-    .sort((a, b) => (b.ordreElimination ?? 0) - (a.ordreElimination ?? 0))
-    .map((p) => p.nom);
-  return [...enJeu, ...elimines];
+  const unites = await unitesBR(tournoiId, sousType);
+  return unites.map((u) => u.nom);
 }

@@ -8,22 +8,27 @@ import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, inscriptionsFermees, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
-import { manchesBR, unitesBR } from "@/lib/mockBattleRoyale";
+import { manchesBR, unitesBR, type MancheBR, type UniteBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 
 function CarteActionRequise({ tournoi }: { tournoi: Tournoi }) {
   const [matches, setMatches] = useState<MatchTournoi[]>([]);
+  const [manches, setManches] = useState<MancheBR[]>([]);
+  const [unites, setUnites] = useState<UniteBR[]>([]);
   useEffect(() => {
     if (tournoi.type === "battle_royale") return;
     matchsDuTournoi(tournoi.id).then(setMatches);
   }, [tournoi.id, tournoi.type]);
+  useEffect(() => {
+    if (tournoi.type !== "battle_royale") return;
+    manchesBR(tournoi.id).then(setManches);
+    unitesBR(tournoi.id, tournoi.brSousType ?? "solo").then(setUnites);
+  }, [tournoi.id, tournoi.type, tournoi.brSousType]);
 
   if (tournoi.termine || tournoi.annule) return null;
 
   if (tournoi.type === "battle_royale") {
-    const manches = manchesBR(tournoi.id);
-    const unites = unitesBR(tournoi.id, tournoi.brSousType ?? "solo");
     if (unites.length === 0) return null;
     return (
       <Link
@@ -75,6 +80,12 @@ export default function GestionTournoiPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [autorise, setAutorise] = useState(false);
+  const [manchesJouees, setManchesJouees] = useState(0);
+
+  useEffect(() => {
+    if (tournoi?.type !== "battle_royale") return;
+    manchesBR(tournoi.id).then((m) => setManchesJouees(m.length));
+  }, [tournoi]);
 
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
@@ -163,7 +174,7 @@ export default function GestionTournoiPage() {
           <div>
             <div className="text-[13px] font-medium">{tournoi.type === "battle_royale" ? "Manches" : "Scores"}</div>
             <div className="text-[10px] mt-0.5" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              {tournoi.type === "battle_royale" ? `${manchesBR(tournoi.id).length}/${tournoi.manchesPrevues ?? 1} jouée(s)` : "Saisir un résultat"}
+              {tournoi.type === "battle_royale" ? `${manchesJouees}/${tournoi.manchesPrevues ?? 1} jouée(s)` : "Saisir un résultat"}
             </div>
           </div>
         </Link>

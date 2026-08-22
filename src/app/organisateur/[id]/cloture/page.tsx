@@ -45,6 +45,7 @@ export default function ClotureTournoiPage() {
   const [copie, setCopie] = useState(false);
   const [classement, setClassement] = useState<string[]>([]);
   const [matchsBracket, setMatchsBracket] = useState<MatchTournoi[]>([]);
+  const [manchesJouees, setManchesJouees] = useState(0);
 
   async function rafraichirTournoi() {
     setTournoi(await tournoiParId(params.id));
@@ -65,20 +66,21 @@ export default function ClotureTournoiPage() {
       if (!tournoi) {
         setClassement([]);
         setMatchsBracket([]);
+        setManchesJouees(0);
         return;
       }
       if (tournoi.type === "battle_royale") {
-        setClassement(classementFinalBR(params.id, tournoi.brSousType ?? "solo"));
+        setClassement(await classementFinalBR(params.id, tournoi.brSousType ?? "solo"));
         setMatchsBracket([]);
+        setManchesJouees((await manchesBR(params.id)).length);
       } else {
         setClassement(await classementFinalBracket(params.id));
         setMatchsBracket(await matchsDuTournoi(params.id));
+        setManchesJouees(0);
       }
     }
     charger();
   }, [tournoi, params.id]);
-
-  const manchesJouees = tournoi?.type === "battle_royale" ? manchesBR(params.id).length : 0;
   // Pour un Battle Royale, "prêt" attend le nombre de manches choisi par
   // l'organisateur à la création — pas juste la première manche jouée.
   const cloturePret = tournoi

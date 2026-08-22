@@ -559,7 +559,7 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
 
   const classement =
     tournoi.type === "battle_royale"
-      ? classementFinalBR(tournoiId, tournoi.brSousType ?? "solo")
+      ? await classementFinalBR(tournoiId, tournoi.brSousType ?? "solo")
       : await classementFinalBracket(tournoiId);
 
   const bareme = tournoi.type === "battle_royale" ? pointsPourPlaceBR : pointsPourPlace;

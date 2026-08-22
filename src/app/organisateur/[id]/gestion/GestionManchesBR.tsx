@@ -1,9 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Info } from "lucide-react";
-import { unitesBR, manchesBR, ajouterMancheBR, mancheEnCoursBR, validerMancheEnDirect, LABEL_UNITE_BR, type SousTypeBR } from "@/lib/mockBattleRoyale";
+import {
+  unitesBR,
+  manchesBR,
+  ajouterMancheBR,
+  mancheEnCoursBR,
+  validerMancheEnDirect,
+  LABEL_UNITE_BR,
+  type SousTypeBR,
+  type UniteBR,
+  type MancheBR,
+} from "@/lib/mockBattleRoyale";
 import { notifierParticipants } from "@/lib/mockNotifications";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
@@ -20,24 +30,37 @@ export function GestionManchesBR({
   sousType: SousTypeBR;
   onEnregistre: () => void;
 }) {
-  const participants = unitesBR(tournoiId, sousType);
-  const manches = manchesBR(tournoiId);
+  const [participants, setParticipants] = useState<UniteBR[]>([]);
+  const [manches, setManches] = useState<MancheBR[]>([]);
+  const [rafraichir, setRafraichir] = useState(0);
   const numeroSuivant = manches.length + 1;
   // Réhydrate depuis le dernier aperçu validé (point 205) : sans ça, revenir
   // sur cet écran après avoir quitté remet les points à zéro alors que
   // l'aperçu en direct affiché aux spectateurs, lui, reste correct.
-  const [placements, setPlacements] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    for (const r of mancheEnCoursBR(tournoiId)) if (r.placement > 0) init[r.participantId] = String(r.placement);
-    return init;
-  });
-  const [eliminations, setEliminations] = useState<Record<string, number>>(() => {
-    const init: Record<string, number> = {};
-    for (const r of mancheEnCoursBR(tournoiId)) if (r.eliminations > 0) init[r.participantId] = r.eliminations;
-    return init;
-  });
+  const [placements, setPlacements] = useState<Record<string, string>>({});
+  const [eliminations, setEliminations] = useState<Record<string, number>>({});
   const [confirmationOuverte, setConfirmationOuverte] = useState(false);
-  const [valide, setValide] = useState(mancheEnCoursBR(tournoiId).length > 0);
+  const [valide, setValide] = useState(false);
+
+  useEffect(() => {
+    async function charger() {
+      const [unites, mns, enCours] = await Promise.all([
+        unitesBR(tournoiId, sousType),
+        manchesBR(tournoiId),
+        mancheEnCoursBR(tournoiId),
+      ]);
+      setParticipants(unites);
+      setManches(mns);
+      const initPlacements: Record<string, string> = {};
+      for (const r of enCours) if (r.placement > 0) initPlacements[r.participantId] = String(r.placement);
+      const initEliminations: Record<string, number> = {};
+      for (const r of enCours) if (r.eliminations > 0) initEliminations[r.participantId] = r.eliminations;
+      setPlacements(initPlacements);
+      setEliminations(initEliminations);
+      setValide(enCours.length > 0);
+    }
+    charger();
+  }, [tournoiId, sousType, rafraichir]);
 
   function stepper(id: string, delta: number) {
     setEliminations((e) => ({ ...e, [id]: Math.max(0, (e[id] ?? 0) + delta) }));
@@ -55,20 +78,21 @@ export function GestionManchesBR({
   /** Point 205 : pousse un aperçu provisoire visible des spectateurs (classement
    * en direct) sans clôturer la manche — même logique que le bouton "Valider"
    * du point 151 pour les matchs 1v1. */
-  function valider() {
+  async function valider() {
     if (resultatsPrets.length === 0) return;
-    validerMancheEnDirect(tournoiId, resultatsPrets);
+    await validerMancheEnDirect(tournoiId, resultatsPrets);
     setValide(true);
   }
 
-  function cloturer() {
+  async function cloturer() {
     if (resultatsPrets.length === 0) return;
-    ajouterMancheBR(tournoiId, resultatsPrets);
-    notifierParticipants(tournoiId, tournoiTitre, `Manche ${numeroSuivant} enregistrée — classement mis à jour`);
+    await ajouterMancheBR(tournoiId, resultatsPrets);
+    await notifierParticipants(tournoiId, tournoiTitre, `Manche ${numeroSuivant} enregistrée — classement mis à jour`);
     setPlacements({});
     setEliminations({});
     setValide(false);
     setConfirmationOuverte(false);
+    setRafraichir((n) => n + 1);
     onEnregistre();
   }
 

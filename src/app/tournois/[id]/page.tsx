@@ -176,14 +176,19 @@ function CashPrizeEnTete({ montantXof, badgeTexte }: { montantXof: number; badge
 
 function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
   const [tousMatchs, setTousMatchs] = useState<MatchTournoi[]>([]);
+  const [classement, setClassement] = useState<Awaited<ReturnType<typeof classementCumuleBR>>>([]);
+  const [manches, setManches] = useState<Awaited<ReturnType<typeof manchesBR>>>([]);
   useEffect(() => {
     if (tournoi.type === "battle_royale") return;
     matchsDuTournoi(tournoi.id).then(setTousMatchs);
   }, [tournoi.id, tournoi.type]);
+  useEffect(() => {
+    if (tournoi.type !== "battle_royale") return;
+    classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo").then(setClassement);
+    manchesBR(tournoi.id).then(setManches);
+  }, [tournoi.id, tournoi.type, tournoi.brSousType]);
 
   if (tournoi.type === "battle_royale") {
-    const classement = classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo");
-    const manches = manchesBR(tournoi.id);
     const top3 = classement.slice(0, 3);
     return (
       <Link
@@ -339,6 +344,7 @@ function DetailTournoiInterne() {
   const [estInscritTournoi, setEstInscritTournoi] = useState(false);
   const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
   const [matchsTournoi, setMatchsTournoi] = useState<MatchTournoi[]>([]);
+  const [participantsBRCount, setParticipantsBRCount] = useState(0);
 
   useEffect(() => {
     async function charger() {
@@ -347,6 +353,17 @@ function DetailTournoiInterne() {
         return;
       }
       setMatchsTournoi(await matchsDuTournoi(params.id));
+    }
+    charger();
+  }, [tournoi, params.id]);
+
+  useEffect(() => {
+    async function charger() {
+      if (!tournoi || tournoi.type !== "battle_royale") {
+        setParticipantsBRCount(0);
+        return;
+      }
+      setParticipantsBRCount((await participantsBR(params.id)).length);
     }
     charger();
   }, [tournoi, params.id]);
@@ -427,7 +444,7 @@ function DetailTournoiInterne() {
   const typeLabel = sousType ? `${nomType} · ${sousType}` : nomType;
   const aUnBracket =
     tournoi.type === "battle_royale"
-      ? participantsBR(params.id).length > 0
+      ? participantsBRCount > 0
       : matchsTournoi.length > 0;
   const lienBracket =
     tournoi.type === "battle_royale"
