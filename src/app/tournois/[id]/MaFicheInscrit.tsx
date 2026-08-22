@@ -57,7 +57,7 @@ function BarreAcces({ tournoiId }: { tournoiId: string }) {
         style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent-700)" }}
       >
         <MessagesSquare size={15} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-        <span className="text-[10px] font-medium" style={{ color: "var(--ds-accent-300)" }}>Inscrits</span>
+        <span className="text-[10px] font-medium" style={{ color: "var(--ds-accent-300)" }}>Chat</span>
       </Link>
       <Link
         href={`/tournois/${tournoiId}/chat-spectateurs`}
