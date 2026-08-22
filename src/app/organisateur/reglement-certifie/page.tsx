@@ -25,7 +25,7 @@ export default function ReglementCertifiePage() {
 
   useEffect(() => {
     async function verifier() {
-      if (!estOrganisateurCertifie()) {
+      if (!(await estOrganisateurCertifie())) {
         router.replace("/organisateur");
         return;
       }

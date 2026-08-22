@@ -201,8 +201,8 @@ export function peutCreerTournoiPayantSelonCertification(): boolean {
  * tournois gratuits sans attendre (point 167) ; seuls les tournois payants
  * et la commission associée exigent le statut certifié complet.
  */
-export function estOrganisateurCertifie(): boolean {
-  return estCertifie() && estOrganisateurApprouve();
+export async function estOrganisateurCertifie(): Promise<boolean> {
+  return estCertifie() && (await estOrganisateurApprouve());
 }
 
 /** Point 159 : règlement spécifique aux organisateurs certifiés, distinct du

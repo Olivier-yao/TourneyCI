@@ -70,7 +70,7 @@ export default function ProfilPage() {
       const classement = await classementOrganisateurs();
       setVueOrga({
         onboardingOk,
-        certifie: estOrganisateurCertifie(),
+        certifie: await estOrganisateurCertifie(),
         nom: nomOrga,
         tag: await tagOrganisateur(),
         coeurs: stats.coeurs,

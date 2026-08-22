@@ -56,7 +56,7 @@ export default function ClotureTournoiPage() {
       setTournoi(t);
       setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
       setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
-      setDemandeEnAttente(demandeAnnulationPourTournoi(params.id));
+      setDemandeEnAttente(await demandeAnnulationPourTournoi(params.id));
       setPret(true);
     });
   }, [params.id]);

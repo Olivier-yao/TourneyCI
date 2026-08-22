@@ -135,7 +135,7 @@ export default function ProfilOrganisateurPage() {
     // (identité vérifiée + demande validée), pas la seule identité — pour un
     // autre organisateur, ce mock mono-appareil n'a pas de vrai registre
     // partagé et affiche toujours certifié (limitation connue).
-    setCertifie(moi ? estOrganisateurCertifie() : true);
+    setCertifie(moi ? await estOrganisateurCertifie() : true);
     if (moi) {
       setTag(await tagOrganisateur());
       setBio(await bioOrganisateur());

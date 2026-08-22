@@ -21,24 +21,18 @@ import {
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import {
+  etapeConnexionAdmin,
   verifierIdentifiants,
   verifierPin,
-  etapeIdentifiantsValidee,
-  estAuthentifieAdminSecurise,
   deconnecterAdminSecurise,
-} from "@/lib/mockAdminSecure";
-import {
   demandesOrganisateurEnAttente,
   traiterDemandeOrganisateur,
-  type DemandeOrganisateur,
-} from "@/lib/mockDemandesOrganisateur";
-import type { AnalyseDemandeOrganisateur } from "@/lib/mockAnalyseAutomatique";
-import {
-  demandesEnAttente as demandesAnnulationEnAttente,
+  demandesAnnulationEnAttente,
   traiterDemandeAnnulation,
-  type DemandeAnnulation,
-} from "@/lib/mockDemandesAnnulation";
-import { annulerTournoi, tournoiParId, type Tournoi } from "@/lib/mockTournaments";
+  type DemandeOrganisateurAdmin,
+  type DemandeAnnulationAdmin,
+} from "@/lib/mockTourneyControl";
+import type { AnalyseDemandeOrganisateur } from "@/lib/mockAnalyseAutomatique";
 import { plaintesEnAttente, traiterPlainte, type Plainte } from "@/lib/mockPlaintes";
 import { mesLitiges, type Litige, type StatutLitige } from "@/lib/mockLitige";
 
@@ -46,7 +40,7 @@ import { mesLitiges, type Litige, type StatutLitige } from "@/lib/mockLitige";
  * Interface administrateur sécurisée (point 160, restylée point 170 selon le
  * design Claude "Tourney Admin") — route volontairement non liée dans la
  * navigation de l'app, accès à deux facteurs (identifiants puis PIN, voir
- * mockAdminSecure.ts). Regroupe les interactions nécessitant une validation
+ * src/lib/server/adminAuth.ts). Regroupe les interactions nécessitant une validation
  * administrative : demandes de statut organisateur certifié (avec
  * motivation, point 162), plaintes (point 148), demandes d'annulation
  * (point 116), et un aperçu des litiges en cours (arbitrés par les
@@ -57,13 +51,11 @@ export default function TourneyControlPage() {
   const [etape, setEtape] = useState<"identifiants" | "pin" | "interface">("identifiants");
 
   useEffect(() => {
-    if (estAuthentifieAdminSecurise()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setEtape("interface");
-    } else if (etapeIdentifiantsValidee()) {
-      setEtape("pin");
+    async function verifier() {
+      setEtape(await etapeConnexionAdmin());
+      setPret(true);
     }
-    setPret(true);
+    verifier();
   }, []);
 
   if (!pret) return null;
@@ -100,10 +92,10 @@ function EcranIdentifiants({ onValide }: { onValide: () => void }) {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  function valider(e: React.FormEvent) {
+  async function valider(e: React.FormEvent) {
     e.preventDefault();
     if (cooldown > 0) return;
-    if (verifierIdentifiants(identifiant, motDePasse)) {
+    if (await verifierIdentifiants(identifiant, motDePasse)) {
       setErreur(null);
       onValide();
       return;
@@ -261,10 +253,10 @@ function EcranPin({ onValide, onRetour }: { onValide: () => void; onRetour: () =
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  function valider(e: React.FormEvent) {
+  async function valider(e: React.FormEvent) {
     e.preventDefault();
     if (cooldown > 0) return;
-    if (verifierPin(pin)) {
+    if (await verifierPin(pin)) {
       setErreur(null);
       onValide();
       return;
@@ -610,29 +602,21 @@ function CarteLitige({ litige }: { litige: Litige }) {
 
 function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   const [onglet, setOnglet] = useState<Onglet>("organisateurs");
-  const [demandesOrga, setDemandesOrga] = useState<DemandeOrganisateur[]>([]);
+  const [demandesOrga, setDemandesOrga] = useState<DemandeOrganisateurAdmin[]>([]);
   const [plaintes, setPlaintes] = useState<Plainte[]>([]);
   const [litiges, setLitiges] = useState<Litige[]>([]);
-  const [demandesAnnul, setDemandesAnnul] = useState<DemandeAnnulation[]>([]);
-  const [tournoisParDemande, setTournoisParDemande] = useState<Record<string, Tournoi | undefined>>({});
+  const [demandesAnnul, setDemandesAnnul] = useState<DemandeAnnulationAdmin[]>([]);
 
-  function rafraichir() {
-    setDemandesOrga(demandesOrganisateurEnAttente());
+  async function rafraichir() {
+    setDemandesOrga(await demandesOrganisateurEnAttente());
     setPlaintes(plaintesEnAttente());
     setLitiges(mesLitiges());
-    setDemandesAnnul(demandesAnnulationEnAttente());
+    setDemandesAnnul(await demandesAnnulationEnAttente());
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     rafraichir();
   }, []);
-
-  useEffect(() => {
-    Promise.all(demandesAnnul.map(async (d) => [d.tournoiId, await tournoiParId(d.tournoiId)] as const)).then((paires) => {
-      setTournoisParDemande(Object.fromEntries(paires));
-    });
-  }, [demandesAnnul]);
 
   const counts: Record<Onglet, number> = {
     organisateurs: demandesOrga.length,
@@ -662,8 +646,8 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
           </div>
           <button
             type="button"
-            onClick={() => {
-              deconnecterAdminSecurise();
+            onClick={async () => {
+              await deconnecterAdminSecurise();
               onDeconnecter();
             }}
             className={`flex items-center gap-1.5 text-xs shrink-0 ${PRESS}`}
@@ -739,12 +723,12 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
                   corps={d.motivation}
                   analyse={d.analyseAutomatique}
                   placeholder={`Réponse à ${d.nomOrganisateur}…`}
-                  onAccepter={(msg) => {
-                    traiterDemandeOrganisateur(d.id, "validee", msg);
+                  onAccepter={async (msg) => {
+                    await traiterDemandeOrganisateur(d.id, "validee", msg);
                     rafraichir();
                   }}
-                  onRefuser={(msg) => {
-                    traiterDemandeOrganisateur(d.id, "refusee", msg);
+                  onRefuser={async (msg) => {
+                    await traiterDemandeOrganisateur(d.id, "refusee", msg);
                     rafraichir();
                   }}
                 />
@@ -787,30 +771,27 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
             (demandesAnnul.length === 0 ? (
               <EtatVide texte="Aucune demande d'annulation en attente." />
             ) : (
-              demandesAnnul.map((d, i) => {
-                const tournoi = tournoisParDemande[d.tournoiId];
-                const inscrits = tournoi ? ` · ${tournoi.placesInscrites} INSCRIT${tournoi.placesInscrites > 1 ? "S" : ""}` : "";
-                return (
-                  <CarteAction
-                    key={d.id}
-                    icon={XCircle}
-                    primary={i === 0}
-                    titre={d.tournoiTitre}
-                    meta={`${d.organisateur.toUpperCase()} · DEMANDE DU ${formatDateHeure(d.horodatage)}${inscrits}`}
-                    corps={d.motif}
-                    placeholder={`Réponse à ${d.organisateur}…`}
-                    onAccepter={(msg) => {
-                      annulerTournoi(d.tournoiId);
-                      traiterDemandeAnnulation(d.id, "validee", msg);
-                      rafraichir();
-                    }}
-                    onRefuser={(msg) => {
-                      traiterDemandeAnnulation(d.id, "refusee", msg);
-                      rafraichir();
-                    }}
-                  />
-                );
-              })
+              demandesAnnul.map((d, i) => (
+                <CarteAction
+                  key={d.id}
+                  icon={XCircle}
+                  primary={i === 0}
+                  titre={d.tournoiTitre}
+                  meta={`${d.organisateurNom.toUpperCase()} · DEMANDE DU ${formatDateHeure(d.horodatage)} · ${d.placesInscrites} INSCRIT${d.placesInscrites > 1 ? "S" : ""}`}
+                  corps={d.motif}
+                  placeholder={`Réponse à ${d.organisateurNom}…`}
+                  onAccepter={async (msg) => {
+                    // L'annulation reelle du tournoi est faite cote serveur
+                    // par traiterDemandeAnnulation quand le statut est "validee".
+                    await traiterDemandeAnnulation(d.id, "validee", msg);
+                    rafraichir();
+                  }}
+                  onRefuser={async (msg) => {
+                    await traiterDemandeAnnulation(d.id, "refusee", msg);
+                    rafraichir();
+                  }}
+                />
+              ))
             ))}
         </div>
 

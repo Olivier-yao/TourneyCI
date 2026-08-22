@@ -46,10 +46,10 @@ export default function AnnulationTournoiPage() {
   const [motif, setMotif] = useState("");
 
   useEffect(() => {
-    tournoiParId(params.id).then((t) => {
+    tournoiParId(params.id).then(async (t) => {
       setTournoi(t);
       setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
-      setDejaDemande(Boolean(demandeAnnulationPourTournoi(params.id)));
+      setDejaDemande(Boolean(await demandeAnnulationPourTournoi(params.id)));
       setPret(true);
     });
   }, [params.id]);
@@ -73,9 +73,9 @@ export default function AnnulationTournoiPage() {
     setMotif(predef?.brouillon ?? "");
   }
 
-  function envoyer() {
+  async function envoyer() {
     if (!motif.trim() || !tournoi) return;
-    creerDemandeAnnulation(params.id, tournoi.titre, tournoi.organisateur, motif.trim());
+    await creerDemandeAnnulation(params.id, motif.trim());
     router.push(`/organisateur/${params.id}/cloture`);
   }
 

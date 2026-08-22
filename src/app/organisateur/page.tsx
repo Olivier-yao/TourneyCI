@@ -316,9 +316,10 @@ function OrganisateurPageInterne() {
         router.replace("/organisateur/reglement-standard");
         return;
       }
-      const demandeActuelle = demandeOrganisateurActuelle();
+      const demandeActuelle = await demandeOrganisateurActuelle();
+      const estOrgaCert = await estOrganisateurCertifie();
       setCertifie(estCert);
-      setOrganisateurCertifie(estOrganisateurCertifie());
+      setOrganisateurCertifie(estOrgaCert);
       setNomOrg(nom);
       setDemande(demandeActuelle);
       // Point 167 : un nom suffit pour atteindre le tableau de bord — la
@@ -328,7 +329,7 @@ function OrganisateurPageInterne() {
       // Point 187 : arrivée depuis l'alerte du formulaire de création après
       // vérification d'identité — ouvre directement la demande de certification
       // plutôt que de laisser l'utilisateur revenir au même message.
-      if (searchParams.get("ouvrirCertification") === "1" && nom && estCert && !estOrganisateurCertifie()) {
+      if (searchParams.get("ouvrirCertification") === "1" && nom && estCert && !estOrgaCert) {
         setVueCertification(true);
       }
     }
@@ -358,11 +359,11 @@ function OrganisateurPageInterne() {
         nomOrg={nomOrg ?? ""}
         identiteVerifiee={certifie}
         demande={demande}
-        onEnvoyer={(motivation) => {
-          const d = creerDemandeOrganisateur(nomOrg ?? "", motivation, certifie);
+        onEnvoyer={async (motivation) => {
+          const d = await creerDemandeOrganisateur(motivation, certifie);
           if (d) {
             setDemande(d);
-            setOrganisateurCertifie(estOrganisateurCertifie());
+            setOrganisateurCertifie(await estOrganisateurCertifie());
             // Point 159 : le règlement organisateur certifié est présenté
             // dès que le statut est validé (immédiat tant que l'auto-
             // validation du point 157 est active).
