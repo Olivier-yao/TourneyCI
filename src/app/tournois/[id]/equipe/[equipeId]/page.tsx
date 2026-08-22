@@ -40,12 +40,12 @@ export default function GestionEquipeBRPage() {
   const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
   const [parametresOuverts, setParametresOuverts] = useState(false);
 
-  function rafraichir() {
-    const e = equipeParId(params.equipeId);
+  async function rafraichir() {
+    const e = await equipeParId(params.equipeId);
     setEquipe(e);
     if (e) {
-      setDemandes(demandesEnAttente(e.id));
-      setRetraits(historiqueRetraits(e.id));
+      setDemandes(await demandesEnAttente(e.id));
+      setRetraits(await historiqueRetraits(e.id));
     }
   }
 
@@ -90,9 +90,9 @@ export default function GestionEquipeBRPage() {
     setTimeout(() => setCopie(false), 1800);
   }
 
-  function confirmerRetrait() {
+  async function confirmerRetrait() {
     if (!membreARetirer || !motif.trim()) return;
-    retirerMembre(equipe!.id, membreARetirer, motif);
+    await retirerMembre(equipe!.id, membreARetirer, motif);
     setMembreARetirer(null);
     setMotif("");
     rafraichir();
@@ -145,7 +145,7 @@ export default function GestionEquipeBRPage() {
                   <div className="flex-1 text-sm font-medium truncate">{d.demandeur}</div>
                   <button
                     type="button"
-                    onClick={() => { refuserDemande(d.id); rafraichir(); }}
+                    onClick={async () => { await refuserDemande(d.id); rafraichir(); }}
                     className={`flex items-center justify-center w-8 h-8 shrink-0 ${PRESS}`}
                     style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
                     aria-label="Refuser"
@@ -154,7 +154,7 @@ export default function GestionEquipeBRPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { approuverDemande(d.id); rafraichir(); }}
+                    onClick={async () => { await approuverDemande(d.id); rafraichir(); }}
                     className={`flex items-center justify-center w-8 h-8 shrink-0 ${PRESS}`}
                     style={{ borderRadius: "var(--ds-radius-sm)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
                     aria-label="Approuver"

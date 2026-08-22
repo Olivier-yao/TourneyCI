@@ -58,8 +58,8 @@ export default function ProfilPage() {
       const tournoisInscrits = await Promise.all(inscriptions.map((i) => tournoiParId(i.tournoiId)));
       const historique = tournoisInscrits.filter((t) => t && t.termine).length;
       setSolde(await lireSolde());
-      const moi = lireProfil().pseudo;
-      setCompteurs({ historique, inscriptions: inscriptions.length, favoris: (await mesFavoris()).length, equipes: equipesProfilDontChef(moi).length + equipesDuJoueur(moi).length });
+      const [equipesProfilChef, equipesBR] = await Promise.all([equipesProfilDontChef(), equipesDuJoueur()]);
+      setCompteurs({ historique, inscriptions: inscriptions.length, favoris: (await mesFavoris()).length, equipes: equipesProfilChef.length + equipesBR.length });
       const tournoisOrganises = await mesTournoisOrganises();
       setOrganisateur({ estOrganisateur: tournoisOrganises.length > 0, certifie: estCertifie() });
       setRole(rolePrefere());

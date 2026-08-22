@@ -1,15 +1,26 @@
 /**
  * Équipes pré-créées, gérées depuis le profil, indépendamment de tout
- * tournoi (point 140) — alternative aux équipes éphémères créées à la volée
- * pendant l'inscription (point 54, conservées en repli si le joueur n'a pas
- * d'équipe pré-créée adaptée). Max 5 équipes par joueur (en tant que chef),
- * max 4 membres par équipe.
+ * tournoi (point 140) — tables `equipes_profil`/`equipes_profil_membres`/
+ * `invitations_equipe_profil` (Postgres), même pattern que les migrations
+ * précédentes (fonctions async, mêmes noms/signatures quand c'est
+ * possible). Max 5 équipes par joueur (en tant que chef), max 4 membres par
+ * équipe — désormais appliqué côté serveur (vraie limite cross-appareil).
+ *
+ * L'invitation par TAG devient un vrai lookup cross-compte
+ * (profiles.tag, cf. src/lib/server/identite.ts) au lieu du registre de
+ * démo mono-appareil d'avant la migration — c'est la raison d'être de ce
+ * module : une invitation envoyée depuis un appareil doit être visible
+ * depuis celui du destinataire.
+ *
+ * Notification "il y a une invitation/proposition en attente" volontairement
+ * pas envoyée au destinataire réel : notifierParticipants()/
+ * ajouterNotification() ne notifient que le compte connecté (même
+ * limitation assumée que la migration précédente des notifications) —
+ * diffuser une vraie alerte à un autre compte serait un changement de
+ * fonctionnalité, pas une migration de stockage. L'invitation/proposition
+ * reste bien réelle et visible dès que l'autre compte consulte "Mes
+ * équipes" ; seul le petit "ping" immédiat ne se déclenche pas.
  */
-
-import { peutModifierMensuel } from "./limiteMensuelle";
-import { joueurParTag } from "./mockProfil";
-import { ajouterNotification } from "./mockNotifications";
-import { ajouterMessageSystemeEquipe } from "./mockChatEquipe";
 
 export type EquipeProfil = {
   id: string;
@@ -24,112 +35,79 @@ export type EquipeProfil = {
 export const MAX_EQUIPES_PROFIL = 5;
 export const MAX_MEMBRES_EQUIPE_PROFIL = 4;
 
-// Pas de cleCompte() : une équipe implique plusieurs pseudos (chef + membres),
-// potentiellement des comptes différents — equipesProfilDontMembreNonChef()
-// doit retrouver les équipes créées par un AUTRE compte où je suis membre.
-// Namespacer par compte connecté isolerait chaque compte dans son propre
-// registre, cassant les invitations d'équipe entre comptes.
-const CLE = "tourney-equipes-profil";
-
-function lire(): EquipeProfil[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE);
-    return brut ? (JSON.parse(brut) as EquipeProfil[]) : [];
-  } catch {
-    return [];
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-function ecrire(valeurs: EquipeProfil[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CLE, JSON.stringify(valeurs));
+/** Équipes dont le compte connecté est chef (gérables) — utilisé pour la limite de 5. */
+export async function equipesProfilDontChef(): Promise<EquipeProfil[]> {
+  const reponse = await fetch("/api/equipes-profil?role=chef");
+  const resultat = await reponseJson<EquipeProfil[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-/** Équipes dont ce joueur est chef (gérables) — utilisé pour la limite de 5. */
-export function equipesProfilDontChef(pseudo: string): EquipeProfil[] {
-  return lire().filter((e) => e.chef === pseudo);
+/** Équipes dont le compte connecté est simple membre (pas chef) — point 192. */
+export async function equipesProfilDontMembreNonChef(): Promise<EquipeProfil[]> {
+  const reponse = await fetch("/api/equipes-profil?role=membre");
+  const resultat = await reponseJson<EquipeProfil[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-/** Équipes dont ce joueur est simple membre (pas chef) — point 192 : un
- * membre non-chef peut proposer l'inscription à un tournoi, sans pouvoir la
- * finaliser lui-même (validation du chef requise). */
-export function equipesProfilDontMembreNonChef(pseudo: string): EquipeProfil[] {
-  return lire().filter((e) => e.chef !== pseudo && e.membres.includes(pseudo));
+export async function equipeProfilParId(id: string): Promise<EquipeProfil | undefined> {
+  const reponse = await fetch(`/api/equipes-profil/${id}`);
+  const resultat = await reponseJson<EquipeProfil>(reponse);
+  return resultat.ok ? resultat.data : undefined;
 }
 
-export function equipeProfilParId(id: string): EquipeProfil | undefined {
-  return lire().find((e) => e.id === id);
+export async function creerEquipeProfil(nom: string): Promise<EquipeProfil | null> {
+  const reponse = await fetch("/api/equipes-profil", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nom }),
+  });
+  const resultat = await reponseJson<EquipeProfil>(reponse);
+  return resultat.ok ? resultat.data : null;
 }
 
-export function creerEquipeProfil(nom: string, chef: string): EquipeProfil | null {
-  if (equipesProfilDontChef(chef).length >= MAX_EQUIPES_PROFIL) return null;
-  const equipe: EquipeProfil = {
-    id: `eqp-${Date.now().toString(36)}`,
-    nom,
-    chef,
-    membres: [chef],
-    creeLe: Date.now(),
-  };
-  ecrire([...lire(), equipe]);
-  return equipe;
+export async function renommerEquipeProfil(id: string, nom: string): Promise<string | null> {
+  const reponse = await fetch(`/api/equipes-profil/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nom }),
+  });
+  const resultat = await reponseJson<EquipeProfil>(reponse);
+  return resultat.ok ? null : (resultat.erreur ?? "Renommage impossible.");
 }
 
-function majEquipe(id: string, fn: (e: EquipeProfil) => EquipeProfil) {
-  ecrire(lire().map((e) => (e.id === id ? fn(e) : e)));
+/** Réservé au chef : retire un autre membre de l'équipe. */
+export async function retirerMembreEquipeProfil(id: string, membre: string): Promise<void> {
+  await fetch(`/api/equipes-profil/${id}/membres`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "retirer", membre }),
+  });
 }
 
-/** Point 155 : une équipe pré-créée ne peut être renommée qu'une fois par
- * mois, et le nouveau nom doit être libre parmi les autres équipes du même
- * chef (pas de vrai registre global partagé dans ce mock mono-appareil). */
-export function peutRenommerEquipeProfil(id: string): { ok: boolean; prochainChangementLe?: number } {
-  const equipe = equipeProfilParId(id);
-  return peutModifierMensuel(equipe?.nomModifieLe);
+/** Le compte connecté quitte une équipe dont il est simple membre. */
+export async function quitterEquipeProfil(id: string): Promise<void> {
+  await fetch(`/api/equipes-profil/${id}/membres`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "quitter" }),
+  });
 }
 
-export function nomEquipeProfilDisponible(chef: string, nom: string, idEquipeActuelle?: string): boolean {
-  const cible = nom.trim().toLowerCase();
-  if (!cible) return false;
-  return !equipesProfilDontChef(chef).some((e) => e.id !== idEquipeActuelle && e.nom.trim().toLowerCase() === cible);
-}
-
-export function renommerEquipeProfil(id: string, nom: string): string | null {
-  if (!nom.trim()) return "Saisis un nom.";
-  const equipe = equipeProfilParId(id);
-  if (!equipe) return "Équipe introuvable.";
-  if (nom.trim() === equipe.nom) return null;
-  const { ok, prochainChangementLe } = peutRenommerEquipeProfil(id);
-  if (!ok) return `Renommable à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`;
-  if (!nomEquipeProfilDisponible(equipe.chef, nom, id)) return "Tu as déjà une équipe avec ce nom.";
-  majEquipe(id, (e) => ({ ...e, nom: nom.trim(), nomModifieLe: Date.now() }));
-  return null;
-}
-
-export function ajouterMembreEquipeProfil(id: string, membre: string): string | null {
-  const equipe = equipeProfilParId(id);
-  const pseudo = membre.trim();
-  if (!equipe || !pseudo) return "Saisis un pseudo.";
-  if (equipe.membres.includes(pseudo)) return "Ce joueur est déjà dans l'équipe.";
-  if (equipe.membres.length >= MAX_MEMBRES_EQUIPE_PROFIL) return `Équipe complète (max ${MAX_MEMBRES_EQUIPE_PROFIL} membres).`;
-  majEquipe(id, (e) => ({ ...e, membres: [...e.membres, pseudo] }));
-  return null;
-}
-
-export function retirerMembreEquipeProfil(id: string, membre: string) {
-  majEquipe(id, (e) => ({ ...e, membres: e.membres.filter((m) => m !== membre) }));
-}
-
-export function supprimerEquipeProfil(id: string) {
-  ecrire(lire().filter((e) => e.id !== id));
+export async function supprimerEquipeProfil(id: string): Promise<void> {
+  await fetch(`/api/equipes-profil/${id}`, { method: "DELETE" });
 }
 
 /**
  * Invitations par TAG (point 192) : le chef invite un profil existant par
  * son TAG plutôt que de l'ajouter directement — le joueur invité doit
  * accepter depuis l'onglet "Invitations" de son propre "Mes équipes" avant
- * d'intégrer l'équipe. Mono-appareil comme le reste de l'app : la
- * notification est poussée dans le flux local unique (pas de vrai push
- * cross-appareil tant qu'il n'y a pas de backend, phase 8).
+ * d'intégrer l'équipe.
  */
 export type InvitationEquipeProfil = {
   id: string;
@@ -141,77 +119,38 @@ export type InvitationEquipeProfil = {
   horodatage: number;
 };
 
-const CLE_INVITATIONS = "tourney-invitations-equipes-profil";
-
-function lireInvitations(): InvitationEquipeProfil[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_INVITATIONS);
-    return brut ? (JSON.parse(brut) as InvitationEquipeProfil[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function ecrireInvitations(valeurs: InvitationEquipeProfil[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_INVITATIONS, JSON.stringify(valeurs));
-}
-
-export function invitationsRecues(pseudo: string): InvitationEquipeProfil[] {
-  return lireInvitations()
-    .filter((i) => i.destinataire === pseudo && i.statut === "en_attente")
-    .sort((a, b) => b.horodatage - a.horodatage);
-}
-
-function aUneInvitationEnAttente(equipeId: string, destinataire: string): boolean {
-  return lireInvitations().some((i) => i.equipeId === equipeId && i.destinataire === destinataire && i.statut === "en_attente");
+export async function invitationsRecues(): Promise<InvitationEquipeProfil[]> {
+  const reponse = await fetch("/api/invitations-equipe-profil");
+  const resultat = await reponseJson<InvitationEquipeProfil[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
 /** Recherche par TAG (point 192) puis envoie l'invitation — renvoie un
  * message d'erreur explicite, ou null si l'invitation a bien été envoyée. */
-export function inviterParTagEquipeProfil(equipeId: string, tag: string): string | null {
-  const equipe = equipeProfilParId(equipeId);
-  if (!equipe) return "Équipe introuvable.";
-  if (!tag.trim()) return "Saisis le TAG du joueur à inviter.";
-  if (equipe.membres.length >= MAX_MEMBRES_EQUIPE_PROFIL) return `Équipe complète (max ${MAX_MEMBRES_EQUIPE_PROFIL} membres).`;
-  const profil = joueurParTag(tag);
-  if (!profil) return "Aucun profil ne correspond à ce TAG.";
-  if (equipe.membres.includes(profil.nom)) return "Ce joueur est déjà dans l'équipe.";
-  if (aUneInvitationEnAttente(equipeId, profil.nom)) return "Invitation déjà envoyée à ce joueur.";
-  const invitation: InvitationEquipeProfil = {
-    id: `inveqp-${Date.now().toString(36)}`,
-    equipeId,
-    equipeNom: equipe.nom,
-    chef: equipe.chef,
-    destinataire: profil.nom,
-    statut: "en_attente",
-    horodatage: Date.now(),
-  };
-  ecrireInvitations([...lireInvitations(), invitation]);
-  ajouterNotification(`${equipe.chef} t'invite à rejoindre l'équipe « ${equipe.nom} ».`);
-  return null;
+export async function inviterParTagEquipeProfil(equipeId: string, tag: string): Promise<string | null> {
+  const reponse = await fetch(`/api/equipes-profil/${equipeId}/invitations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag }),
+  });
+  const resultat = await reponseJson<void>(reponse);
+  return resultat.ok ? null : (resultat.erreur ?? "Invitation impossible.");
 }
 
-/** Confirme l'identité (photo/TAG) avant l'envoi — utilisé par l'écran de
+/** Confirme l'identité (pseudo) avant l'envoi — utilisé par l'écran de
  * confirmation "Inviter" (point 192), séparé de l'envoi effectif. */
-export function apercuJoueurParTag(tag: string): { nom: string } | undefined {
-  return joueurParTag(tag);
+export async function apercuJoueurParTag(equipeId: string, tag: string): Promise<{ nom: string } | undefined> {
+  const reponse = await fetch(`/api/equipes-profil/${equipeId}/apercu?tag=${encodeURIComponent(tag)}`);
+  const resultat = await reponseJson<{ nom: string } | null>(reponse);
+  return resultat.ok && resultat.data ? resultat.data : undefined;
 }
 
-export function repondreInvitationEquipeProfil(id: string, accepter: boolean): string | null {
-  const invitation = lireInvitations().find((i) => i.id === id);
-  if (!invitation || invitation.statut !== "en_attente") return "Invitation introuvable ou déjà traitée.";
-  ecrireInvitations(
-    lireInvitations().map((i) => (i.id === id ? { ...i, statut: accepter ? "acceptee" : "refusee" } : i)),
-  );
-  if (accepter) {
-    const err = ajouterMembreEquipeProfil(invitation.equipeId, invitation.destinataire);
-    if (err) return err;
-    ajouterNotification(`${invitation.destinataire} a rejoint l'équipe « ${invitation.equipeNom} ».`);
-    ajouterMessageSystemeEquipe(invitation.equipeId, `${invitation.destinataire} a rejoint l'équipe`);
-  } else {
-    ajouterNotification(`${invitation.destinataire} a refusé de rejoindre l'équipe « ${invitation.equipeNom} ».`);
-  }
-  return null;
+export async function repondreInvitationEquipeProfil(id: string, accepter: boolean): Promise<string | null> {
+  const reponse = await fetch(`/api/invitations-equipe-profil/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ accepter }),
+  });
+  const resultat = await reponseJson<void>(reponse);
+  return resultat.ok ? null : (resultat.erreur ?? "Réponse impossible.");
 }

@@ -1,15 +1,20 @@
 /**
- * Équipes (duo/squad) pour l'inscription à un tournoi Battle Royale : création
- * par un chef, liste des équipes existantes à rejoindre, répartition
- * aléatoire, lien d'invitation, paiement groupé par le chef, et validation
- * des demandes d'adhésion (avec historique des retraits motivés).
+ * Équipes (duo/squad) éphémères pour l'inscription à un tournoi Battle
+ * Royale — tables `equipes_br`/`equipes_br_membres`/`demandes_equipe_br`/
+ * `retraits_equipe_br` (Postgres), même pattern que les migrations
+ * précédentes (fonctions async, mêmes noms/signatures quand c'est
+ * possible).
  *
- * Mock mono-appareil comme le reste de l'app : la file d'attente de demandes
- * et les retraits ne sont visibles que depuis l'appareil qui les consulte,
- * pas synchronisés entre plusieurs téléphones (pas de backend).
+ * Chef/demandeur/membre sont désormais de vrais comptes (profile_id en
+ * base) au lieu de simples pseudos en localStorage : la file de demandes et
+ * les retraits sont enfin visibles depuis n'importe quel appareil du chef,
+ * pas seulement celui qui les a créés. Les paramètres d'identité "moi"
+ * (chef à la création, demandeur, joueur) ont disparu des signatures — ils
+ * sont désormais dérivés de la session côté serveur, jamais pris tels quels
+ * depuis le client.
  */
 
-import { LABEL_UNITE_BR, type SousTypeBR } from "./mockBattleRoyale";
+import type { SousTypeBR } from "./mockBattleRoyale";
 
 export type EquipeBR = {
   id: string;
@@ -17,26 +22,12 @@ export type EquipeBR = {
   nom: string;
   chef: string;
   membres: string[];
-  /** Le chef a réglé les frais d'inscription pour toute l'équipe : les
-   * membres qui rejoignent ensuite n'ont rien à payer. */
   paiementCouvert: boolean;
   creeLe: number;
 };
 
-export type DemandeEquipeBR = {
-  id: string;
-  equipeId: string;
-  demandeur: string;
-  horodatage: number;
-};
-
-export type RetraitEquipeBR = {
-  id: string;
-  equipeId: string;
-  membre: string;
-  motif: string;
-  horodatage: number;
-};
+export type DemandeEquipeBR = { id: string; equipeId: string; demandeur: string; horodatage: number };
+export type RetraitEquipeBR = { id: string; equipeId: string; membre: string; motif: string; horodatage: number };
 
 /** Taille cible d'une équipe selon le sous-type Battle Royale. */
 export const TAILLE_EQUIPE_BR: Record<Exclude<SousTypeBR, "solo">, number> = {
@@ -45,147 +36,116 @@ export const TAILLE_EQUIPE_BR: Record<Exclude<SousTypeBR, "solo">, number> = {
   squad: 4,
 };
 
-const CLE_EQUIPES = "tourney-equipes-br";
-const CLE_DEMANDES = "tourney-demandes-equipe-br";
-const CLE_RETRAITS = "tourney-retraits-equipe-br";
-
-function lire<T>(cle: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(cle);
-    return brut ? (JSON.parse(brut) as T[]) : [];
-  } catch {
-    return [];
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-function ecrire<T>(cle: string, valeurs: T[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cle, JSON.stringify(valeurs));
+export async function equipesDuTournoi(tournoiId: string): Promise<EquipeBR[]> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/equipes-br`);
+  const resultat = await reponseJson<EquipeBR[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-export function equipesDuTournoi(tournoiId: string): EquipeBR[] {
-  return lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.tournoiId === tournoiId);
+export async function equipeParId(equipeId: string): Promise<EquipeBR | undefined> {
+  const reponse = await fetch(`/api/equipes-br/${equipeId}`);
+  const resultat = await reponseJson<EquipeBR>(reponse);
+  return resultat.ok ? resultat.data : undefined;
 }
 
-export function equipeParId(equipeId: string): EquipeBR | undefined {
-  return lire<EquipeBR>(CLE_EQUIPES).find((e) => e.id === equipeId);
+/** Équipe dont le compte connecté est déjà membre pour ce tournoi. */
+export async function equipeDeJoueur(tournoiId: string): Promise<EquipeBR | undefined> {
+  const reponse = await fetch(`/api/mes-equipes-br?tournoiId=${tournoiId}`);
+  const resultat = await reponseJson<EquipeBR[]>(reponse);
+  return resultat.ok ? resultat.data[0] : undefined;
 }
 
-/** Équipe dont ce joueur est déjà membre pour ce tournoi (s'il y en a une). */
-export function equipeDeJoueur(tournoiId: string, nom: string): EquipeBR | undefined {
-  return equipesDuTournoi(tournoiId).find((e) => e.membres.includes(nom));
+/** Toutes les équipes (tous tournois confondus) dont le compte connecté est membre. */
+export async function equipesDuJoueur(): Promise<EquipeBR[]> {
+  const reponse = await fetch("/api/mes-equipes-br");
+  const resultat = await reponseJson<EquipeBR[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-/** Toutes les équipes (tous tournois confondus) dont ce joueur est membre. */
-export function equipesDuJoueur(nom: string): EquipeBR[] {
-  return lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.membres.includes(nom));
+export async function creerEquipeBR(tournoiId: string, nom: string, paiementCouvert: boolean): Promise<EquipeBR> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/equipes-br`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nom, paiementCouvert }),
+  });
+  const resultat = await reponseJson<EquipeBR>(reponse);
+  if (!resultat.ok) throw new Error(resultat.erreur ?? "Impossible de créer l'équipe.");
+  return resultat.data;
 }
 
-export function creerEquipeBR(tournoiId: string, nom: string, chef: string, paiementCouvert: boolean): EquipeBR {
-  const equipe: EquipeBR = {
-    id: `eqbr-${Date.now().toString(36)}`,
-    tournoiId,
-    nom,
-    chef,
-    membres: [chef],
-    paiementCouvert,
-    creeLe: Date.now(),
-  };
-  ecrire(CLE_EQUIPES, [...lire<EquipeBR>(CLE_EQUIPES), equipe]);
-  return equipe;
+export async function demanderRejoindre(equipeId: string): Promise<DemandeEquipeBR | undefined> {
+  const reponse = await fetch(`/api/equipes-br/${equipeId}/demandes`, { method: "POST" });
+  const resultat = await reponseJson<DemandeEquipeBR | null>(reponse);
+  return resultat.ok && resultat.data ? resultat.data : undefined;
 }
 
-function majEquipe(equipeId: string, fn: (e: EquipeBR) => EquipeBR) {
-  ecrire(
-    CLE_EQUIPES,
-    lire<EquipeBR>(CLE_EQUIPES).map((e) => (e.id === equipeId ? fn(e) : e)),
-  );
+export async function demandesEnAttente(equipeId: string): Promise<DemandeEquipeBR[]> {
+  const reponse = await fetch(`/api/equipes-br/${equipeId}/demandes`);
+  const resultat = await reponseJson<DemandeEquipeBR[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-export function demandesEnAttente(equipeId: string): DemandeEquipeBR[] {
-  return lire<DemandeEquipeBR>(CLE_DEMANDES).filter((d) => d.equipeId === equipeId);
+export async function aUneDemandeEnAttente(equipeId: string): Promise<boolean> {
+  const reponse = await fetch(`/api/equipes-br/${equipeId}/demandes?moi=1`);
+  const resultat = await reponseJson<{ enAttente: boolean }>(reponse);
+  return resultat.ok ? resultat.data.enAttente : false;
 }
 
-function demandesDuJoueur(equipeId: string, demandeur: string): DemandeEquipeBR | undefined {
-  return demandesEnAttente(equipeId).find((d) => d.demandeur === demandeur);
+export async function approuverDemande(demandeId: string): Promise<void> {
+  await fetch(`/api/equipes-br/demandes/${demandeId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "approuver" }),
+  });
 }
 
-/** Envoie une demande pour rejoindre une équipe (pas d'effet si déjà membre
- * ou déjà en attente). */
-export function demanderRejoindre(equipeId: string, demandeur: string): DemandeEquipeBR | undefined {
-  const equipe = equipeParId(equipeId);
-  if (!equipe || equipe.membres.includes(demandeur) || demandesDuJoueur(equipeId, demandeur)) return undefined;
-  const demande: DemandeEquipeBR = {
-    id: `demeqbr-${Date.now().toString(36)}`,
-    equipeId,
-    demandeur,
-    horodatage: Date.now(),
-  };
-  ecrire(CLE_DEMANDES, [...lire<DemandeEquipeBR>(CLE_DEMANDES), demande]);
-  return demande;
-}
-
-export function aUneDemandeEnAttente(equipeId: string, demandeur: string): boolean {
-  return Boolean(demandesDuJoueur(equipeId, demandeur));
-}
-
-function retirerDemande(demandeId: string) {
-  ecrire(CLE_DEMANDES, lire<DemandeEquipeBR>(CLE_DEMANDES).filter((d) => d.id !== demandeId));
-}
-
-export function approuverDemande(demandeId: string) {
-  const demande = lire<DemandeEquipeBR>(CLE_DEMANDES).find((d) => d.id === demandeId);
-  if (!demande) return;
-  majEquipe(demande.equipeId, (e) => (e.membres.includes(demande.demandeur) ? e : { ...e, membres: [...e.membres, demande.demandeur] }));
-  retirerDemande(demandeId);
-}
-
-export function refuserDemande(demandeId: string) {
-  retirerDemande(demandeId);
+export async function refuserDemande(demandeId: string): Promise<void> {
+  await fetch(`/api/equipes-br/demandes/${demandeId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "refuser" }),
+  });
 }
 
 /** Retire un membre déjà intégré (motif obligatoire, conservé à l'historique). */
-export function retirerMembre(equipeId: string, membre: string, motif: string) {
+export async function retirerMembre(equipeId: string, membre: string, motif: string): Promise<void> {
   if (!motif.trim()) return;
-  majEquipe(equipeId, (e) => ({ ...e, membres: e.membres.filter((m) => m !== membre) }));
-  const retrait: RetraitEquipeBR = {
-    id: `reteqbr-${Date.now().toString(36)}`,
-    equipeId,
-    membre,
-    motif: motif.trim(),
-    horodatage: Date.now(),
-  };
-  ecrire(CLE_RETRAITS, [...lire<RetraitEquipeBR>(CLE_RETRAITS), retrait]);
+  await fetch(`/api/equipes-br/${equipeId}/retraits`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ membre, motif }),
+  });
 }
 
-export function historiqueRetraits(equipeId: string): RetraitEquipeBR[] {
-  return lire<RetraitEquipeBR>(CLE_RETRAITS)
-    .filter((r) => r.equipeId === equipeId)
-    .sort((a, b) => b.horodatage - a.horodatage);
+export async function historiqueRetraits(equipeId: string): Promise<RetraitEquipeBR[]> {
+  const reponse = await fetch(`/api/equipes-br/${equipeId}/retraits`);
+  const resultat = await reponseJson<RetraitEquipeBR[]>(reponse);
+  return resultat.ok ? resultat.data : [];
 }
 
-/** Bascule l'équipe en "frais couverts" une fois le paiement du chef confirmé
- * (appelé après succès du paiement, pas à la création — un paiement en échec
- * ne doit pas laisser croire aux futurs membres que c'est déjà réglé). */
-export function marquerPaiementCouvert(equipeId: string) {
-  majEquipe(equipeId, (e) => ({ ...e, paiementCouvert: true }));
+export async function marquerPaiementCouvert(equipeId: string): Promise<void> {
+  await fetch(`/api/equipes-br/${equipeId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "marquerPaiementCouvert" }),
+  });
 }
 
-/** Répartition aléatoire : rejoint la première équipe non complète, sinon en
- * crée une nouvelle. Intégration immédiate, sans passer par la file de
- * validation (c'est l'app qui choisit, pas une demande à approuver). */
-export function rejoindreEquipeAleatoire(tournoiId: string, joueur: string, sousType: Exclude<SousTypeBR, "solo">): EquipeBR {
-  const taille = TAILLE_EQUIPE_BR[sousType];
-  const equipes = equipesDuTournoi(tournoiId);
-  const disponible = equipes.find((e) => e.membres.length < taille);
-  if (disponible) {
-    majEquipe(disponible.id, (e) => ({ ...e, membres: [...e.membres, joueur] }));
-    return { ...disponible, membres: [...disponible.membres, joueur] };
-  }
-  const numero = equipes.length + 1;
-  const prefixe = LABEL_UNITE_BR[sousType].nom;
-  return creerEquipeBR(tournoiId, `${prefixe} auto ${numero}`, joueur, false);
+export async function rejoindreEquipeAleatoire(tournoiId: string, sousType: Exclude<SousTypeBR, "solo">): Promise<EquipeBR> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/equipes-br/aleatoire`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sousType }),
+  });
+  const resultat = await reponseJson<EquipeBR>(reponse);
+  if (!resultat.ok) throw new Error(resultat.erreur ?? "Impossible de rejoindre une équipe.");
+  return resultat.data;
 }
 
 /** Fragment de requête à ajouter au lien du tournoi pour pré-sélectionner
@@ -197,22 +157,18 @@ export function lienInvitation(tournoiId: string, equipeId: string): string {
 
 /** Intègre directement des membres sans passer par la file de demandes —
  * réservé au cas où le chef a déjà validé ces joueurs en amont (équipe
- * pré-créée du profil, point 140), donc pas besoin de ré-approuver. */
-export function ajouterMembresDirect(equipeId: string, membres: string[]) {
-  majEquipe(equipeId, (e) => ({
-    ...e,
-    membres: [...e.membres, ...membres.filter((m) => !e.membres.includes(m))],
-  }));
+ * pré-créée du profil, point 140). */
+export async function ajouterMembresDirect(equipeId: string, membres: string[]): Promise<void> {
+  if (membres.length === 0) return;
+  await fetch(`/api/equipes-br/${equipeId}/membres-directs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ membres }),
+  });
 }
 
 /** Point 140 : les équipes éphémères (point 54) sont un repli propre au
- * tournoi — une fois celui-ci terminé, elles n'ont plus lieu de persister
- * (le hub "mes équipes" du profil est désormais réservé aux équipes
- * pré-créées, gérées indépendamment de tout tournoi). */
-export function supprimerEquipesDuTournoi(tournoiId: string) {
-  const equipesRestantes = lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.tournoiId !== tournoiId);
-  const idsSupprimes = new Set(lire<EquipeBR>(CLE_EQUIPES).filter((e) => e.tournoiId === tournoiId).map((e) => e.id));
-  ecrire(CLE_EQUIPES, equipesRestantes);
-  ecrire(CLE_DEMANDES, lire<DemandeEquipeBR>(CLE_DEMANDES).filter((d) => !idsSupprimes.has(d.equipeId)));
-  ecrire(CLE_RETRAITS, lire<RetraitEquipeBR>(CLE_RETRAITS).filter((r) => !idsSupprimes.has(r.equipeId)));
+ * tournoi — une fois celui-ci terminé, elles n'ont plus lieu de persister. */
+export async function supprimerEquipesDuTournoi(tournoiId: string): Promise<void> {
+  await fetch(`/api/tournois/${tournoiId}/equipes-br`, { method: "DELETE" });
 }

@@ -18,7 +18,7 @@ import {
   equipesProfilDontChef,
   equipesProfilDontMembreNonChef,
   creerEquipeProfil,
-  retirerMembreEquipeProfil,
+  quitterEquipeProfil,
   invitationsRecues,
   repondreInvitationEquipeProfil,
   MAX_EQUIPES_PROFIL,
@@ -45,29 +45,30 @@ export default function MesEquipesPage() {
   const [invitations, setInvitations] = useState<InvitationEquipeProfil[]>([]);
   const [erreurInvitation, setErreurInvitation] = useState<string | null>(null);
 
-  function rafraichirEquipesProfil(moi: string) {
-    setEquipesProfil(equipesProfilDontChef(moi));
+  async function rafraichirEquipesProfil() {
+    setEquipesProfil(await equipesProfilDontChef());
     // Équipes rejointes en tant que simple membre (invitation acceptée) —
     // sans ça, accepter une invitation ne montre jamais nulle part que
     // l'équipe a bien été rejointe.
-    setEquipesMembre(equipesProfilDontMembreNonChef(moi));
+    setEquipesMembre(await equipesProfilDontMembreNonChef());
   }
 
-  function rafraichirInvitations(moi: string) {
-    setInvitations(invitationsRecues(moi));
+  async function rafraichirInvitations() {
+    setInvitations(await invitationsRecues());
   }
 
   useEffect(() => {
     async function charger() {
       const moi = lireProfil().pseudo;
       setPseudo(moi);
-      rafraichirEquipesProfil(moi);
-      rafraichirInvitations(moi);
+      await rafraichirEquipesProfil();
+      await rafraichirInvitations();
+      const equipes = await equipesDuJoueur();
       const brut = await Promise.all(
-        equipesDuJoueur(moi).map(async (equipe) => {
+        equipes.map(async (equipe) => {
           const tournoi = await tournoiParId(equipe.tournoiId);
           if (!tournoi || tournoi.termine) return undefined;
-          const pending = equipe.chef === moi ? demandesEnAttente(equipe.id).length : 0;
+          const pending = equipe.chef === moi ? (await demandesEnAttente(equipe.id)).length : 0;
           return { equipe, tournoi, pending };
         }),
       );
@@ -81,26 +82,26 @@ export default function MesEquipesPage() {
 
   if (!connecte) return null;
 
-  function creer() {
+  async function creer() {
     if (!nomCreation.trim()) return;
-    const equipe = creerEquipeProfil(nomCreation.trim(), pseudo);
+    const equipe = await creerEquipeProfil(nomCreation.trim());
     if (!equipe) return;
     setNomCreation("");
     setCreationOuverte(false);
-    rafraichirEquipesProfil(pseudo);
+    rafraichirEquipesProfil();
   }
 
-  function repondre(invitation: InvitationEquipeProfil, accepter: boolean) {
-    const err = repondreInvitationEquipeProfil(invitation.id, accepter);
+  async function repondre(invitation: InvitationEquipeProfil, accepter: boolean) {
+    const err = await repondreInvitationEquipeProfil(invitation.id, accepter);
     setErreurInvitation(err);
-    rafraichirInvitations(pseudo);
-    if (accepter && !err) rafraichirEquipesProfil(pseudo);
+    rafraichirInvitations();
+    if (accepter && !err) rafraichirEquipesProfil();
   }
 
-  function quitter(equipe: EquipeProfil) {
+  async function quitter(equipe: EquipeProfil) {
     if (!window.confirm(`Quitter l'équipe « ${equipe.nom} » ?`)) return;
-    retirerMembreEquipeProfil(equipe.id, pseudo);
-    rafraichirEquipesProfil(pseudo);
+    await quitterEquipeProfil(equipe.id);
+    rafraichirEquipesProfil();
   }
 
   return (

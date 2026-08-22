@@ -31,13 +31,15 @@ export default function ChatEquipePage() {
   const [texte, setTexte] = useState("");
 
   useEffect(() => {
-    const e = equipeProfilParId(params.id);
-    const p = lireProfil().pseudo;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEquipe(e);
-    setMoi(p);
-    setMessages(messagesChatEquipe(params.id));
-    setPret(true);
+    async function charger() {
+      const e = await equipeProfilParId(params.id);
+      const p = lireProfil().pseudo;
+      setEquipe(e);
+      setMoi(p);
+      setMessages(messagesChatEquipe(params.id));
+      setPret(true);
+    }
+    charger();
     const id = setInterval(() => setMessages(messagesChatEquipe(params.id)), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
   }, [params.id]);

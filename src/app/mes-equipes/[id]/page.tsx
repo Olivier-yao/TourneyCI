@@ -13,6 +13,7 @@ import {
   equipeProfilParId,
   renommerEquipeProfil,
   retirerMembreEquipeProfil,
+  quitterEquipeProfil,
   supprimerEquipeProfil,
   inviterParTagEquipeProfil,
   apercuJoueurParTag,
@@ -50,10 +51,10 @@ export default function EquipeProfilPage() {
   const [titresTournois, setTitresTournois] = useState<Record<string, string>>({});
 
   async function rafraichir() {
-    const e = equipeProfilParId(params.id);
+    const e = await equipeProfilParId(params.id);
     setEquipe(e);
     if (e) {
-      const props = propositionsEnAttentePourEquipe(e.id);
+      const props = await propositionsEnAttentePourEquipe(e.id);
       setPropositions(props);
       setNbMessages(messagesChatEquipe(e.id).length);
       const entrees = await Promise.all(
@@ -88,24 +89,25 @@ export default function EquipeProfilPage() {
 
   const estChef = equipe.chef === moi;
 
-  function validerNom() {
+  async function validerNom() {
     if (!equipe || !nom.trim() || nom.trim() === equipe.nom) { setEditionNom(false); return; }
-    const err = renommerEquipeProfil(equipe.id, nom.trim());
+    const err = await renommerEquipeProfil(equipe.id, nom.trim());
     if (err) { setErreurNom(err); return; }
     setErreurNom(null);
     setEditionNom(false);
     rafraichir();
   }
 
-  function rechercher() {
-    setProfilTrouve(apercuJoueurParTag(tagRecherche));
+  async function rechercher() {
+    if (!equipe) return;
+    setProfilTrouve(await apercuJoueurParTag(equipe.id, tagRecherche));
     setRechercheEffectuee(true);
     setMessageInvitation(null);
   }
 
-  function inviter() {
+  async function inviter() {
     if (!equipe) return;
-    const err = inviterParTagEquipeProfil(equipe.id, tagRecherche);
+    const err = await inviterParTagEquipeProfil(equipe.id, tagRecherche);
     if (err) { setMessageInvitation(err); return; }
     setMessageInvitation(`Invitation envoyée à ${profilTrouve?.nom}`);
     setTagRecherche("");
@@ -113,37 +115,37 @@ export default function EquipeProfilPage() {
     setRechercheEffectuee(false);
   }
 
-  function retirer(membre: string) {
+  async function retirer(membre: string) {
     if (!equipe) return;
-    retirerMembreEquipeProfil(equipe.id, membre);
+    await retirerMembreEquipeProfil(equipe.id, membre);
     rafraichir();
   }
 
-  function quitter() {
+  async function quitter() {
     if (!equipe) return;
     if (!window.confirm(`Quitter l'équipe « ${equipe.nom} » ?`)) return;
-    retirerMembreEquipeProfil(equipe.id, moi);
+    await quitterEquipeProfil(equipe.id);
     router.push("/mes-equipes");
   }
 
-  function supprimer() {
+  async function supprimer() {
     if (!equipe) return;
     if (!window.confirm(`Supprimer l'équipe « ${equipe.nom} » ? Cette action est irréversible.`)) return;
-    supprimerEquipeProfil(equipe.id);
+    await supprimerEquipeProfil(equipe.id);
     router.push("/mes-equipes");
   }
 
-  function accepterProposition(p: PropositionEquipe) {
+  async function accepterProposition(p: PropositionEquipe) {
     if (!equipe) return;
-    const equipeLive = creerEquipeBR(p.tournoiId, equipe.nom, moi, false);
-    ajouterMembresDirect(equipeLive.id, equipe.membres.filter((m) => m !== moi));
-    traiterPropositionEquipe(p.id, "validee");
+    const equipeLive = await creerEquipeBR(p.tournoiId, equipe.nom, false);
+    await ajouterMembresDirect(equipeLive.id, equipe.membres.filter((m) => m !== moi));
+    await traiterPropositionEquipe(p.id, "acceptee");
     router.push(`/tournois/${p.tournoiId}`);
   }
 
-  function refuserProposition(p: PropositionEquipe) {
-    traiterPropositionEquipe(p.id, "refusee");
-    setPropositions(propositionsEnAttentePourEquipe(equipe!.id));
+  async function refuserProposition(p: PropositionEquipe) {
+    await traiterPropositionEquipe(p.id, "refusee");
+    setPropositions(await propositionsEnAttentePourEquipe(equipe!.id));
   }
 
   return (

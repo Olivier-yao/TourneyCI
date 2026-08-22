@@ -93,6 +93,7 @@ export function CtaInscription({
   const [equipesProfilMembre, setEquipesProfilMembre] = useState<EquipeProfil[]>([]);
   const [propositionEnvoyee, setPropositionEnvoyee] = useState<string | null>(null);
   const [equipesBR, setEquipesBR] = useState<EquipeBR[]>([]);
+  const [demandesEnAttenteParEquipe, setDemandesEnAttenteParEquipe] = useState<Record<string, boolean>>({});
   const [nomEquipeBR, setNomEquipeBR] = useState("");
   const [payerPourEquipe, setPayerPourEquipe] = useState(false);
   const [equipeInvitee, setEquipeInvitee] = useState<EquipeBR | undefined>(undefined);
@@ -112,10 +113,10 @@ export function CtaInscription({
       setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
       const profil = lireProfil();
       setMonPseudo(profil.pseudo);
-      setEquipesProfilChef(equipesProfilDontChef(profil.pseudo));
-      setEquipesProfilMembre(equipesProfilDontMembreNonChef(profil.pseudo));
+      setEquipesProfilChef(await equipesProfilDontChef());
+      setEquipesProfilMembre(await equipesProfilDontMembreNonChef());
 
-      const equipeConfirmee = estBREquipes ? equipeDeJoueur(tournoiId, profil.pseudo) : undefined;
+      const equipeConfirmee = estBREquipes ? await equipeDeJoueur(tournoiId) : undefined;
       const dejaInscrit = await estInscrit(tournoiId);
       if (!dejaInscrit && equipeConfirmee) {
         if (fraisXof === 0 || equipeConfirmee.paiementCouvert) {
@@ -129,9 +130,16 @@ export function CtaInscription({
       setMonEquipeChef(equipeConfirmee && equipeConfirmee.chef === profil.pseudo ? equipeConfirmee : undefined);
 
       if (estBREquipes && equipePreselectionneeId && !dejaInscrit && !equipeConfirmee) {
-        const equipe = equipeParId(equipePreselectionneeId);
+        const equipe = await equipeParId(equipePreselectionneeId);
         setEquipeInvitee(equipe);
-        setDemandeEnvoyee(equipe ? aUneDemandeEnAttente(equipe.id, profil.pseudo) : false);
+        setDemandeEnvoyee(equipe ? await aUneDemandeEnAttente(equipe.id) : false);
+      }
+
+      if (estBREquipes) {
+        const equipes = await equipesDuTournoi(tournoiId);
+        setEquipesBR(equipes);
+        const pendingEntries = await Promise.all(equipes.map(async (e) => [e.id, await aUneDemandeEnAttente(e.id)] as const));
+        setDemandesEnAttenteParEquipe(Object.fromEntries(pendingEntries));
       }
     }
     charger();
@@ -208,14 +216,14 @@ export function CtaInscription({
     demarrerInscription(undefined, tag);
   }
 
-  function validerEquipeBR() {
+  async function validerEquipeBR() {
     if (!nomEquipeBR.trim()) {
       setErreur("Choisis un nom pour ton équipe.");
       return;
     }
     if (!brSousType || brSousType === "solo") return;
     setErreur(null);
-    const equipe = creerEquipeBR(tournoiId, nomEquipeBR.trim(), monPseudo, false);
+    const equipe = await creerEquipeBR(tournoiId, nomEquipeBR.trim(), false);
     setMonEquipeChef(equipe);
     const taille = TAILLE_EQUIPE_BR[brSousType];
     const montant = payerPourEquipe ? fraisXof * taille : fraisXof;
@@ -226,10 +234,10 @@ export function CtaInscription({
   /** Point 140 : utilise une équipe pré-créée du profil au lieu de recréer un
    * groupe éphémère de zéro — les membres sont intégrés directement (déjà
    * validés par le chef en amont), sans passer par la file de demandes. */
-  function utiliserEquipeProfil(ep: EquipeProfil) {
+  async function utiliserEquipeProfil(ep: EquipeProfil) {
     if (!brSousType || brSousType === "solo") return;
-    const equipe = creerEquipeBR(tournoiId, ep.nom, monPseudo, false);
-    ajouterMembresDirect(equipe.id, ep.membres.filter((m) => m !== monPseudo));
+    const equipe = await creerEquipeBR(tournoiId, ep.nom, false);
+    await ajouterMembresDirect(equipe.id, ep.membres.filter((m) => m !== monPseudo));
     const equipeAvecMembres = { ...equipe, membres: [...new Set([...equipe.membres, ...ep.membres])] };
     setMonEquipeChef(equipeAvecMembres);
     setEtapeBR(null);
@@ -238,23 +246,24 @@ export function CtaInscription({
 
   /** Point 192 : un membre non-chef ne peut que proposer — le chef doit
    * valider depuis "Mes équipes" pour que l'inscription se lance réellement. */
-  function proposerEquipe(ep: EquipeProfil) {
-    proposerInscriptionEquipe(ep.id, ep.nom, tournoiId, monPseudo, ep.chef);
+  async function proposerEquipe(ep: EquipeProfil) {
+    await proposerInscriptionEquipe(ep.id, tournoiId);
     setPropositionEnvoyee(ep.nom);
     setEtapeBR(null);
   }
 
-  function validerEquipeAleatoire() {
+  async function validerEquipeAleatoire() {
     if (!brSousType || brSousType === "solo") return;
-    const equipe = rejoindreEquipeAleatoire(tournoiId, monPseudo, brSousType);
+    const equipe = await rejoindreEquipeAleatoire(tournoiId, brSousType);
     setEtapeBR(null);
     demarrerInscription(equipe.nom, undefined, undefined, fraisXof);
   }
 
-  function demanderRejoindreEquipe(equipe: EquipeBR) {
-    demanderRejoindre(equipe.id, monPseudo);
+  async function demanderRejoindreEquipe(equipe: EquipeBR) {
+    await demanderRejoindre(equipe.id);
     setEquipeInvitee(equipe);
     setDemandeEnvoyee(true);
+    setDemandesEnAttenteParEquipe((v) => ({ ...v, [equipe.id]: true }));
     setEtapeBR(null);
   }
 
@@ -718,17 +727,14 @@ export function CtaInscription({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setEquipesBR(equipesDuTournoi(tournoiId));
-                  setEtapeBR("rejoindre");
-                }}
+                onClick={() => setEtapeBR("rejoindre")}
                 className={`flex items-center gap-3 p-3.5 text-left ${PRESS}`}
                 style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}
               >
                 <div className="flex-1">
                   <div className="text-sm font-medium">Rejoindre une équipe</div>
                   <div className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                    {equipesDuTournoi(tournoiId).length} ÉQUIPE{equipesDuTournoi(tournoiId).length === 1 ? "" : "S"} CHERCHENT DES JOUEURS
+                    {equipesBR.length} ÉQUIPE{equipesBR.length === 1 ? "" : "S"} CHERCHENT DES JOUEURS
                   </div>
                 </div>
               </button>
@@ -825,7 +831,7 @@ export function CtaInscription({
                 equipesBR.map((e) => {
                   const taille = brSousType && brSousType !== "solo" ? TAILLE_EQUIPE_BR[brSousType] : e.membres.length;
                   const complete = e.membres.length >= taille;
-                  const enAttente = aUneDemandeEnAttente(e.id, monPseudo);
+                  const enAttente = demandesEnAttenteParEquipe[e.id] ?? false;
                   return (
                     <div
                       key={e.id}
