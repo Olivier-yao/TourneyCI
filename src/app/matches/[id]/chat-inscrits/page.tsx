@@ -64,7 +64,7 @@ export default function ChatInscritsMatchPage() {
       setAutorise(suisInscrit || estOrg);
       await attendreProfil();
       setMonPseudo(lireProfil().pseudo);
-      setPresents(presentsDuTournoi(m.tournoiId));
+      setPresents(await presentsDuTournoi(m.tournoiId));
       setMessages(await messagesChatInscrits(params.id));
       setPret(true);
       intervalId = setInterval(async () => setMessages(await messagesChatInscrits(params.id)), RAFRAICHISSEMENT_MS);

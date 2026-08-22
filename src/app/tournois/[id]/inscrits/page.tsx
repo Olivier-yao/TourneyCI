@@ -10,7 +10,7 @@ import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { lireProfil, estActif } from "@/lib/mockProfil";
 import { inscriptionDe, estInscrit } from "@/lib/mockInscriptions";
-import { estPresent, definirPresence } from "@/lib/mockCheckin";
+import { estPresent, definirPresence, presentsDuTournoi } from "@/lib/mockCheckin";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 function tagDe(nom: string): string {
@@ -26,7 +26,7 @@ export default function InscritsPage() {
   const [monPseudo, setMonPseudo] = useState<{ nom: string; actif: boolean; photoUrl?: string } | null>(null);
   const [estMonTournoi, setEstMonTournoi] = useState(false);
   const [inscrit, setInscrit] = useState(false);
-  const [versionCheckin, setVersionCheckin] = useState(0);
+  const [presents, setPresents] = useState<string[]>([]);
 
   useEffect(() => {
     async function charger() {
@@ -38,6 +38,7 @@ export default function InscritsPage() {
       // Point 180 : un participant a accès à la liste des inscrits dès qu'il
       // s'est lui-même inscrit, sans attendre la clôture des inscriptions.
       setInscrit(await estInscrit(params.id));
+      setPresents(await presentsDuTournoi(params.id));
       setPret(true);
     }
     charger();
@@ -47,14 +48,12 @@ export default function InscritsPage() {
   const inscrits = useMemo(() => {
     const noms = tournoi?.inscrits ?? [];
     return noms
-      .map((nom) => ({ nom, tag: tagDe(nom), checkin: estPresent(params.id, nom) }))
+      .map((nom) => ({ nom, tag: tagDe(nom), checkin: estPresent(presents, nom) }))
       .filter((p) => !requete || p.nom.toLowerCase().includes(requete.toLowerCase()) || p.tag.toLowerCase().includes(requete.toLowerCase()));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournoi, requete, params.id, versionCheckin]);
+  }, [tournoi, requete, presents]);
 
-  function basculerPresence(nom: string, present: boolean) {
-    definirPresence(params.id, nom, !present);
-    setVersionCheckin((v) => v + 1);
+  async function basculerPresence(nom: string, present: boolean) {
+    setPresents(await definirPresence(params.id, nom, !present));
   }
 
   if (!pret) return null;

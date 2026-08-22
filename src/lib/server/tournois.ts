@@ -93,6 +93,7 @@ export function versTournoiJSON(row: TournoiDetailRow | TournoiListeRow) {
     placesInscrites: row._count.inscriptions,
     placesTotal: row.places_total,
     checkin: formaterHeureCheckin(row.checkin_le.getTime()),
+    checkinTs: row.checkin_le.getTime(),
     enDirect: estEnDirect(row),
     reglement: row.reglement,
     informations: row.informations ?? undefined,

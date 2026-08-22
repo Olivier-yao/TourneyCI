@@ -33,6 +33,7 @@ import { AppelResultats } from "@/components/ds/AppelResultats";
 import { CtaInscription } from "./CtaInscription";
 import { CarteOrganisateur } from "./CarteOrganisateur";
 import { FicheDirectSpectateur } from "./FicheDirectSpectateur";
+import { MaFicheInscrit } from "./MaFicheInscrit";
 
 const SEUIL_TEXTE_LONG = 140;
 
@@ -419,10 +420,19 @@ function DetailTournoiInterne() {
   // qui clique sur un tournoi en direct doit atterrir directement sur le
   // match en cours, dans le langage visuel de la vue Match en direct, plutôt
   // que sur la fiche tournoi statique — celle-ci reste inchangée pour
-  // l'organisateur et les inscrits. Réservé aux formats à bracket (le Battle
-  // Royale garde son bloc dédié, système de scoring différent).
+  // l'organisateur. Réservé aux formats à bracket (le Battle Royale garde
+  // son bloc dédié, système de scoring différent).
   if (tournoi.enDirect && tournoi.type !== "battle_royale" && !estMonTournoi && !estInscritTournoi) {
     return <FicheDirectSpectateur tournoi={tournoi} />;
+  }
+
+  // Un inscrit (jamais l'organisateur) a des enjeux propres à ce tournoi
+  // (son statut de check-in, son match, son adversaire) que la fiche
+  // standard ne montre pas — remplace la fiche standard dès l'inscription,
+  // pas seulement une fois le tournoi en direct (avant/pendant le check-in
+  // aussi). Même périmètre que ci-dessus : formats à bracket uniquement.
+  if (tournoi.type !== "battle_royale" && !estMonTournoi && estInscritTournoi) {
+    return <MaFicheInscrit tournoi={tournoi} />;
   }
 
   const pourcentagePlaces = Math.round(

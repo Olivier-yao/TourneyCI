@@ -72,6 +72,9 @@ export type Tournoi = {
   placesTotal: number;
   /** Dérivé de checkinTs (pas stocké), cf. src/lib/tournoiFormat.ts. */
   checkin: string;
+  /** Horodatage (ms) du check-in — checkin est le libellé déjà formaté,
+   * checkinTs sert aux écrans qui ont besoin de calculer un compte à rebours. */
+  checkinTs?: number;
   enDirect: boolean;
   reglement: string;
   /** Détails additionnels distincts du règlement (facultatif). */
