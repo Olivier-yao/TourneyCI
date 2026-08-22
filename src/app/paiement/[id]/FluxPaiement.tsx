@@ -44,7 +44,7 @@ export function FluxPaiement({
   const soldeInsuffisant = soldeCarte < montantDu;
 
   async function inscriptionReussie(): Promise<boolean> {
-    const resultat = await enregistrerInscription(tournoi.id, tag, equipe);
+    const resultat = await enregistrerInscription(tournoi.id, tag, equipe, montantDu);
     if (!resultat.ok) {
       // De l'argent a déjà été débité (payer() a validé le débit avant
       // d'appeler cette fonction) : on ne peut pas rester silencieux si

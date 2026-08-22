@@ -28,16 +28,30 @@ export async function inscriptionDe(tournoiId: string): Promise<Inscription | un
 
 export type ResultatInscription = { ok: boolean; erreur?: string };
 
-export async function enregistrerInscription(tournoiId: string, tag?: string, equipe?: string): Promise<ResultatInscription> {
+export async function enregistrerInscription(tournoiId: string, tag?: string, equipe?: string, montant?: number): Promise<ResultatInscription> {
   const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tag, equipe }),
+    body: JSON.stringify({ tag, equipe, montant }),
   });
   const json = await reponse.json().catch(() => null);
   if (!json?.success) return { ok: false, erreur: json?.error };
   cache = [...(cache ?? []).filter((i) => i.tournoiId !== tournoiId), { tournoiId, tag, equipe }];
   return { ok: true };
+}
+
+export type ResultatAnnulationInscription = { ok: boolean; erreur?: string; remboursementXof?: number };
+
+/** Annule ma propre inscription — uniquement avant l'ouverture du check-in
+ * (vérifié aussi côté serveur). Le remboursement effectif (mouvement wallet)
+ * reste à la charge de l'appelant : cette fonction ne fait que libérer la
+ * place et renvoyer le montant à recréditer. */
+export async function annulerMonInscription(tournoiId: string): Promise<ResultatAnnulationInscription> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`, { method: "DELETE" });
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  cache = (cache ?? []).filter((i) => i.tournoiId !== tournoiId);
+  return { ok: true, remboursementXof: json.data?.remboursementXof };
 }
 
 /** Renomme l'équipe de l'inscription courante (capitaine uniquement, avant le
