@@ -128,31 +128,51 @@ export function peutChangerNomOrganisateur(): { ok: boolean; prochainChangementL
   return peutModifierMensuel(brut ? Number(brut) : undefined);
 }
 
-const CLE_PHOTO_ORGANISATEUR = "tourney-photo-organisateur";
-const CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE = "tourney-photo-organisateur-modifiee-le";
+async function reponseJsonOrga<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string; prochainChangementLe?: number }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error, prochainChangementLe: json?.prochainChangementLe };
+  return { ok: true, data: json.data as T };
+}
+
+type ProfilOrganisateurApiJSON = {
+  tag?: string;
+  bio?: string;
+  banniereUrl?: string;
+  photoUrl?: string;
+  reseauxSociaux: ReseauSocial[];
+  reglementStandardAccepteLe?: number;
+  reglementCertifieAccepteLe?: number;
+};
+
+let profilOrganisateurCache: ProfilOrganisateurApiJSON | null = null;
+
+async function chargerProfilOrganisateur(): Promise<ProfilOrganisateurApiJSON> {
+  if (profilOrganisateurCache) return profilOrganisateurCache;
+  const reponse = await fetch("/api/organisateur/profil");
+  const resultat = await reponseJsonOrga<ProfilOrganisateurApiJSON>(reponse);
+  profilOrganisateurCache = resultat.ok ? resultat.data : { reseauxSociaux: [] };
+  return profilOrganisateurCache;
+}
+
+async function patchProfilOrganisateur(champ: Record<string, unknown>): Promise<{ ok: boolean; erreur?: string; prochainChangementLe?: number }> {
+  const reponse = await fetch("/api/organisateur/profil", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(champ),
+  });
+  const resultat = await reponseJsonOrga<void>(reponse);
+  if (resultat.ok) profilOrganisateurCache = null;
+  return resultat.ok ? { ok: true } : { ok: false, erreur: resultat.erreur, prochainChangementLe: resultat.prochainChangementLe };
+}
 
 /** Point 164 : photo de profil organisateur, distincte de la photo de
  * profil joueur — modifiable une fois par semaine. */
-export function photoOrganisateur(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(cleCompte(CLE_PHOTO_ORGANISATEUR)) || undefined;
+export async function photoOrganisateur(): Promise<string | undefined> {
+  return (await chargerProfilOrganisateur()).photoUrl;
 }
 
-export function peutChangerPhotoOrganisateur(): { ok: boolean; prochainChangementLe?: number } {
-  if (typeof window === "undefined") return { ok: true };
-  const brut = localStorage.getItem(cleCompte(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE));
-  if (!brut) return { ok: true };
-  const dernierChangement = Number(brut);
-  const SEPT_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
-  const prochain = dernierChangement + SEPT_JOURS_MS;
-  if (Date.now() >= prochain) return { ok: true };
-  return { ok: false, prochainChangementLe: prochain };
-}
-
-export function definirPhotoOrganisateur(dataUrl: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_PHOTO_ORGANISATEUR), dataUrl);
-  localStorage.setItem(cleCompte(CLE_PHOTO_ORGANISATEUR_MODIFIEE_LE), String(Date.now()));
+export async function definirPhotoOrganisateur(dataUrl: string): Promise<{ ok: boolean; erreur?: string; prochainChangementLe?: number }> {
+  return patchProfilOrganisateur({ photoUrl: dataUrl });
 }
 
 /** Identité organisateur utilisée partout où un tournoi doit être rattaché
@@ -185,35 +205,27 @@ export function estOrganisateurCertifie(): boolean {
   return estCertifie() && estOrganisateurApprouve();
 }
 
-const CLE_REGLEMENT_CERTIFIE_ACCEPTE = "tourney-reglement-certifie-accepte";
-
 /** Point 159 : règlement spécifique aux organisateurs certifiés, distinct du
  * règlement intérieur général (point 147) — accepté une seule fois, après
  * validation de la demande de certification, avant de pouvoir créer un
  * tournoi payant. */
-export function reglementCertifieAccepte(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(cleCompte(CLE_REGLEMENT_CERTIFIE_ACCEPTE)) === "1";
+export async function reglementCertifieAccepte(): Promise<boolean> {
+  return Boolean((await chargerProfilOrganisateur()).reglementCertifieAccepteLe);
 }
 
-export function marquerReglementCertifieAccepte() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_REGLEMENT_CERTIFIE_ACCEPTE), "1");
+export async function marquerReglementCertifieAccepte(): Promise<void> {
+  await patchProfilOrganisateur({ reglementCertifieAccepte: true });
 }
-
-const CLE_REGLEMENT_STANDARD_ACCEPTE = "tourney-reglement-standard-accepte";
 
 /** Point 178 : règlement général affiché au clic sur "Devenir organisateur",
  * avant le choix du nom — distinct du règlement organisateur certifié
  * (point 159) qui, lui, ne concerne que les tournois payants. */
-export function reglementStandardAccepte(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(cleCompte(CLE_REGLEMENT_STANDARD_ACCEPTE)) === "1";
+export async function reglementStandardAccepte(): Promise<boolean> {
+  return Boolean((await chargerProfilOrganisateur()).reglementStandardAccepteLe);
 }
 
-export function marquerReglementStandardAccepte() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_REGLEMENT_STANDARD_ACCEPTE), "1");
+export async function marquerReglementStandardAccepte(): Promise<void> {
+  await patchProfilOrganisateur({ reglementStandardAccepte: true });
 }
 
 /**
@@ -223,48 +235,36 @@ export function marquerReglementStandardAccepte() {
  * ils ne sont donc affichables que sur le profil "cestMoi", pas sur celui
  * d'un autre organisateur consulté depuis cet appareil.
  */
-const CLE_TAG_ORGANISATEUR = "tourney-tag-organisateur";
-const CLE_BIO_ORGANISATEUR = "tourney-bio-organisateur";
-const CLE_BANNIERE_ORGANISATEUR = "tourney-banniere-organisateur";
-
-export function tagOrganisateur(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(cleCompte(CLE_TAG_ORGANISATEUR)) || undefined;
+export async function tagOrganisateur(): Promise<string | undefined> {
+  return (await chargerProfilOrganisateur()).tag;
 }
 
-export function definirTagOrganisateur(tag: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_TAG_ORGANISATEUR), tag.trim());
+export async function definirTagOrganisateur(tag: string): Promise<void> {
+  await patchProfilOrganisateur({ tag: tag.trim() });
 }
 
-export function bioOrganisateur(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(cleCompte(CLE_BIO_ORGANISATEUR)) || undefined;
+export async function bioOrganisateur(): Promise<string | undefined> {
+  return (await chargerProfilOrganisateur()).bio;
 }
 
-export function definirBioOrganisateur(bio: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_BIO_ORGANISATEUR), bio.trim());
+export async function definirBioOrganisateur(bio: string): Promise<void> {
+  await patchProfilOrganisateur({ bio: bio.trim() });
 }
 
-export function banniereOrganisateur(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(cleCompte(CLE_BANNIERE_ORGANISATEUR)) || undefined;
+export async function banniereOrganisateur(): Promise<string | undefined> {
+  return (await chargerProfilOrganisateur()).banniereUrl;
 }
 
-export function definirBanniereOrganisateur(dataUrl: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_BANNIERE_ORGANISATEUR), dataUrl);
+export async function definirBanniereOrganisateur(dataUrl: string): Promise<void> {
+  await patchProfilOrganisateur({ banniereUrl: dataUrl });
 }
 
 /**
  * Réseaux sociaux de l'organisateur (profil organisateur) : liens directs
  * mentionnés par l'organisateur lui-même, affichés aux visiteurs de son
  * profil avec un bouton "Suivre" qui ouvre le réseau en question — pas un
- * vrai suivi in-app, juste une redirection directe. Comme le TAG/bio/
- * bannière ci-dessus, ces données ne sont connues que de l'appareil courant
- * (pas de backend partagé tant que la phase 8 n'est pas là) : un seul lien
- * par plateforme.
+ * vrai suivi in-app, juste une redirection directe. Un seul lien par
+ * plateforme (contrainte unique en base, profile_id+plateforme).
  */
 export type PlateformeSociale = "instagram" | "tiktok" | "youtube" | "facebook" | "x" | "whatsapp" | "twitch" | "discord" | "snapchat" | "site";
 
@@ -283,40 +283,28 @@ export const PLATEFORMES_SOCIALES: { id: PlateformeSociale; label: string; coule
 
 export type ReseauSocial = { plateforme: PlateformeSociale; url: string };
 
-const CLE_RESEAUX_SOCIAUX = "tourney-reseaux-sociaux-organisateur";
-
-function normaliserUrlReseau(url: string): string {
-  const cible = url.trim();
-  if (!cible) return cible;
-  return /^https?:\/\//i.test(cible) ? cible : `https://${cible}`;
-}
-
-export function reseauxSociauxOrganisateur(): ReseauSocial[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(cleCompte(CLE_RESEAUX_SOCIAUX));
-    return brut ? (JSON.parse(brut) as ReseauSocial[]) : [];
-  } catch {
-    return [];
-  }
+export async function reseauxSociauxOrganisateur(): Promise<ReseauSocial[]> {
+  return (await chargerProfilOrganisateur()).reseauxSociaux;
 }
 
 /** Ajoute ou remplace le lien d'une plateforme (un seul lien par plateforme). */
-export function definirReseauSocial(plateforme: PlateformeSociale, url: string) {
-  if (typeof window === "undefined" || !url.trim()) return;
-  const existants = reseauxSociauxOrganisateur().filter((r) => r.plateforme !== plateforme);
-  localStorage.setItem(
-    cleCompte(CLE_RESEAUX_SOCIAUX),
-    JSON.stringify([...existants, { plateforme, url: normaliserUrlReseau(url) }]),
-  );
+export async function definirReseauSocial(plateforme: PlateformeSociale, url: string): Promise<void> {
+  if (!url.trim()) return;
+  const reponse = await fetch("/api/organisateur/profil/reseaux", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plateforme, url }),
+  });
+  if (reponse.ok) profilOrganisateurCache = null;
 }
 
-export function retirerReseauSocial(plateforme: PlateformeSociale) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(
-    cleCompte(CLE_RESEAUX_SOCIAUX),
-    JSON.stringify(reseauxSociauxOrganisateur().filter((r) => r.plateforme !== plateforme)),
-  );
+export async function retirerReseauSocial(plateforme: PlateformeSociale): Promise<void> {
+  const reponse = await fetch("/api/organisateur/profil/reseaux", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plateforme }),
+  });
+  if (reponse.ok) profilOrganisateurCache = null;
 }
 
 /**

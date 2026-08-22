@@ -25,12 +25,14 @@ export default function ReglementStandardPage() {
   const conteneurRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (onboardingOrganisateurComplet() || reglementStandardAccepte()) {
-      router.replace("/organisateur");
-      return;
+    async function verifier() {
+      if (onboardingOrganisateurComplet() || (await reglementStandardAccepte())) {
+        router.replace("/organisateur");
+        return;
+      }
+      setPret(true);
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPret(true);
+    verifier();
   }, [router]);
 
   function surDefilement() {
@@ -41,9 +43,9 @@ export default function ReglementStandardPage() {
     }
   }
 
-  function continuer() {
+  async function continuer() {
     if (!aLuJusquauBout) return;
-    marquerReglementStandardAccepte();
+    await marquerReglementStandardAccepte();
     // Point 190 : replace, pas push — voir bienvenue-profil pour le détail.
     router.replace("/organisateur");
   }

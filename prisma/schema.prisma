@@ -877,7 +877,7 @@ model notifs_tournoi_suivis {
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model organisateur_profils {
   profile_id                    String    @id @db.Uuid
-  nom_organisateur              String    @unique
+  nom_organisateur              String?   @unique
   bio                           String?
   banniere_url                  String?
   photo_url                     String?
@@ -885,8 +885,21 @@ model organisateur_profils {
   reglement_certifie_accepte_le DateTime? @db.Timestamptz(6)
   statut_moderation             String    @default("actif")
   suivi_masque                  Boolean   @default(false)
+  tag                           String?
+  photo_modifiee_le             DateTime? @db.Timestamptz(6)
   profiles                      profiles  @relation(fields: [profile_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model organisateur_reseaux_sociaux {
+  profile_id String   @db.Uuid
+  plateforme String
+  url        String
+  profiles   profiles @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([profile_id, plateforme])
   @@schema("public")
 }
 
@@ -950,6 +963,7 @@ model profiles {
   notifications                                                         notifications[]
   notifs_tournoi_suivis                                                 notifs_tournoi_suivis[]
   organisateur_profils                                                  organisateur_profils?
+  organisateur_reseaux_sociaux                                          organisateur_reseaux_sociaux[]
   plaintes                                                              plaintes[]
   users                                                                 users                       @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   villes                                                                villes?                     @relation(fields: [ville_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

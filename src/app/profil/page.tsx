@@ -72,7 +72,7 @@ export default function ProfilPage() {
         onboardingOk,
         certifie: estOrganisateurCertifie(),
         nom: nomOrga,
-        tag: tagOrganisateur(),
+        tag: await tagOrganisateur(),
         coeurs: stats.coeurs,
         coeursBrises: stats.coeursBrises,
         followers: compteurFollowers(nomOrga),

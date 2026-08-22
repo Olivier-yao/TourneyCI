@@ -30,7 +30,7 @@ export default function ClassementOrganisateursPage() {
   useEffect(() => {
     async function charger() {
       setClassement(await classementOrganisateurs());
-      setMaPhoto(photoOrganisateur());
+      setMaPhoto(await photoOrganisateur());
     }
     charger();
   }, []);

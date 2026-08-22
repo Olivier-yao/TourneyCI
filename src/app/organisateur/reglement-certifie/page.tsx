@@ -24,16 +24,18 @@ export default function ReglementCertifiePage() {
   const conteneurRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!estOrganisateurCertifie()) {
-      router.replace("/organisateur");
-      return;
+    async function verifier() {
+      if (!estOrganisateurCertifie()) {
+        router.replace("/organisateur");
+        return;
+      }
+      if (await reglementCertifieAccepte()) {
+        router.replace("/organisateur");
+        return;
+      }
+      setPret(true);
     }
-    if (reglementCertifieAccepte()) {
-      router.replace("/organisateur");
-      return;
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPret(true);
+    verifier();
   }, [router]);
 
   function surDefilement() {
@@ -44,9 +46,9 @@ export default function ReglementCertifiePage() {
     }
   }
 
-  function continuer() {
+  async function continuer() {
     if (!aLuJusquauBout) return;
-    marquerReglementCertifieAccepte();
+    await marquerReglementCertifieAccepte();
     // Point 190 : replace, pas push — voir bienvenue-profil pour le détail.
     router.replace("/organisateur/nouveau");
   }

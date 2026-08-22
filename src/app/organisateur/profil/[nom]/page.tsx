@@ -36,7 +36,6 @@ import {
   marquerNomOrganisateurModifie,
   photoOrganisateur,
   definirPhotoOrganisateur,
-  peutChangerPhotoOrganisateur,
   reseauxSociauxOrganisateur,
   definirReseauSocial,
   retirerReseauSocial,
@@ -142,11 +141,11 @@ export default function ProfilOrganisateurPage() {
     // partagé et affiche toujours certifié (limitation connue).
     setCertifie(moi ? estOrganisateurCertifie() : true);
     if (moi) {
-      setTag(tagOrganisateur());
-      setBio(bioOrganisateur());
-      setBanniere(banniereOrganisateur());
-      setPhoto(photoOrganisateur());
-      setReseaux(reseauxSociauxOrganisateur());
+      setTag(await tagOrganisateur());
+      setBio(await bioOrganisateur());
+      setBanniere(await banniereOrganisateur());
+      setPhoto(await photoOrganisateur());
+      setReseaux(await reseauxSociauxOrganisateur());
       setAdjoints(await adjointsDe());
       setInvitationsEnAttente(await invitationsRecues());
     } else {
@@ -221,44 +220,43 @@ export default function ProfilOrganisateurPage() {
     router.replace(`/organisateur/profil/${encodeURIComponent(nouveauNom)}`);
   }
 
-  function validerPhoto(dataUrl: string) {
-    const { ok, prochainChangementLe } = peutChangerPhotoOrganisateur();
+  async function validerPhoto(dataUrl: string) {
+    const { ok, prochainChangementLe } = await definirPhotoOrganisateur(dataUrl);
     if (!ok) {
       setErreurPhoto(`Tu pourras changer ta photo organisateur à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`);
       return;
     }
-    definirPhotoOrganisateur(dataUrl);
     setPhoto(dataUrl);
     setErreurPhoto(null);
     setEditionPhotoOuverte(false);
   }
 
-  function validerTag() {
-    definirTagOrganisateur(brouillonTag);
+  async function validerTag() {
+    await definirTagOrganisateur(brouillonTag);
     setTag(brouillonTag.trim() || undefined);
     setEditionTag(false);
   }
 
-  function validerBio() {
-    definirBioOrganisateur(brouillonBio);
+  async function validerBio() {
+    await definirBioOrganisateur(brouillonBio);
     setBio(brouillonBio.trim() || undefined);
     setEditionBio(false);
   }
 
-  function ajouterReseau() {
+  async function ajouterReseau() {
     if (!urlAjout.trim()) {
       setErreurReseau("Ajoute le lien direct de ton profil.");
       return;
     }
-    definirReseauSocial(plateformeAjout, urlAjout);
-    setReseaux(reseauxSociauxOrganisateur());
+    await definirReseauSocial(plateformeAjout, urlAjout);
+    setReseaux(await reseauxSociauxOrganisateur());
     setUrlAjout("");
     setErreurReseau(null);
   }
 
-  function supprimerReseau(plateforme: PlateformeSociale) {
-    retirerReseauSocial(plateforme);
-    setReseaux(reseauxSociauxOrganisateur());
+  async function supprimerReseau(plateforme: PlateformeSociale) {
+    await retirerReseauSocial(plateforme);
+    setReseaux(await reseauxSociauxOrganisateur());
   }
 
   async function partager() {
@@ -324,8 +322,8 @@ export default function ProfilOrganisateurPage() {
         <div className="not-italic" style={{ whiteSpace: "normal" }}>
           <BannerCropper
             banniereActuelle={banniere}
-            onValider={(dataUrl) => {
-              definirBanniereOrganisateur(dataUrl);
+            onValider={async (dataUrl) => {
+              await definirBanniereOrganisateur(dataUrl);
               setBanniere(dataUrl);
               setEditionBanniereOuverte(false);
             }}

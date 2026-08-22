@@ -312,7 +312,7 @@ function OrganisateurPageInterne() {
       const nom = nomOrganisateur();
       // Point 178 : le règlement général doit être lu avant même le choix du
       // nom d'organisateur, la toute première fois.
-      if (!nom && !reglementStandardAccepte()) {
+      if (!nom && !(await reglementStandardAccepte())) {
         router.replace("/organisateur/reglement-standard");
         return;
       }

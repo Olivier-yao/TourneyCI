@@ -172,7 +172,7 @@ export default function NouveauTournoiPage() {
       // Point 159 : le règlement organisateur certifié doit être accepté avant
       // le premier tournoi payant — un organisateur qui vient d'être certifié
       // mais n'est pas encore passé par cet écran y est renvoyé ici.
-      if (estCert && !reglementCertifieAccepte()) {
+      if (estCert && !(await reglementCertifieAccepte())) {
         router.replace("/organisateur/reglement-certifie");
         return;
       }
