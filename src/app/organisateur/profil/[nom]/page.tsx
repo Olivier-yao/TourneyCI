@@ -11,14 +11,7 @@ import { Modal } from "@/components/ds/Modal";
 import { Avatar } from "@/components/ds/Avatar";
 import { PRESS } from "@/components/ds/Button";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
-import {
-  suisOrganisateur,
-  basculerSuiviOrganisateur,
-  compteurFollowers,
-  listeFollowers,
-  suiviMasque,
-  definirMasquageSuivi,
-} from "@/lib/mockSuiviOrganisateur";
+import { infosSuiviOrganisateur, basculerSuiviOrganisateur, definirMasquageSuivi } from "@/lib/mockSuiviOrganisateur";
 import {
   statistiquesReputation,
   nomOrganisateurActuel,
@@ -86,6 +79,7 @@ export default function ProfilOrganisateurPage() {
   const [editionBanniereOuverte, setEditionBanniereOuverte] = useState(false);
   const [suivi, setSuivi] = useState(false);
   const [nbFollowers, setNbFollowers] = useState(0);
+  const [followers, setFollowers] = useState<string[]>([]);
   const [masqueFollowers, setMasqueFollowers] = useState(false);
   const [modaleFollowersOuverte, setModaleFollowersOuverte] = useState(false);
   const [editionTag, setEditionTag] = useState(false);
@@ -128,9 +122,11 @@ export default function ProfilOrganisateurPage() {
     setAvisParTournoi(await compterAvisPlusieurs(tournoisDeCetOrganisateur.map((t) => t.id)));
     setStats(await statistiquesReputation(nom));
     setMonAvis(await monAvisPourOrganisateur(nom));
-    setSuivi(suisOrganisateur(nom));
-    setNbFollowers(compteurFollowers(nom));
-    setMasqueFollowers(suiviMasque(nom));
+    const infosSuivi = await infosSuiviOrganisateur(nom);
+    setSuivi(infosSuivi.suivi);
+    setNbFollowers(infosSuivi.compte);
+    setFollowers(infosSuivi.followers);
+    setMasqueFollowers(infosSuivi.masque);
     const classement = await classementOrganisateurs();
     setRang(classement.findIndex((o) => o.nom === nom) + 1);
     const moi = nomOrganisateurActuel() === nom;
@@ -517,7 +513,7 @@ export default function ProfilOrganisateurPage() {
             <input
               type="checkbox"
               checked={masqueFollowers}
-              onChange={(e) => { definirMasquageSuivi(nom, e.target.checked); setMasqueFollowers(e.target.checked); }}
+              onChange={(e) => { definirMasquageSuivi(e.target.checked); setMasqueFollowers(e.target.checked); }}
             />
             Masquer mon nombre de followers aux visiteurs de mon profil
           </label>
@@ -526,9 +522,10 @@ export default function ProfilOrganisateurPage() {
         {!cestMoi && (
           <button
             type="button"
-            onClick={() => {
-              setSuivi(basculerSuiviOrganisateur(nom));
-              setNbFollowers(compteurFollowers(nom));
+            onClick={async () => {
+              const r = await basculerSuiviOrganisateur(nom);
+              setSuivi(r.suivi);
+              setNbFollowers(r.compte);
             }}
             className={`h-[46px] text-sm font-medium ${PRESS}`}
             style={{
@@ -836,7 +833,7 @@ export default function ProfilOrganisateurPage() {
 
       <Modal ouvert={modaleFollowersOuverte} titre={`${nbFollowers} followers`} onFermer={() => setModaleFollowersOuverte(false)}>
         <div className="flex flex-col gap-2 not-italic" style={{ whiteSpace: "normal" }}>
-          {listeFollowers(nom).map((n) => (
+          {followers.map((n) => (
             <div key={n} className="flex items-center gap-3">
               <Avatar initiales={n.slice(0, 2).toUpperCase()} taille={30} />
               <span className="text-sm" style={{ color: "var(--ds-text)" }}>{n}</span>

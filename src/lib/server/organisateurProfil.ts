@@ -24,6 +24,7 @@ export type ProfilOrganisateurJSON = {
   reseauxSociaux: ReseauSocial[];
   reglementStandardAccepteLe?: number;
   reglementCertifieAccepteLe?: number;
+  suiviMasque: boolean;
 };
 
 export async function profilOrganisateurJSON(profileId: string): Promise<ProfilOrganisateurJSON> {
@@ -39,7 +40,19 @@ export async function profilOrganisateurJSON(profileId: string): Promise<ProfilO
     reseauxSociaux: reseaux.map((r) => ({ plateforme: r.plateforme as PlateformeSociale, url: r.url })),
     reglementStandardAccepteLe: profil?.reglement_standard_accepte_le?.getTime(),
     reglementCertifieAccepteLe: profil?.reglement_certifie_accepte_le?.getTime(),
+    suiviMasque: profil?.suivi_masque ?? false,
   };
+}
+
+/** L'organisateur peut masquer publiquement SON PROPRE compteur de
+ * followers (le nombre reste calculé normalement, juste pas affiché aux
+ * visiteurs — cf. GET /api/organisateur/[nom]/suivi). */
+export async function definirSuiviMasque(profileId: string, masque: boolean): Promise<void> {
+  await prisma.organisateur_profils.upsert({
+    where: { profile_id: profileId },
+    create: { profile_id: profileId, suivi_masque: masque },
+    update: { suivi_masque: masque },
+  });
 }
 
 export async function definirTag(profileId: string, tag: string): Promise<void> {

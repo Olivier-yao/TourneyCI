@@ -9,6 +9,7 @@ import {
   peutChangerPhoto,
   definirReglementStandardAccepte,
   definirReglementCertifieAccepte,
+  definirSuiviMasque,
 } from "@/lib/server/organisateurProfil";
 
 /** Réservé au compte connecté : TAG, bio, bannière, photo, réseaux sociaux
@@ -43,6 +44,7 @@ export async function PATCH(request: Request) {
 
   if (body?.reglementStandardAccepte === true) await definirReglementStandardAccepte(user.id);
   if (body?.reglementCertifieAccepte === true) await definirReglementCertifieAccepte(user.id);
+  if (typeof body?.suiviMasque === "boolean") await definirSuiviMasque(user.id, body.suiviMasque);
 
   return NextResponse.json({ success: true });
 }

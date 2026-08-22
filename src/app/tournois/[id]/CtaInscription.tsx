@@ -110,7 +110,7 @@ export function CtaInscription({
     async function charger() {
       setFavori(await estFavori(tournoiId));
       setNotifs(await notifsActivees(tournoiId));
-      setSoutien(Boolean(monSoutienPourOrganisateur(organisateur)));
+      setSoutien(await monSoutienPourOrganisateur(organisateur));
       await attendreProfil();
       const profil = lireProfil();
       setMonPseudo(profil.pseudo);
@@ -281,8 +281,8 @@ export function CtaInscription({
     setRenommage(false);
   }
 
-  function envoyerSoutien() {
-    soutenirOrganisateur(organisateur, tournoiId);
+  async function envoyerSoutien() {
+    await soutenirOrganisateur(organisateur, tournoiId);
     setSoutien(true);
   }
 

@@ -15,7 +15,7 @@ import { equipesDuJoueur } from "@/lib/mockEquipesBR";
 import { equipesProfilDontChef } from "@/lib/mockEquipesProfil";
 import { tournoiParId, mesTournoisOrganises, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie, estOrganisateurCertifie, nomOrganisateurActuel, onboardingOrganisateurComplet, statistiquesReputation, tagOrganisateur } from "@/lib/mockOrganisateur";
-import { compteurFollowers } from "@/lib/mockSuiviOrganisateur";
+import { infosSuiviOrganisateur } from "@/lib/mockSuiviOrganisateur";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { rolePrefere, definirRole, type Role } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -75,7 +75,7 @@ export default function ProfilPage() {
         tag: await tagOrganisateur(),
         coeurs: stats.coeurs,
         coeursBrises: stats.coeursBrises,
-        followers: compteurFollowers(nomOrga),
+        followers: (await infosSuiviOrganisateur(nomOrga)).compte,
         rang: classement.findIndex((o) => o.nom === nomOrga) + 1,
         tournois: tournoisOrganises,
       });
