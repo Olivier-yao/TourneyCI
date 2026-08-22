@@ -197,17 +197,26 @@ export function repartitionAutomatique(montantNetXof: number, nbFinalistes: numb
   return montants.map((montantXof, i) => ({ label: libelle(i), montantXof }));
 }
 
-/** Cash prize réellement affichable/versable (point 123) : jamais basé sur
- * la capacité maximale théorique fixée à la création, toujours recalculé
- * depuis le nombre réel d'inscrits (et donc de frais réellement collectés),
- * commission déduite. Les tournois gratuits financés par l'organisateur
- * gardent leur montant fixe, engagé dès la création — ce n'est pas une
- * cagnotte qui dépend des inscriptions. */
+/** Cash prize réellement affichable/versable (point 123) : tant que les
+ * inscriptions restent ouvertes, basé sur la capacité maximale fixée à la
+ * création (placesTotal) — pas sur les inscrits actuels, qui démarrent à
+ * zéro et afficheraient "Gratuit" sur un tournoi payant qui vient tout
+ * juste d'être publié, avant son premier inscrit. Une fois les inscriptions
+ * closes, recalculé sur le nombre réel d'inscrits (et donc de frais
+ * réellement collectés), commission déduite — c'est ce montant, désormais
+ * définitif, qui sera effectivement versé (cf. cashPrizeEstEstime). Les
+ * tournois gratuits financés par l'organisateur gardent leur montant fixe,
+ * engagé dès la création — ce n'est pas une cagnotte qui dépend des
+ * inscriptions. */
 export function cashPrizeAffiche(
-  tournoi: Pick<Tournoi, "fraisXof" | "placesInscrites" | "financementCashPrize" | "commissionActivee" | "cashPrizeXof">,
+  tournoi: Pick<
+    Tournoi,
+    "fraisXof" | "placesInscrites" | "placesTotal" | "financementCashPrize" | "commissionActivee" | "cashPrizeXof" | "finInscriptionsTs" | "debutTournoiTs" | "enDirect"
+  >,
 ): number {
   if (tournoi.financementCashPrize === "organisateur" || tournoi.fraisXof <= 0) return tournoi.cashPrizeXof;
-  const poolBrut = tournoi.fraisXof * tournoi.placesInscrites;
+  const places = inscriptionsFermees(tournoi) ? tournoi.placesInscrites : tournoi.placesTotal;
+  const poolBrut = tournoi.fraisXof * places;
   const commissionBrute = tournoi.commissionActivee ? Math.round(poolBrut * COMMISSION_PCT) : 0;
   return Math.max(0, poolBrut - commissionBrute);
 }
