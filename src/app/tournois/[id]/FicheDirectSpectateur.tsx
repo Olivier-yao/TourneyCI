@@ -497,6 +497,10 @@ function SceneEntreDeuxMatchs({
     .slice(-3)
     .reverse();
   const avancement = matchs.length > 0 ? Math.round((matchsTermines / matchs.length) * 100) : 0;
+  // Entre deux matchs, la tribune reste accessible via le prochain match prêt
+  // (ou, à défaut, le dernier terminé) — sinon "X spectateurs discutent"
+  // n'était qu'un texte inerte tant qu'aucun match n'était en_cours.
+  const matchChat = prochainMatch ?? derniersResultats[0];
 
   return (
     <>
@@ -599,10 +603,21 @@ function SceneEntreDeuxMatchs({
           <Bell size={16} strokeWidth={2} fill={notifs ? "currentColor" : "none"} />
           {notifs ? "Tu seras prévenu à la reprise" : "Me prévenir à la reprise"}
         </button>
-        <div className="h-10 flex items-center justify-center gap-2 text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
-          <MessagesSquare size={14} strokeWidth={2} />
-          {spectateurs} spectateur{spectateurs > 1 ? "s" : ""} discutent
-        </div>
+        {matchChat ? (
+          <Link
+            href={`/matches/${matchChat.id}/chat`}
+            className={`h-10 flex items-center justify-center gap-2 text-xs font-medium ${PRESS}`}
+            style={{ borderRadius: "var(--ds-radius-md)", color: "var(--ds-muted)" }}
+          >
+            <MessagesSquare size={14} strokeWidth={2} />
+            {spectateurs} spectateur{spectateurs > 1 ? "s" : ""} discutent
+          </Link>
+        ) : (
+          <div className="h-10 flex items-center justify-center gap-2 text-xs font-medium" style={{ color: "var(--ds-muted)" }}>
+            <MessagesSquare size={14} strokeWidth={2} />
+            {spectateurs} spectateur{spectateurs > 1 ? "s" : ""} discutent
+          </div>
+        )}
       </div>
     </>
   );
