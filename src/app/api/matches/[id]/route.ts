@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
 import { versMatchJSON } from "@/lib/server/matches";
+import { estAdjointAccepteDe } from "@/lib/server/adjoints";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,11 +15,12 @@ function interdit() {
   return NextResponse.json({ success: false, error: "Action réservée à l'organisateur ou aux joueurs de ce match." }, { status: 403 });
 }
 
-/** demarrer / score_direct : organisateur du tournoi uniquement (mêmes
- * écrans qu'aujourd'hui, GestionMatches.tsx). score_final : organisateur OU
- * l'un des deux joueurs du match (comparaison de pseudo, insensible à la
- * casse — même limitation de conception que le mock actuel pour les noms
- * d'équipe partagés, pas une régression introduite ici). */
+/** demarrer / score_direct : organisateur du tournoi ou l'un de ses
+ * adjoints acceptés (mêmes écrans qu'aujourd'hui, GestionMatches.tsx).
+ * score_final : organisateur, adjoint, OU l'un des deux joueurs du match
+ * (comparaison de pseudo, insensible à la casse — même limitation de
+ * conception que le mock actuel pour les noms d'équipe partagés, pas une
+ * régression introduite ici). */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await utilisateurConnecte();
   if (!user) return nonAuthentifie();
@@ -30,7 +32,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const match = await prisma.matches.findUnique({ where: { id }, include: { tournois: true } });
   if (!match) return NextResponse.json({ success: false, error: "Match introuvable." }, { status: 404 });
 
-  const estOrganisateur = match.tournois.organisateur_id === user.id;
+  const estOrganisateur =
+    match.tournois.organisateur_id === user.id || (await estAdjointAccepteDe(match.tournois.organisateur_id, user.id));
 
   if (action === "demarrer") {
     if (!estOrganisateur) return interdit();

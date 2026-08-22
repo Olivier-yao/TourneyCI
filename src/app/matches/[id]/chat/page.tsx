@@ -57,7 +57,7 @@ export default function ChatSpectateursMatchPage() {
       const suisInscrit = await estInscrit(m.tournoiId);
       setTournoi(t);
       setInscrit(suisInscrit);
-      setOrganisateur(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setOrganisateur(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
       setMessages(messagesChat(cleSpectateurs(params.id)));
       setPret(true);
       intervalId = setInterval(() => setMessages(messagesChat(cleSpectateurs(params.id))), RAFRAICHISSEMENT_MS);

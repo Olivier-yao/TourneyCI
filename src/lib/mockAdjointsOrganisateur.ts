@@ -1,100 +1,90 @@
-import { classementOrganisateurs } from "./mockClassementOrganisateurs";
-
 /**
- * Adjoints organisateur : un organisateur peut inviter un autre organisateur
- * existant à l'aider à superviser TOUS ses tournois (accès aux écrans de
- * gestion en direct — qualifications, room, stream). Un adjoint vient
- * "en soutien" : il n'a jamais accès aux réglages du tournoi (titre,
- * règlement...) ni à la demande d'annulation, qui restent réservés au
- * propriétaire.
+ * Adjoints organisateur — table `adjoints_organisateur` (Postgres via
+ * /api/adjoints), même pattern que les migrations précédentes (fonctions
+ * async, mêmes noms/signatures quand c'est possible). Les paramètres
+ * "moi" (proprietaire/adjoint identifiant l'appelant) disparaissent des
+ * signatures : ils étaient nécessaires au mock mono-appareil pour
+ * distinguer les deux comptes, mais le serveur dérive désormais toujours
+ * l'identité de l'appelant depuis la session, jamais du client.
  *
- * Comme le reste des recherches par nom dans ce mock mono-appareil, les
- * organisateurs "connus" pour l'invitation viennent des données de démo
- * (classementOrganisateurs) — pas de vrai registre partagé tant qu'il n'y a
- * pas de backend réel (phase 8).
+ * Un organisateur peut inviter un autre organisateur existant à l'aider à
+ * superviser TOUS ses tournois (accès aux écrans de gestion en direct —
+ * qualifications, room, stream). Un adjoint vient "en soutien" : il n'a
+ * jamais accès aux réglages du tournoi (titre, règlement...) ni à la
+ * demande d'annulation, qui restent réservés au propriétaire — ce
+ * périmètre est désormais vérifié côté serveur (cf. /api/matches/[id],
+ * /api/tournois/[id], /api/tournois/[id]/terminer), plus seulement
+ * affiché côté client.
  */
 
 export type StatutAdjoint = "en_attente" | "accepte";
 export type Adjoint = { proprietaire: string; adjoint: string; statut: StatutAdjoint; horodatage: number };
 
-// Pas de cleCompte() : une relation adjoint implique deux comptes différents
-// (propriétaire + adjoint) qui doivent tous les deux voir la même invitation
-// — namespacer par compte connecté la rendrait invisible à l'autre partie.
-const CLE = "tourney-adjoints-organisateur";
-
-function lireTout(): Adjoint[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE);
-    return brut ? (JSON.parse(brut) as Adjoint[]) : [];
-  } catch {
-    return [];
-  }
+async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string }> {
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data as T };
 }
 
-function ecrire(liste: Adjoint[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CLE, JSON.stringify(liste));
-}
+type AdjointsJSON = { adjoints: Adjoint[]; invitationsRecues: Adjoint[]; proprietairesSupervises: string[] };
 
-async function organisateurExiste(nom: string): Promise<boolean> {
-  return (await classementOrganisateurs()).some((o) => o.nom.toLowerCase() === nom.trim().toLowerCase());
+async function chargerAdjoints(): Promise<AdjointsJSON> {
+  const reponse = await fetch("/api/adjoints");
+  const resultat = await reponseJson<AdjointsJSON>(reponse);
+  return resultat.ok ? resultat.data : { adjoints: [], invitationsRecues: [], proprietairesSupervises: [] };
 }
 
 /** Envoie une invitation — renvoie un message d'erreur, ou null si OK. */
-export async function inviterAdjoint(proprietaire: string, nomAdjoint: string): Promise<string | null> {
-  const cible = nomAdjoint.trim();
-  if (!cible) return "Indique le nom de l'organisateur à inviter.";
-  if (cible.toLowerCase() === proprietaire.toLowerCase()) return "Tu ne peux pas t'inviter toi-même.";
-  if (!(await organisateurExiste(cible))) return "Aucun organisateur ne correspond à ce nom.";
-  const tous = lireTout();
-  if (tous.some((a) => a.proprietaire === proprietaire && a.adjoint.toLowerCase() === cible.toLowerCase())) {
-    return "Déjà invité.";
-  }
-  tous.push({ proprietaire, adjoint: cible, statut: "en_attente", horodatage: Date.now() });
-  ecrire(tous);
-  return null;
+export async function inviterAdjoint(nomAdjoint: string): Promise<string | null> {
+  const reponse = await fetch("/api/adjoints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nomAdjoint }),
+  });
+  const resultat = await reponseJson<null>(reponse);
+  return resultat.ok ? null : (resultat.erreur ?? "Erreur lors de l'invitation.");
 }
 
-/** Adjoints (invités + acceptés) d'un organisateur, pour son écran de gestion. */
-export function adjointsDe(proprietaire: string): Adjoint[] {
-  return lireTout()
-    .filter((a) => a.proprietaire === proprietaire)
-    .sort((a, b) => b.horodatage - a.horodatage);
+/** Adjoints (invités + acceptés) du compte connecté, pour son écran de gestion. */
+export async function adjointsDe(): Promise<Adjoint[]> {
+  return (await chargerAdjoints()).adjoints;
 }
 
-/** Organisateurs dont nomAdjoint est un adjoint accepté — sens inverse
- * d'adjointsDe(), pour l'onglet "Tournois à superviser" côté adjoint. */
-export function proprietairesSupervises(nomAdjoint: string): string[] {
-  return lireTout()
-    .filter((a) => a.adjoint === nomAdjoint && a.statut === "accepte")
-    .map((a) => a.proprietaire);
+/** Organisateurs dont le compte connecté est un adjoint accepté — sens
+ * inverse d'adjointsDe(), pour l'onglet "Tournois à superviser". */
+export async function proprietairesSupervises(): Promise<string[]> {
+  return (await chargerAdjoints()).proprietairesSupervises;
 }
 
-/** Invitations en attente reçues par un organisateur (à accepter/refuser). */
-export function invitationsRecues(nomOrganisateur: string): Adjoint[] {
-  return lireTout()
-    .filter((a) => a.adjoint === nomOrganisateur && a.statut === "en_attente")
-    .sort((a, b) => b.horodatage - a.horodatage);
+/** Invitations en attente reçues par le compte connecté (à accepter/refuser). */
+export async function invitationsRecues(): Promise<Adjoint[]> {
+  return (await chargerAdjoints()).invitationsRecues;
 }
 
-export function accepterInvitation(proprietaire: string, adjoint: string) {
-  ecrire(lireTout().map((a) => (a.proprietaire === proprietaire && a.adjoint === adjoint ? { ...a, statut: "accepte" as const } : a)));
+export async function accepterInvitation(proprietaire: string): Promise<void> {
+  await fetch("/api/adjoints/repondre", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ proprietaire, accepter: true }),
+  });
 }
 
-/** Refuse une invitation en attente, ou retire un adjoint déjà accepté — même
- * opération : supprime la relation. */
-export function retirerAdjoint(proprietaire: string, adjoint: string) {
-  ecrire(lireTout().filter((a) => !(a.proprietaire === proprietaire && a.adjoint === adjoint)));
-}
-
-function estAdjointAccepte(proprietaire: string, nomOrganisateur: string): boolean {
-  return lireTout().some((a) => a.proprietaire === proprietaire && a.adjoint === nomOrganisateur && a.statut === "accepte");
+/** Refuse une invitation en attente, ou retire/quitte une relation déjà
+ * acceptée — même opération : supprime la relation, dans un sens comme
+ * dans l'autre. */
+export async function retirerAdjoint(nomAutrePartie: string): Promise<void> {
+  await fetch(`/api/adjoints/${encodeURIComponent(nomAutrePartie)}`, { method: "DELETE" });
 }
 
 /** Le propriétaire ou l'un de ses adjoints acceptés peut superviser ce
  * tournoi (qualifications, room, stream) — jamais les réglages ni
- * l'annulation, réservés au seul propriétaire. */
-export function peutSuperviser(proprietaireDuTournoi: string, nomOrganisateurActuel: string): boolean {
-  return proprietaireDuTournoi === nomOrganisateurActuel || estAdjointAccepte(proprietaireDuTournoi, nomOrganisateurActuel);
+ * l'annulation, réservés au seul propriétaire. Ce contrôle ne fait plus
+ * qu'afficher/masquer les écrans : les actions réelles (démarrer un match,
+ * saisir un score, activer le stream, clôturer) sont désormais aussi
+ * vérifiées côté serveur (cf. /api/matches/[id], /api/tournois/[id],
+ * /api/tournois/[id]/terminer), qui seul fait foi. */
+export async function peutSuperviser(proprietaireDuTournoi: string, nomOrganisateurActuel: string): Promise<boolean> {
+  if (proprietaireDuTournoi === nomOrganisateurActuel) return true;
+  const supervises = await proprietairesSupervises();
+  return supervises.includes(proprietaireDuTournoi);
 }

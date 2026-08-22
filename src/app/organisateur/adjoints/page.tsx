@@ -7,7 +7,6 @@ import { ShieldCheck, BadgeCheck, Check, X, Trash2, UserPlus, ArrowDownToLine, A
 import { AppBar } from "@/components/ds/AppBar";
 import { PRESS } from "@/components/ds/Button";
 import { LiveBadge } from "@/components/ds/LiveBadge";
-import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
 import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import {
@@ -40,17 +39,16 @@ type GroupeSupervision = { organisateur: string; certifie: boolean; tournois: To
 export default function AdjointsPage() {
   const router = useRouter();
   const [onglet, setOnglet] = useState<"mine" | "super">("mine");
-  const [nom, setNom] = useState("");
   const [adjoints, setAdjoints] = useState<Adjoint[]>([]);
   const [invitationsEnAttente, setInvitationsEnAttente] = useState<Adjoint[]>([]);
   const [nomAjout, setNomAjout] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
   const [groupesSupervision, setGroupesSupervision] = useState<GroupeSupervision[]>([]);
 
-  async function rafraichir(nomActuel: string) {
-    setAdjoints(adjointsDe(nomActuel));
-    setInvitationsEnAttente(invitationsRecues(nomActuel));
-    const proprietaires = proprietairesSupervises(nomActuel);
+  async function rafraichir() {
+    setAdjoints(await adjointsDe());
+    setInvitationsEnAttente(await invitationsRecues());
+    const proprietaires = await proprietairesSupervises();
     const certifies = new Map((await classementOrganisateurs()).map((o) => [o.nom, o.certifie]));
     const tous = await tousLesTournois();
     setGroupesSupervision(
@@ -65,35 +63,30 @@ export default function AdjointsPage() {
   }
 
   useEffect(() => {
-    async function charger() {
-      const n = nomOrganisateurActuel();
-      setNom(n);
-      await rafraichir(n);
-    }
-    charger();
+    rafraichir();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function ajouter() {
-    const err = await inviterAdjoint(nom, nomAjout);
+    const err = await inviterAdjoint(nomAjout);
     if (err) {
       setErreur(err);
       return;
     }
     setNomAjout("");
     setErreur(null);
-    rafraichir(nom);
+    rafraichir();
   }
 
-  function retirer(nomAdjoint: string) {
-    retirerAdjoint(nom, nomAdjoint);
-    rafraichir(nom);
+  async function retirer(nomAdjoint: string) {
+    await retirerAdjoint(nomAdjoint);
+    rafraichir();
   }
 
-  function repondre(proprietaire: string, accepte: boolean) {
-    if (accepte) accepterInvitation(proprietaire, nom);
-    else retirerAdjoint(proprietaire, nom);
-    rafraichir(nom);
+  async function repondre(proprietaire: string, accepte: boolean) {
+    if (accepte) await accepterInvitation(proprietaire);
+    else await retirerAdjoint(proprietaire);
+    rafraichir();
   }
 
   const accepres = adjoints.filter((a) => a.statut === "accepte");

@@ -643,6 +643,19 @@ model equipes_profil_membres {
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model adjoints_organisateur {
+  proprietaire_id                                          String         @db.Uuid
+  adjoint_id                                                String         @db.Uuid
+  statut                                                    statut_adjoint @default(en_attente)
+  created_at                                                DateTime       @default(now()) @db.Timestamptz(6)
+  profiles_adjoints_organisateur_proprietaire_idToprofiles  profiles       @relation("adjoints_organisateur_proprietaire_idToprofiles", fields: [proprietaire_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profiles_adjoints_organisateur_adjoint_idToprofiles       profiles       @relation("adjoints_organisateur_adjoint_idToprofiles", fields: [adjoint_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([proprietaire_id, adjoint_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model favoris {
   profile_id String   @db.Uuid
   tournoi_id String   @db.Uuid
@@ -913,6 +926,8 @@ model profiles {
   pseudo_modifie_le                                                     DateTime?                   @db.Timestamptz(6)
   reglement_interieur_accepte_le                                        DateTime?                   @db.Timestamptz(6)
   created_at                                                            DateTime                    @default(now()) @db.Timestamptz(6)
+  adjoints_organisateur_adjoints_organisateur_proprietaire_idToprofiles adjoints_organisateur[]     @relation("adjoints_organisateur_proprietaire_idToprofiles")
+  adjoints_organisateur_adjoints_organisateur_adjoint_idToprofiles      adjoints_organisateur[]     @relation("adjoints_organisateur_adjoint_idToprofiles")
   appels                                                                appels[]
   avis_organisateur_avis_organisateur_auteur_idToprofiles               avis_organisateur[]         @relation("avis_organisateur_auteur_idToprofiles")
   avis_organisateur_avis_organisateur_organisateur_idToprofiles         avis_organisateur[]         @relation("avis_organisateur_organisateur_idToprofiles")
@@ -1258,6 +1273,13 @@ enum statut_match {
 enum type_avis {
   coeur
   coeur_brise
+
+  @@schema("public")
+}
+
+enum statut_adjoint {
+  en_attente
+  accepte
 
   @@schema("public")
 }

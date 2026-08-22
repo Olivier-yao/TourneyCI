@@ -51,9 +51,9 @@ export default function ClotureTournoiPage() {
   }
 
   useEffect(() => {
-    tournoiParId(params.id).then((t) => {
+    tournoiParId(params.id).then(async (t) => {
       setTournoi(t);
-      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
       setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
       setDemandeEnAttente(demandeAnnulationPourTournoi(params.id));
       setPret(true);

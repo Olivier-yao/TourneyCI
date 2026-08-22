@@ -33,7 +33,7 @@ export default function ChatTournoiPage() {
       const t = await tournoiParId(params.id);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTournoi(t);
-      const org = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
+      const org = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
       setOrganisateur(org);
       // Accessible dès l'inscription (pas besoin d'attendre la clôture des
       // inscriptions ni le début de la compétition).

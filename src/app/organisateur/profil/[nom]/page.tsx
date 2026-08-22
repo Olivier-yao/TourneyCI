@@ -144,8 +144,8 @@ export default function ProfilOrganisateurPage() {
       setBanniere(banniereOrganisateur());
       setPhoto(photoOrganisateur());
       setReseaux(reseauxSociauxOrganisateur());
-      setAdjoints(adjointsDe(nom));
-      setInvitationsEnAttente(invitationsRecues(nom));
+      setAdjoints(await adjointsDe());
+      setInvitationsEnAttente(await invitationsRecues());
     } else {
       setReseaux([]);
       setAdjoints([]);

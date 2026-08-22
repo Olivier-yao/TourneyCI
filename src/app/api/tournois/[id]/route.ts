@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { utilisateurConnecte, nonAuthentifie, versTournoiJSON, INCLUDE_TOURNOI_DETAIL } from "@/lib/server/tournois";
+import { estAdjointAccepteDe } from "@/lib/server/adjoints";
+
+/** Réglages réservés au seul propriétaire (jamais un adjoint) — tout le
+ * reste (aujourd'hui : streamActif) relève de la gestion en direct, cf.
+ * mockAdjointsOrganisateur.ts. */
+const CHAMPS_RESERVES_PROPRIETAIRE = ["titre", "ville", "checkinTs", "reglement", "informations", "symboleId"] as const;
 
 const REGEX_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,8 +39,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const existant = await prisma.tournois.findUnique({ where: { id } });
-  if (!existant || existant.organisateur_id !== user.id) {
+  if (!existant) {
     return NextResponse.json({ success: false, error: "Tournoi introuvable." }, { status: 404 });
+  }
+  const estProprietaire = existant.organisateur_id === user.id;
+  if (!estProprietaire && !(await estAdjointAccepteDe(existant.organisateur_id, user.id))) {
+    return NextResponse.json({ success: false, error: "Tournoi introuvable." }, { status: 404 });
+  }
+  if (!estProprietaire && CHAMPS_RESERVES_PROPRIETAIRE.some((champ) => body[champ] !== undefined)) {
+    return NextResponse.json({ success: false, error: "Réservé à l'organisateur." }, { status: 403 });
   }
 
   let villeId: number | undefined;

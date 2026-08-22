@@ -360,7 +360,7 @@ function DetailTournoiInterne() {
     async function charger() {
       const t = await tournoiParId(params.id);
       setTournoi(t);
-      const monTournoi = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
+      const monTournoi = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
       setEstMonTournoi(monTournoi);
       const inscrit = await estInscrit(params.id);
       setEstInscritTournoi(inscrit);

@@ -60,7 +60,7 @@ export default function ChatInscritsMatchPage() {
         return;
       }
       const t = await tournoiParId(m.tournoiId);
-      const estOrg = Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel());
+      const estOrg = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
       const suisInscrit = await estInscrit(m.tournoiId);
       setTournoi(t);
       setOrganisateur(estOrg);

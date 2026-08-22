@@ -44,7 +44,7 @@ export default function StreamTournoiPage() {
     async function charger() {
       const t = await tournoiParId(params.id);
       setTournoi(t);
-      setAutorise(Boolean(t) && peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
       setStreamActif(t?.streamActif ?? false);
       setPret(true);
     }

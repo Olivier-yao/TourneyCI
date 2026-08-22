@@ -43,7 +43,7 @@ export function MatchLiveClient({
       setMonPseudo(lireProfil().pseudo);
       await rafraichir();
       const tournoi = await tournoiParId(tournoiId);
-      if (tournoi && peutSuperviser(tournoi.organisateur, nomOrganisateurActuel())) setRole("organisateur");
+      if (tournoi && (await peutSuperviser(tournoi.organisateur, nomOrganisateurActuel()))) setRole("organisateur");
       else if (await estInscrit(tournoiId)) setRole("participant");
       else setRole("spectateur");
     }

@@ -29,6 +29,7 @@ export default function BracketPage() {
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
   const [matches, setMatches] = useState<MatchTournoi[]>([]);
+  const [estMonTournoi, setEstMonTournoi] = useState(false);
 
   useEffect(() => {
     tournoiParId(params.id).then((t) => {
@@ -36,6 +37,20 @@ export default function BracketPage() {
       setPret(true);
     });
   }, [params.id]);
+
+  useEffect(() => {
+    if (!tournoi) {
+      setEstMonTournoi(false);
+      return;
+    }
+    let annule = false;
+    peutSuperviser(tournoi.organisateur, nomOrganisateurActuel()).then((v) => {
+      if (!annule) setEstMonTournoi(v);
+    });
+    return () => {
+      annule = true;
+    };
+  }, [tournoi]);
 
   useEffect(() => {
     matchsDuTournoi(params.id).then(setMatches);
@@ -70,7 +85,6 @@ export default function BracketPage() {
     );
   }
 
-  const estMonTournoi = peutSuperviser(tournoi.organisateur, nomOrganisateurActuel());
   const verrouillee = bracketVerrouillee(tournoi) && !estMonTournoi;
 
   return (
