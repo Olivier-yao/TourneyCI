@@ -701,10 +701,11 @@ model invitations_equipe_profil {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model jeux {
-  id                 String     @id
+  id                 String              @id
   label              String
   genre              genre_jeu
-  capacite_lobby_max Int        @default(50)
+  capacite_lobby_max Int                 @default(50)
+  points_classement  points_classement[]
   tournois           tournois[]
 
   @@schema("public")
@@ -947,6 +948,8 @@ model profiles {
   pseudo_modifie_le                                                     DateTime?                      @db.Timestamptz(6)
   reglement_interieur_accepte_le                                        DateTime?                      @db.Timestamptz(6)
   created_at                                                            DateTime                       @default(now()) @db.Timestamptz(6)
+  matchs_joues                                                          Int                            @default(0)
+  victoires                                                             Int                            @default(0)
   adjoints_organisateur_adjoints_organisateur_adjoint_idToprofiles      adjoints_organisateur[]        @relation("adjoints_organisateur_adjoint_idToprofiles")
   adjoints_organisateur_adjoints_organisateur_proprietaire_idToprofiles adjoints_organisateur[]        @relation("adjoints_organisateur_proprietaire_idToprofiles")
   appels                                                                appels[]
@@ -973,6 +976,7 @@ model profiles {
   organisateur_profils                                                  organisateur_profils?
   organisateur_reseaux_sociaux                                          organisateur_reseaux_sociaux[]
   plaintes                                                              plaintes[]
+  points_classement                                                     points_classement[]
   users                                                                 users                          @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   villes                                                                villes?                        @relation(fields: [ville_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   propositions_equipe                                                   propositions_equipe[]
@@ -1144,6 +1148,19 @@ model villes {
   other_villes villes[]   @relation("villesTovilles")
   pays         pays       @relation(fields: [pays_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model points_classement {
+  profile_id String   @db.Uuid
+  jeu_id     String
+  points     Int      @default(0)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  jeux       jeux     @relation(fields: [jeu_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profiles   profiles @relation(fields: [profile_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([profile_id, jeu_id])
   @@schema("public")
 }
 

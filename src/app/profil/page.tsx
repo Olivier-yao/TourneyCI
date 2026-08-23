@@ -137,7 +137,7 @@ export default function ProfilPage() {
                 style={{ borderRadius: "var(--ds-radius-pill)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent-700)", color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
               >
                 <BadgePalier palier={palierActuel(profil.matchsJoues, mesPointsCumules())} taille="sm" />
-                {profil.rang} · #{profil.rangNational} national
+                {profil.rang}{profil.rangNational ? ` · #${profil.rangNational} national` : ""}
               </Link>
               {estActif(profil.matchsJoues) && <BadgeActif />}
               {organisateur.estOrganisateur && organisateur.certifie && (

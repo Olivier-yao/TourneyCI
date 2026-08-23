@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ds/Avatar";
 import { BadgePalier } from "@/components/ds/Palier";
 import { Modal } from "@/components/ds/Modal";
 import { PRESS } from "@/components/ds/Button";
-import { lireProfil, estActif, palierActuel, palierParPoints, mesPointsCumules, tagDeJoueur } from "@/lib/mockProfil";
+import { lireProfil, estActif, palierParPoints, tagDeJoueur, statsJoueurParPseudo } from "@/lib/mockProfil";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type ResultatMatch = "V" | "D";
@@ -21,12 +21,11 @@ type StatsJoueur = {
   ville: string;
   tag: string;
   points: number;
-  rangNational: number;
+  rangNational?: number;
   form: ResultatMatch[];
   palmares: EntreePalmares[];
 };
 
-const VILLES_DEMO = ["Abidjan", "Yopougon", "Cocody", "Bouaké", "Yamoussoukro"];
 const TOURNOIS_DEMO = ["Abidjan Cup", "Ligue Yopougon", "Bouaké Open", "Cocody Series", "Yamoussoukro Clash"];
 
 function hashSeed(valeur: string): number {
@@ -35,9 +34,11 @@ function hashSeed(valeur: string): number {
   return h;
 }
 
-/** Forme et palmarès sont toujours dérivés de façon déterministe (aucun
- * historique de match réel n'est conservé pour "moi" non plus) ; seules les
- * statistiques cœur (matchs/victoires/ville/points) sont réelles pour "moi". */
+/** Forme (résultats récents) et palmarès restent dérivés de façon
+ * déterministe : aucun historique de match individuel n'est encore stocké
+ * (chantier séparé, non commencé) — seules les stats cœur
+ * (matchs/victoires/ville/points/rang), elles, sont réelles désormais pour
+ * n'importe quel joueur, via GET /api/joueurs/[pseudo]. */
 function derivesForme(nom: string): ResultatMatch[] {
   const h = hashSeed(`${nom}-forme`);
   return Array.from({ length: 8 }, (_, i) => (((h >>> i) & 1) === 1 ? "V" : "D"));
@@ -56,25 +57,6 @@ function derivesPalmares(nom: string): EntreePalmares[] {
   });
 }
 
-function statsDerivees(nom: string): StatsJoueur {
-  const h = hashSeed(nom);
-  const matchsJoues = 18 + (h % 140);
-  const tauxVictoire = 0.3 + ((h >>> 4) % 40) / 100;
-  const victoires = Math.round(matchsJoues * tauxVictoire);
-  const points = 100 + (h % 2400);
-  return {
-    matchsJoues,
-    victoires,
-    actif: estActif(matchsJoues),
-    ville: VILLES_DEMO[h % VILLES_DEMO.length],
-    tag: tagDeJoueur(nom),
-    points,
-    rangNational: 1 + (h % 200),
-    form: derivesForme(nom),
-    palmares: derivesPalmares(nom),
-  };
-}
-
 export default function ProfilJoueurPage() {
   const connecte = useExigerConnexion();
   const params = useParams<{ nom: string }>();
@@ -86,30 +68,28 @@ export default function ProfilJoueurPage() {
   const [modaleInvitation, setModaleInvitation] = useState(false);
 
   useEffect(() => {
-    const profil = lireProfil();
-    const derive = statsDerivees(nom);
-    const donnees: StatsJoueur =
-      nom === profil.pseudo
-        ? {
-            ...derive,
-            matchsJoues: profil.matchsJoues,
-            victoires: profil.victoires,
-            photoUrl: profil.photoUrl,
-            actif: estActif(profil.matchsJoues),
-            ville: profil.ville,
-            points: mesPointsCumules(),
-            rangNational: profil.rangNational,
-          }
-        : derive;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStats(donnees);
+    statsJoueurParPseudo(nom).then((reel) => {
+      const donnees: StatsJoueur = {
+        matchsJoues: reel?.matchsJoues ?? 0,
+        victoires: reel?.victoires ?? 0,
+        photoUrl: reel?.photoUrl,
+        actif: estActif(reel?.matchsJoues ?? 0),
+        ville: reel?.ville ?? "",
+        tag: tagDeJoueur(nom),
+        points: reel?.points ?? 0,
+        rangNational: reel?.rangNational,
+        form: derivesForme(nom),
+        palmares: derivesPalmares(nom),
+      };
+      setStats(donnees);
+    });
   }, [nom]);
 
   if (!connecte || !stats) return null;
 
   const winrate = stats.matchsJoues > 0 ? Math.round((stats.victoires / stats.matchsJoues) * 100) : 0;
   const cestMoi = nom === lireProfil().pseudo;
-  const palier = cestMoi ? palierActuel(stats.matchsJoues, stats.points) : palierParPoints(stats.points);
+  const palier = palierParPoints(stats.points);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
@@ -162,12 +142,14 @@ export default function ProfilJoueurPage() {
               {palier.nom.toUpperCase()}
             </span>
           </div>
-          <span
-            className="px-2.5 py-1 text-[10px]"
-            style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
-          >
-            #{stats.rangNational} NATIONAL
-          </span>
+          {stats.rangNational && (
+            <span
+              className="px-2.5 py-1 text-[10px]"
+              style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+            >
+              #{stats.rangNational} NATIONAL
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-2">

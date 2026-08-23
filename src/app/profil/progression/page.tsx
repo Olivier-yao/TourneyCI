@@ -13,7 +13,7 @@ export default function ProgressionPage() {
   const router = useRouter();
   const [matchsJoues, setMatchsJoues] = useState(0);
   const [points, setPoints] = useState(0);
-  const [rangNational, setRangNational] = useState(0);
+  const [rangNational, setRangNational] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const profil = lireProfil();
@@ -53,7 +53,7 @@ export default function ProgressionPage() {
               {actuel.nom}
             </div>
             <div className="text-[10px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-              #{rangNational} NATIONAL · {points.toLocaleString("fr-FR")} PTS
+              {rangNational ? `#${rangNational} NATIONAL · ` : ""}{points.toLocaleString("fr-FR")} PTS
             </div>
           </div>
         </div>

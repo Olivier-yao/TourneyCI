@@ -45,9 +45,9 @@ function ParametresInterne() {
     const pseudoSaisi = profil.pseudo.trim();
     const pseudoChange = pseudoSaisi !== pseudoOriginal;
 
-    if (pseudoChange && !pseudoDisponible(pseudoSaisi)) {
+    if (pseudoChange && !(await pseudoDisponible(pseudoSaisi))) {
       setErreurPseudo("Ce pseudo est déjà pris.");
-      setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+      setSuggestions(await suggererPseudosDisponibles(pseudoSaisi));
       return;
     }
 
@@ -61,7 +61,7 @@ function ParametresInterne() {
         setErreurPseudo(`Tu pourras changer de pseudo à nouveau le ${new Date(resultat.prochainChangementLe).toLocaleDateString("fr-FR")}.`);
       } else {
         setErreurPseudo(resultat.erreur ?? "Ce pseudo est déjà pris.");
-        setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+        setSuggestions(await suggererPseudosDisponibles(pseudoSaisi));
       }
       return;
     }

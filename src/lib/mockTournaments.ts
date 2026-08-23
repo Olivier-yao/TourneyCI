@@ -15,9 +15,6 @@
  * du cash prize (paiementsEnAttente).
  */
 
-import { classementFinalBracket } from "./mockBracket";
-import { classementFinalBR } from "./mockBattleRoyale";
-import { attribuerPoints } from "./mockProfil";
 import { crediter } from "./mockWallet";
 import { nomOrganisateurActuel } from "./mockOrganisateur";
 import { notifierParticipants } from "./mockNotifications";
@@ -446,28 +443,6 @@ export async function mesTournoisOrganises(): Promise<Tournoi[]> {
   return tousLesTournois({ organisateurMoi: true });
 }
 
-function pointsPourPlace(place: number, effectif: number): number {
-  if (place === 1) return 100;
-  if (place === 2) return 70;
-  if (place <= 4) return 50;
-  if (place <= 8) return 30;
-  if (place <= Math.ceil(effectif / 2)) return 15;
-  return 5;
-}
-
-/** Même barème pour la première moitié, mais les éliminés de la seconde
- * moitié reçoivent des points négatifs (plus sévère pour les tout premiers
- * éliminés) plutôt qu'un minimum symbolique. */
-function pointsPourPlaceBR(place: number, effectif: number): number {
-  if (place === 1) return 100;
-  if (place === 2) return 70;
-  if (place <= 4) return 50;
-  if (place <= 8) return 30;
-  const moitie = Math.ceil(effectif / 2);
-  if (place <= moitie) return 15;
-  return Math.max(-20, -(place - moitie) * 2);
-}
-
 /**
  * Séquestre du cash prize : à la clôture, le gain du vainqueur (s'il s'agit
  * de l'utilisateur de cet appareil) est mis en attente plutôt que crédité
@@ -527,18 +502,17 @@ export async function reevaluerPaiementsEnAttente(): Promise<void> {
 }
 
 /**
- * Clôture un tournoi : distribue les points de classement de façon
- * automatique et équilibrée selon la place finale (bracket ou battle royale).
- * Le versement du cash prize ET la commission organisateur sont désormais
+ * Clôture un tournoi : le versement du cash prize, la commission
+ * organisateur, ET les points de classement/matchs joués/victoires sont
  * entièrement gérés côté serveur (cf. verserCashPrizeCloture dans
  * src/lib/server/cloture.ts, appelée par POST /api/tournois/[id]/terminer) :
- * ils créditent directement le(s) vrai(s) compte(s) concernés, quel que soit
- * l'appareil qui déclenche cette fonction — avant cette correction, seul le
- * compte de l'appareil appelant était crédité pour le cash prize (jamais le
- * vainqueur réel s'il s'agissait d'un autre compte), et la commission
- * passait par un crediter() client directement exploitable depuis la
- * console du navigateur (n'importe quel compte pouvait s'auto-créditer une
- * "commission" arbitraire).
+ * ils créditent/incrémentent directement le(s) vrai(s) compte(s) concernés,
+ * quel que soit l'appareil qui déclenche cette fonction — avant cette
+ * correction, seul le compte de l'appareil appelant était crédité pour le
+ * cash prize (jamais le vainqueur réel s'il s'agissait d'un autre compte),
+ * la commission passait par un crediter() client directement exploitable
+ * depuis la console du navigateur, et les points étaient attribués en
+ * localStorage (jamais partagés d'un appareil à l'autre).
  */
 export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttribues: number; gainCredite: number }> {
   const tournoi = await tournoiParId(tournoiId);
@@ -548,19 +522,7 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
   if (!reponse.ok) return { pointsAttribues: 0, gainCredite: 0 };
   const resultatCloture = await reponse.json().catch(() => null);
   const gainCredite: number = resultatCloture?.success ? (resultatCloture.data?.cashPrizeTotalXof ?? 0) : 0;
-
-  const classement =
-    tournoi.type === "battle_royale"
-      ? await classementFinalBR(tournoiId, tournoi.brSousType ?? "solo")
-      : await classementFinalBracket(tournoiId);
-
-  const bareme = tournoi.type === "battle_royale" ? pointsPourPlaceBR : pointsPourPlace;
-  let pointsAttribues = 0;
-  classement.forEach((nom, i) => {
-    const points = bareme(i + 1, classement.length);
-    attribuerPoints(tournoi.jeuId, nom, points, tournoi.ville);
-    pointsAttribues += points;
-  });
+  const pointsAttribues: number = resultatCloture?.success ? (resultatCloture.data?.pointsAttribuesTotal ?? 0) : 0;
 
   await notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
   supprimerEquipesDuTournoi(tournoiId);

@@ -4,44 +4,28 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Crown, Flame, Medal } from "lucide-react";
-import { JEUX } from "@/lib/mockTournaments";
-import { CLASSEMENTS, classementDuJeu, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
+import { classementGlobal, estActif, lireProfil, palierParPoints, type ClassementEntree } from "@/lib/mockProfil";
 import { PAYS, villesDuPays, lieuDansVille } from "@/lib/mockGeographie";
 import { BadgePalier } from "./Palier";
 import { Avatar } from "./Avatar";
 
 const NB_AFFICHES = 8;
 
-const JEUX_AVEC_CLASSEMENT = JEUX.filter((jeu) => CLASSEMENTS[jeu.id]);
-
 const PAYS_TOUS = "tous";
 const VILLE_TOUTES = "toutes";
 
-/** Un même joueur peut apparaître dans le classement de plusieurs jeux : on
- * fusionne par nom (somme des points) avant de trier et filtrer, sinon il
- * apparaît en double dans le classement global/par ville — le tri final se
- * fait toujours après cette fusion pour garantir un ordre strictement
- * décroissant sans doublon de rang. */
-function construireClassement(paysActif: string, villeActif: string): ClassementEntree[] {
-  const base = JEUX_AVEC_CLASSEMENT.flatMap((j) => classementDuJeu(j.id));
-  const parNom = new Map<string, ClassementEntree>();
-  for (const entree of base) {
-    const cle = entree.nom.toLowerCase();
-    const existant = parNom.get(cle);
-    if (existant) {
-      existant.points += entree.points;
-    } else {
-      parNom.set(cle, { ...entree });
-    }
-  }
-  let fusionne = Array.from(parNom.values());
+/** Filtre le classement global (déjà réel, tous jeux confondus — cf.
+ * classementGlobal()) par pays/ville, et renumérote les positions après
+ * filtrage pour garantir un ordre strictement décroissant sans trou. */
+function filtrerClassement(classement: ClassementEntree[], paysActif: string, villeActif: string): ClassementEntree[] {
+  let filtre = classement;
   if (villeActif !== VILLE_TOUTES) {
-    fusionne = fusionne.filter((e) => lieuDansVille(e.ville, villeActif));
+    filtre = filtre.filter((e) => lieuDansVille(e.ville, villeActif));
   } else if (paysActif !== PAYS_TOUS) {
     const villes = villesDuPays(paysActif);
-    fusionne = fusionne.filter((e) => villes.some((v) => lieuDansVille(e.ville, v)));
+    filtre = filtre.filter((e) => villes.some((v) => lieuDansVille(e.ville, v)));
   }
-  return [...fusionne].sort((a, b) => b.points - a.points).map((e, i) => ({ ...e, position: i + 1 }));
+  return filtre.map((e, i) => ({ ...e, position: i + 1 }));
 }
 
 const HAUTEURS_MARCHE = [48, 64, 40];
@@ -175,7 +159,8 @@ export function Classement() {
   const [villeActif, setVilleActif] = useState<string>(VILLE_TOUTES);
   const [monBadgeActif, setMonBadgeActif] = useState(false);
   const [monPhotoUrl, setMonPhotoUrl] = useState<string | undefined>(undefined);
-  const classement = construireClassement(paysActif, villeActif);
+  const [classementGlobalData, setClassementGlobalData] = useState<ClassementEntree[]>([]);
+  const classement = filtrerClassement(classementGlobalData, paysActif, villeActif);
   const villesDisponibles = paysActif === PAYS_TOUS ? PAYS.flatMap((p) => p.villes.map((v) => v.nom)) : villesDuPays(paysActif);
 
   useEffect(() => {
@@ -183,6 +168,7 @@ export function Classement() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonBadgeActif(estActif(profil.matchsJoues));
     setMonPhotoUrl(profil.photoUrl);
+    classementGlobal().then(setClassementGlobalData);
   }, []);
 
   const top3 = classement.slice(0, 3);

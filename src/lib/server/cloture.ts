@@ -1,20 +1,26 @@
 /**
- * Versement du cash prize à la clôture d'un tournoi — entièrement
- * server-side, exécuté par POST /api/tournois/[id]/terminer.
+ * Clôture d'un tournoi — entièrement server-side, exécutée par
+ * POST /api/tournois/[id]/terminer : versement du cash prize, commission
+ * organisateur, ET progression joueur (matchs joués/victoires/points de
+ * classement, cf. appliquerProgressionEtPoints).
  *
  * Remplace l'ancien versement client (terminerTournoi() dans
  * mockTournaments.ts) qui ne créditait jamais que le compte de l'appareil
  * ayant déclenché la clôture — jamais le vrai vainqueur si c'était un autre
- * compte. Ici, le classement est recalculé côté serveur à partir des mêmes
- * données (matches ou manches_br) et le(s) gagnant(s) sont crédités
- * directement via un mouvement wallet réel (table `mouvements`), quel que
- * soit l'appareil qui a déclenché la clôture.
+ * compte — et attribuait les points en localStorage (jamais partagés d'un
+ * appareil à l'autre). Ici, le classement est recalculé côté serveur à
+ * partir des mêmes données (matches ou manches_br) : le(s) gagnant(s) sont
+ * crédités directement via un mouvement wallet réel (table `mouvements`),
+ * et TOUS les participants réels (pas seulement le podium) voient leurs
+ * matchs_joues/victoires/points_classement incrémentés — quel que soit
+ * l'appareil qui a déclenché la clôture.
  *
- * Les fonctions pures (repartitionAutomatique, barème BR) sont dupliquées
- * ici depuis mockTournaments.ts/mockBattleRoyale.ts plutôt qu'importées :
- * ces fichiers font des appels fetch() avec URL relative, invalides côté
- * Node (même contrainte que le fix du crash /matches/[id] plus tôt dans ce
- * chantier) — un module serveur ne doit dépendre que de code sans fetch.
+ * Les fonctions pures (repartitionAutomatique, barèmes BR/points) sont
+ * dupliquées ici depuis mockTournaments.ts/mockBattleRoyale.ts plutôt
+ * qu'importées : ces fichiers font des appels fetch() avec URL relative,
+ * invalides côté Node (même contrainte que le fix du crash /matches/[id]
+ * plus tôt dans ce chantier) — un module serveur ne doit dépendre que de
+ * code sans fetch.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -22,6 +28,32 @@ import { estCertifie } from "@/lib/server/kyc";
 
 const COMMISSION_PCT = 0.2;
 const BAREME_PLACEMENT_BR = [10, 6, 5, 4, 3, 2, 1, 1];
+
+/** Points de classement par place finale (bracket 1v1/Équipes) — même barème
+ * que l'ancien pointsPourPlace() client (mockTournaments.ts), porté ici pour
+ * un calcul server-side fiable. */
+function pointsPourPlace(place: number, effectif: number): number {
+  if (place === 1) return 100;
+  if (place === 2) return 70;
+  if (place <= 4) return 50;
+  if (place <= 8) return 30;
+  if (place <= Math.ceil(effectif / 2)) return 15;
+  return 5;
+}
+
+/** Même barème pour la première moitié, mais les éliminés de la seconde
+ * moitié reçoivent des points négatifs (plus sévère pour les tout premiers
+ * éliminés) plutôt qu'un minimum symbolique — porté depuis l'ancien
+ * pointsPourPlaceBR() client. */
+function pointsPourPlaceBR(place: number, effectif: number): number {
+  if (place === 1) return 100;
+  if (place === 2) return 70;
+  if (place <= 4) return 50;
+  if (place <= 8) return 30;
+  const moitie = Math.ceil(effectif / 2);
+  if (place <= moitie) return 15;
+  return Math.max(-20, -(place - moitie) * 2);
+}
 
 function repartitionAutomatique(montantNetXof: number, nbFinalistes: number): number[] {
   const n = Math.max(1, Math.min(Math.round(nbFinalistes) || 1, 20));
@@ -112,8 +144,94 @@ async function profileIdsPourNom(tournoiId: string, nom: string, estEquipe: bool
   return ligne ? [ligne.profile_id] : [];
 }
 
+/** matchs joués + victoires par nom (pseudo ou nom d'équipe), calculés à
+ * partir des matches réels d'un bracket (1v1/Équipes) — chaque match
+ * terminé compte pour les deux participants, la victoire pour un seul. */
+function progressionDepuisMatches(matches: { statut: string; joueur1: string | null; joueur2: string | null; score1: number | null; score2: number | null }[]): Map<string, { matchs: number; victoires: number }> {
+  const parNom = new Map<string, { matchs: number; victoires: number }>();
+  const ajouter = (nom: string | null, victoire: boolean) => {
+    if (!nom) return;
+    const entree = parNom.get(nom) ?? { matchs: 0, victoires: 0 };
+    entree.matchs += 1;
+    if (victoire) entree.victoires += 1;
+    parNom.set(nom, entree);
+  };
+  for (const m of matches) {
+    if (m.statut !== "termine" || !m.joueur1 || !m.joueur2) continue;
+    const gagnant = (m.score1 ?? 0) > (m.score2 ?? 0) ? m.joueur1 : m.joueur2;
+    ajouter(m.joueur1, gagnant === m.joueur1);
+    ajouter(m.joueur2, gagnant === m.joueur2);
+  }
+  return parNom;
+}
+
+/** Même chose pour le Battle Royale : chaque manche jouée compte comme un
+ * match pour chaque participant qui y a un résultat, la victoire pour celui
+ * qui a fini 1er de la manche. */
+function progressionDepuisManches(manches: { manches_br_resultats: { participant: string; placement: number }[] }[]): Map<string, { matchs: number; victoires: number }> {
+  const parNom = new Map<string, { matchs: number; victoires: number }>();
+  for (const manche of manches) {
+    for (const r of manche.manches_br_resultats) {
+      const entree = parNom.get(r.participant) ?? { matchs: 0, victoires: 0 };
+      entree.matchs += 1;
+      if (r.placement === 1) entree.victoires += 1;
+      parNom.set(r.participant, entree);
+    }
+  }
+  return parNom;
+}
+
+/** Résout la progression (matchs/victoires) et les points de classement par
+ * nom vers de vrais profile_id, puis persiste : profiles.matchs_joues/
+ * victoires (compteurs cumulés) et points_classement (cumulé par jeu).
+ * Chaque membre d'une équipe reçoit le plein montant (contrairement au cash
+ * prize, les points ne se "partagent" pas entre coéquipiers). */
+async function appliquerProgressionEtPoints(
+  tournoiId: string,
+  jeuId: string,
+  estEquipe: boolean,
+  progressionParNom: Map<string, { matchs: number; victoires: number }>,
+  classement: string[],
+  bareme: (place: number, effectif: number) => number,
+): Promise<number> {
+  const progressionParProfil = new Map<string, { matchs: number; victoires: number }>();
+  for (const [nom, delta] of progressionParNom) {
+    for (const profileId of await profileIdsPourNom(tournoiId, nom, estEquipe)) {
+      const entree = progressionParProfil.get(profileId) ?? { matchs: 0, victoires: 0 };
+      entree.matchs += delta.matchs;
+      entree.victoires += delta.victoires;
+      progressionParProfil.set(profileId, entree);
+    }
+  }
+  for (const [profileId, delta] of progressionParProfil) {
+    await prisma.profiles.update({
+      where: { id: profileId },
+      data: { matchs_joues: { increment: delta.matchs }, victoires: { increment: delta.victoires } },
+    });
+  }
+
+  const pointsParProfil = new Map<string, number>();
+  let pointsAttribuesTotal = 0;
+  for (let i = 0; i < classement.length; i++) {
+    const points = bareme(i + 1, classement.length);
+    pointsAttribuesTotal += points;
+    for (const profileId of await profileIdsPourNom(tournoiId, classement[i], estEquipe)) {
+      pointsParProfil.set(profileId, (pointsParProfil.get(profileId) ?? 0) + points);
+    }
+  }
+  for (const [profileId, points] of pointsParProfil) {
+    await prisma.points_classement.upsert({
+      where: { profile_id_jeu_id: { profile_id: profileId, jeu_id: jeuId } },
+      create: { profile_id: profileId, jeu_id: jeuId, points },
+      update: { points: { increment: points }, updated_at: new Date() },
+    });
+  }
+
+  return pointsAttribuesTotal;
+}
+
 export type GagnantCredite = { nom: string; profileIds: string[]; montantXof: number };
-export type ResultatCloture = { gagnantsCredites: GagnantCredite[]; cashPrizeTotalXof: number; commissionXof: number };
+export type ResultatCloture = { gagnantsCredites: GagnantCredite[]; cashPrizeTotalXof: number; commissionXof: number; pointsAttribuesTotal: number };
 
 /** Commission organisateur — créditée seulement si le tournoi était payant,
  * la commission activée par l'organisateur, ET son identité réellement
@@ -146,28 +264,38 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
     where: { id: tournoiId },
     include: { _count: { select: { inscriptions: true } }, repartition_cash_prize: { orderBy: { rang: "asc" } } },
   });
-  if (!tournoi) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof: 0 };
+  if (!tournoi) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof: 0, pointsAttribuesTotal: 0 };
 
   const commissionXof = await crediterCommissionCloture(tournoi, tournoi._count.inscriptions);
 
-  if (tournoi.repartition_cash_prize.length === 0) {
-    return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof };
-  }
-
   const estEquipe = tournoi.type === "equipes" || (tournoi.type === "battle_royale" && tournoi.br_sous_type !== null && tournoi.br_sous_type !== "solo");
+  const estBR = tournoi.type === "battle_royale";
 
   let classement: string[];
-  if (tournoi.type === "battle_royale") {
+  let progressionParNom: Map<string, { matchs: number; victoires: number }>;
+  if (estBR) {
     const manches = await prisma.manches_br.findMany({ where: { tournoi_id: tournoiId }, include: { manches_br_resultats: true } });
     classement = classementFinalBRServeur(manches);
+    progressionParNom = progressionDepuisManches(manches);
   } else {
     const matches = await prisma.matches.findMany({ where: { tournoi_id: tournoiId } });
     classement = classementFinalBracketServeur(matches);
+    progressionParNom = progressionDepuisMatches(matches);
   }
-  if (classement.length === 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof };
+
+  // Points/matchs joués/victoires : indépendants du cash prize (un tournoi
+  // gratuit ou sans répartition configurée fait quand même progresser les
+  // joueurs), donc calculés avant tout early-return lié à l'argent.
+  const pointsAttribuesTotal =
+    classement.length > 0 ? await appliquerProgressionEtPoints(tournoiId, tournoi.jeu_id, estEquipe, progressionParNom, classement, estBR ? pointsPourPlaceBR : pointsPourPlace) : 0;
+
+  if (tournoi.repartition_cash_prize.length === 0) {
+    return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof, pointsAttribuesTotal };
+  }
+  if (classement.length === 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof, pointsAttribuesTotal };
 
   const cashPrizeTotalXof = cashPrizeVersable(tournoi, tournoi._count.inscriptions);
-  if (cashPrizeTotalXof <= 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof };
+  if (cashPrizeTotalXof <= 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof, pointsAttribuesTotal };
 
   const repartition = repartitionAutomatique(cashPrizeTotalXof, tournoi.repartition_cash_prize.length);
   const gagnantsCredites: GagnantCredite[] = [];
@@ -193,7 +321,7 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
     gagnantsCredites.push({ nom, profileIds, montantXof });
   }
 
-  return { gagnantsCredites, cashPrizeTotalXof, commissionXof };
+  return { gagnantsCredites, cashPrizeTotalXof, commissionXof, pointsAttribuesTotal };
 }
 
 export type ResultatRemboursement = { nbRembourses: number; totalXof: number };

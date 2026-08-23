@@ -57,9 +57,9 @@ export default function BienvenueProfilPage() {
       setSuggestions([]);
       return;
     }
-    if (!pseudoDisponible(pseudoSaisi)) {
+    if (!(await pseudoDisponible(pseudoSaisi))) {
       setErreur("Ce pseudo est déjà pris.");
-      setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+      setSuggestions(await suggererPseudosDisponibles(pseudoSaisi));
       return;
     }
     if (!ville) {
@@ -80,7 +80,7 @@ export default function BienvenueProfilPage() {
       if (!resultatProfil.ok) {
         setEnregistrement(false);
         setErreur(resultatProfil.erreur ?? "Ce pseudo est déjà pris.");
-        setSuggestions(suggererPseudosDisponibles(pseudoSaisi));
+        setSuggestions(await suggererPseudosDisponibles(pseudoSaisi));
         return;
       }
       const resultatPhoto = await sauvegarderPhoto(photoUrl);

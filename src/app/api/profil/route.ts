@@ -3,6 +3,7 @@ import { creerClientSupabaseServeur } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { peutModifierMensuel } from "@/lib/limiteMensuelle";
+import { pointsCumulesDe, rangNationalDe } from "@/lib/server/classement";
 
 /**
  * Première route API réelle du projet (cf. ROADMAP-backend-et-mobile.md,
@@ -30,8 +31,11 @@ export async function GET() {
     where: { id: user.id },
     include: { villes: true },
   });
+  if (!profil) return NextResponse.json({ success: true, data: null });
 
-  return NextResponse.json({ success: true, data: profil });
+  const [pointsCumules, rangNational] = await Promise.all([pointsCumulesDe(profil.id), rangNationalDe(profil.id)]);
+
+  return NextResponse.json({ success: true, data: { ...profil, points_cumules: pointsCumules, rang_national: rangNational } });
 }
 
 export async function PUT(request: Request) {
@@ -98,7 +102,8 @@ export async function PUT(request: Request) {
       },
       include: { villes: true },
     });
-    return NextResponse.json({ success: true, data: profil });
+    const [pointsCumules, rangNational] = await Promise.all([pointsCumulesDe(profil.id), rangNationalDe(profil.id)]);
+    return NextResponse.json({ success: true, data: { ...profil, points_cumules: pointsCumules, rang_national: rangNational } });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return NextResponse.json({ success: false, error: "Ce pseudo est déjà pris." }, { status: 409 });

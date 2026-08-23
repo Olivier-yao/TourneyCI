@@ -4,16 +4,17 @@ import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
 import { estAdjointAccepteDe } from "@/lib/server/adjoints";
 import { verserCashPrizeCloture } from "@/lib/server/cloture";
 
-/** Persiste termine_le ET verse le cash prize au(x) vrai(s) gagnant(s) —
- * cf. verserCashPrizeCloture, qui recalcule le classement côté serveur et
- * crédite directement le bon compte, plutôt que l'ancien système client
- * (terminerTournoi dans mockTournaments.ts) qui ne créditait jamais que
- * l'appareil ayant déclenché la clôture. Le versement ne s'exécute qu'à la
- * toute première clôture (idempotent : un second appel — retry réseau,
- * double clic — ne recrédite jamais). Le calcul des points de classement
- * (encore localStorage, pas de l'argent) et les notifications restent gérés
- * côté client juste après, inchangés. Organisateur ou l'un de ses adjoints
- * acceptés (gestion en direct, cf. cloture/page.tsx). */
+/** Persiste termine_le ET verse le cash prize au(x) vrai(s) gagnant(s), la
+ * commission organisateur, et les points de classement/matchs joués/
+ * victoires — cf. verserCashPrizeCloture, qui recalcule le classement côté
+ * serveur et crédite/incrémente directement les bons comptes, plutôt que
+ * l'ancien système client (terminerTournoi dans mockTournaments.ts) qui ne
+ * créditait jamais que l'appareil ayant déclenché la clôture et gardait les
+ * points en localStorage. Le versement ne s'exécute qu'à la toute première
+ * clôture (idempotent : un second appel — retry réseau, double clic — ne
+ * recrédite jamais). Les notifications restent gérées côté client juste
+ * après. Organisateur ou l'un de ses adjoints acceptés (gestion en direct,
+ * cf. cloture/page.tsx). */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await utilisateurConnecte();
   if (!user) return nonAuthentifie();
