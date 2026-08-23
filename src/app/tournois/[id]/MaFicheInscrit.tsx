@@ -481,7 +481,25 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
 
       {etat === "en_direct" && (
         <div className="px-5 flex flex-col gap-3">
-          {matchEnCours ? (
+          {matchs.length === 0 ? (
+            // Le tournoi est passé "en direct" (heure de début atteinte) mais
+            // l'arbre n'a pas encore été généré (généré à la demande, au
+            // premier visiteur de la page bracket) — sans ce cas distinct, le
+            // fallback ci-dessous affichait à tort "Tu es qualifié" à un
+            // inscrit qui n'a même pas encore de premier match.
+            <div className="p-4 flex flex-col items-center text-center" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-border)" }}>
+              <div
+                className="flex items-center justify-center"
+                style={{ width: 60, height: 68, background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", clipPath: "polygon(50% 0%, 100% 16%, 100% 68%, 50% 100%, 0% 68%, 0% 16%)" }}
+              >
+                <GitBranch size={24} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+              </div>
+              <div className="mt-3 text-[19px] font-medium" style={{ fontFamily: "var(--ds-font-heading)" }}>Bracket en préparation</div>
+              <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+                L&apos;arbre du tournoi n&apos;est pas encore généré — reviens dans un instant.
+              </div>
+            </div>
+          ) : matchEnCours ? (
             <div className="p-4" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}>
               <div className="text-center text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
                 C&apos;est ton tour · {libelleRound(matchEnCours.round, totalRounds)}
