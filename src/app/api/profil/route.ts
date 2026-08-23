@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { peutModifierMensuel } from "@/lib/limiteMensuelle";
 import { pointsCumulesDe, rangNationalDe } from "@/lib/server/classement";
+import { saisonActuelle } from "@/lib/server/saisons";
 import { televerserImagePublique } from "@/lib/server/storage";
 
 /**
@@ -34,7 +35,8 @@ export async function GET() {
   });
   if (!profil) return NextResponse.json({ success: true, data: null });
 
-  const [pointsCumules, rangNational] = await Promise.all([pointsCumulesDe(profil.id), rangNationalDe(profil.id)]);
+  const saison = await saisonActuelle();
+  const [pointsCumules, rangNational] = await Promise.all([pointsCumulesDe(profil.id), rangNationalDe(profil.id, saison.id)]);
 
   return NextResponse.json({ success: true, data: { ...profil, points_cumules: pointsCumules, rang_national: rangNational } });
 }
@@ -104,7 +106,8 @@ export async function PUT(request: Request) {
       },
       include: { villes: true },
     });
-    const [pointsCumules, rangNational] = await Promise.all([pointsCumulesDe(profil.id), rangNationalDe(profil.id)]);
+    const saison = await saisonActuelle();
+    const [pointsCumules, rangNational] = await Promise.all([pointsCumulesDe(profil.id), rangNationalDe(profil.id, saison.id)]);
     return NextResponse.json({ success: true, data: { ...profil, points_cumules: pointsCumules, rang_national: rangNational } });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {

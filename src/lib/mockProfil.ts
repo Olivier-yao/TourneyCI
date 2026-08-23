@@ -240,16 +240,30 @@ export type ClassementEntree = {
   moi?: boolean;
 };
 
-/** Classement global réel (tous jeux confondus), GET /api/classement — le
- * ladder n'a jamais affiché de classement par jeu séparé, seulement filtré
- * par pays/ville côté client (cf. Classement.tsx). */
+/** Classement de la saison en cours (tous jeux confondus), GET
+ * /api/classement — le ladder n'a jamais affiché de classement par jeu
+ * séparé, seulement filtré par pays/ville côté client (cf. Classement.tsx).
+ * Repart à zéro à chaque saison (cf. saisonActuelleClient ci-dessous). */
 export async function classementGlobal(): Promise<ClassementEntree[]> {
   const reponse = await fetch("/api/classement");
   if (!reponse.ok) return [];
   const json = await reponse.json().catch(() => null);
   if (!json?.success) return [];
-  const lignes: { profileId: string; pseudo: string; initiales: string; ville?: string; points: number; moi?: boolean }[] = json.data;
+  const lignes: { profileId: string; pseudo: string; initiales: string; ville?: string; points: number; moi?: boolean }[] = json.data.classement;
   return lignes.map((l, i) => ({ position: i + 1, initiales: l.initiales, nom: l.pseudo, points: l.points, ville: l.ville ?? "", moi: l.moi }));
+}
+
+export type SaisonClassement = { numero: number; nom: string; debutLe: number; finLe: number };
+
+/** Saison de classement en cours, GET /api/saison — remplace les anciens
+ * SAISON/SAISON_FIN_LABEL fixes ("Saison 3 : Éclipse", "se termine dans 18
+ * jours") par de vraies dates ; enchaîne automatiquement à la fin de chaque
+ * saison, aucune tâche planifiée requise (cf. src/lib/server/saisons.ts). */
+export async function saisonActuelleClient(): Promise<SaisonClassement | undefined> {
+  const reponse = await fetch("/api/saison");
+  if (!reponse.ok) return undefined;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : undefined;
 }
 
 export type StatsJoueurPublic = { pseudo: string; ville: string; photoUrl?: string; matchsJoues: number; victoires: number; points: number; rangNational?: number };
@@ -326,8 +340,3 @@ export async function sauvegarderPhoto(photoUrl: string): Promise<ResultatSauveg
   return { ok: true };
 }
 
-export const SAISON = "Saison 3 : Éclipse";
-/** Les classements se réinitialisent chaque saison (1-2 mois). Purement
- * indicatif tant qu'il n'y a pas de vrai système de saison (points_classement
- * cumule indéfiniment aujourd'hui) : rien ne se réinitialise automatiquement. */
-export const SAISON_FIN_LABEL = "se termine dans 18 jours";

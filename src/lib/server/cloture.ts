@@ -25,6 +25,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { estCertifie } from "@/lib/server/kyc";
+import { saisonActuelle } from "@/lib/server/saisons";
 
 const COMMISSION_PCT = 0.2;
 const BAREME_PLACEMENT_BR = [10, 6, 5, 4, 3, 2, 1, 1];
@@ -189,6 +190,7 @@ function progressionDepuisManches(manches: { manches_br_resultats: { participant
 async function appliquerProgressionEtPoints(
   tournoiId: string,
   jeuId: string,
+  saisonId: string,
   estEquipe: boolean,
   progressionParNom: Map<string, { matchs: number; victoires: number }>,
   classement: string[],
@@ -221,8 +223,8 @@ async function appliquerProgressionEtPoints(
   }
   for (const [profileId, points] of pointsParProfil) {
     await prisma.points_classement.upsert({
-      where: { profile_id_jeu_id: { profile_id: profileId, jeu_id: jeuId } },
-      create: { profile_id: profileId, jeu_id: jeuId, points },
+      where: { profile_id_jeu_id_saison_id: { profile_id: profileId, jeu_id: jeuId, saison_id: saisonId } },
+      create: { profile_id: profileId, jeu_id: jeuId, saison_id: saisonId, points },
       update: { points: { increment: points }, updated_at: new Date() },
     });
   }
@@ -287,7 +289,17 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
   // gratuit ou sans répartition configurée fait quand même progresser les
   // joueurs), donc calculés avant tout early-return lié à l'argent.
   const pointsAttribuesTotal =
-    classement.length > 0 ? await appliquerProgressionEtPoints(tournoiId, tournoi.jeu_id, estEquipe, progressionParNom, classement, estBR ? pointsPourPlaceBR : pointsPourPlace) : 0;
+    classement.length > 0
+      ? await appliquerProgressionEtPoints(
+          tournoiId,
+          tournoi.jeu_id,
+          (await saisonActuelle()).id,
+          estEquipe,
+          progressionParNom,
+          classement,
+          estBR ? pointsPourPlaceBR : pointsPourPlace,
+        )
+      : 0;
 
   if (tournoi.repartition_cash_prize.length === 0) {
     return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof, pointsAttribuesTotal };
