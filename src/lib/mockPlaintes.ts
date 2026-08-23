@@ -3,6 +3,12 @@
  * distinctes des litiges de match (mockLitige.ts) : un problème de sécurité
  * ou de comportement qui concerne la plateforme elle-même, examiné dans
  * l'interface administrateur sécurisée (point 160).
+ *
+ * Réel côté serveur (table `plaintes`, déjà présente en base mais jamais
+ * exploitée — cf. src/lib/server/plaintes.ts) — remplace l'ancien stockage
+ * localStorage, qui ne pouvait pas rester "un registre partagé" comme
+ * l'exigeait déjà le commentaire d'origine (l'admin doit voir les
+ * signalements envoyés depuis n'importe quel appareil).
  */
 
 export type StatutPlainte = "en_attente" | "traitee";
@@ -18,49 +24,30 @@ export type Plainte = {
   horodatage: number;
 };
 
-// Pas de cleCompte() : plaintesEnAttente() est consultée côté admin pour
-// TOUTES les plaintes, tous comptes confondus — doit rester un registre
-// partagé. mesPlaintes(auteur) filtre déjà par auteur sur ce registre commun.
-const CLE_PLAINTES = "tourney-plaintes";
-
-function lireTout(): Plainte[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_PLAINTES);
-    return brut ? (JSON.parse(brut) as Plainte[]) : [];
-  } catch {
-    return [];
-  }
+export async function creerPlainte(sujet: string, description: string): Promise<Plainte | null> {
+  const reponse = await fetch("/api/plaintes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sujet, description }),
+  });
+  if (!reponse.ok) return null;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : null;
 }
 
-export function creerPlainte(auteur: string, sujet: string, description: string): Plainte | null {
-  if (typeof window === "undefined" || !sujet.trim() || !description.trim()) return null;
-  const plainte: Plainte = {
-    id: `plt-${Date.now().toString(36)}`,
-    auteur,
-    sujet: sujet.trim(),
-    description: description.trim(),
-    statut: "en_attente",
-    horodatage: Date.now(),
-  };
-  localStorage.setItem(CLE_PLAINTES, JSON.stringify([...lireTout(), plainte]));
-  return plainte;
+/** Supervision admin (lecture seule côté client — le traitement passe par
+ * traiterPlainte ci-dessous). */
+export async function plaintesEnAttente(): Promise<Plainte[]> {
+  const reponse = await fetch("/api/tourney-control/plaintes");
+  if (!reponse.ok) return [];
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : [];
 }
 
-export function mesPlaintes(auteur: string): Plainte[] {
-  return lireTout()
-    .filter((p) => p.auteur === auteur)
-    .sort((a, b) => b.horodatage - a.horodatage);
-}
-
-export function plaintesEnAttente(): Plainte[] {
-  return lireTout()
-    .filter((p) => p.statut === "en_attente")
-    .sort((a, b) => a.horodatage - b.horodatage);
-}
-
-export function traiterPlainte(id: string, messageAdmin: string) {
-  if (typeof window === "undefined") return;
-  const maj = lireTout().map((p) => (p.id === id ? { ...p, statut: "traitee" as const, messageAdmin: messageAdmin.trim() || undefined } : p));
-  localStorage.setItem(CLE_PLAINTES, JSON.stringify(maj));
+export async function traiterPlainte(id: string, messageAdmin: string): Promise<void> {
+  await fetch(`/api/tourney-control/plaintes/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messageAdmin }),
+  });
 }

@@ -783,7 +783,7 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
 
   async function rafraichir() {
     setDemandesOrga(await demandesOrganisateurEnAttente());
-    setPlaintes(plaintesEnAttente());
+    setPlaintes(await plaintesEnAttente());
     setLitiges(await litigesEnAttenteAdmin());
     setDemandesAnnul(await demandesAnnulationEnAttente());
     setFileModeration(await organisateursModeration());
@@ -989,12 +989,12 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
                   meta={`DÉPOSÉE LE ${formatDateHeure(p.horodatage)}`}
                   corps={p.description}
                   placeholder={`Réponse à ${p.auteur}…`}
-                  onAccepter={(msg) => {
-                    traiterPlainte(p.id, msg || "Signalement traité.");
+                  onAccepter={async (msg) => {
+                    await traiterPlainte(p.id, msg || "Signalement traité.");
                     rafraichir();
                   }}
-                  onRefuser={(msg) => {
-                    traiterPlainte(p.id, msg || "Signalement clos sans suite.");
+                  onRefuser={async (msg) => {
+                    await traiterPlainte(p.id, msg || "Signalement clos sans suite.");
                     rafraichir();
                   }}
                 />

@@ -6,7 +6,6 @@ import { LifeBuoy, CheckCircle2, Mail } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
-import { lireProfil } from "@/lib/mockProfil";
 import { creerPlainte } from "@/lib/mockPlaintes";
 
 /** Point 148 : contact sobre pour signaler un problème de sécurité ou
@@ -19,13 +18,13 @@ export default function ServiceClientPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoye, setEnvoye] = useState(false);
 
-  function envoyer() {
+  async function envoyer() {
     if (!sujet.trim() || !description.trim()) {
       setErreur("Renseigne un sujet et une description.");
       return;
     }
     setErreur(null);
-    const plainte = creerPlainte(lireProfil().pseudo, sujet, description);
+    const plainte = await creerPlainte(sujet, description);
     if (plainte) setEnvoye(true);
   }
 
