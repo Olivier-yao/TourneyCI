@@ -110,7 +110,7 @@ export function Splash({
   );
 }
 
-function Marque({ animee = false }: { animee?: boolean }) {
+export function Marque({ animee = false }: { animee?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-6">
       <motion.div
