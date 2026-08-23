@@ -608,6 +608,8 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
             </div>
           )}
 
+          {room && <RoomInfoBloc room={room} />}
+
           {mesMatchsTermines.length > 0 && (
             <div className="flex flex-col gap-1">
               <div className="text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Mon parcours</div>
