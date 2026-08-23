@@ -9,8 +9,8 @@ const CONTENU = `# Politique de confidentialité — Tourney
 *Dernière mise à jour : 23 août 2026.*
 
 Tourney est une application de gestion de tournois gaming (inscriptions,
-bracket, scores en direct, classement) destinée à la communauté gaming
-ivoirienne. Cette page explique quelles données nous collectons, pourquoi,
+bracket, scores en direct, classement) destinée à la communauté gaming en
+Côte d'Ivoire. Cette page explique quelles données nous collectons, pourquoi,
 et comment elles sont protégées.
 
 ## 1. Qui est responsable de ces données

@@ -40,7 +40,7 @@ export default function Home() {
             Le tournoi gaming commence ici
           </h1>
           <p className="text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-            Tourney organise les tournois gaming de la communauté ivoirienne :
+            Tourney organise les tournois de la communauté gaming en Côte d&apos;Ivoire :
             inscriptions, brackets, scores en direct et classement, le tout depuis ton téléphone.
           </p>
         </div>
