@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { peutModifierMensuel } from "@/lib/limiteMensuelle";
 import { pointsCumulesDe, rangNationalDe } from "@/lib/server/classement";
+import { televerserImagePublique } from "@/lib/server/storage";
 
 /**
  * Première route API réelle du projet (cf. ROADMAP-backend-et-mobile.md,
@@ -47,7 +48,8 @@ export async function PUT(request: Request) {
   const body = await request.json().catch(() => null);
   const pseudo = typeof body?.pseudo === "string" ? body.pseudo.trim() : undefined;
   const ville = typeof body?.ville === "string" ? body.ville.trim() : undefined;
-  const photoUrl = typeof body?.photoUrl === "string" ? body.photoUrl : undefined;
+  const photoUrlBrute = typeof body?.photoUrl === "string" ? body.photoUrl : undefined;
+  const photoUrl = photoUrlBrute?.startsWith("data:") ? await televerserImagePublique(photoUrlBrute, "avatars", user.id) : photoUrlBrute;
   const reglementAccepte = body?.reglementAccepte === true;
 
   if (pseudo !== undefined && !pseudo) {

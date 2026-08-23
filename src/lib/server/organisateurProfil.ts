@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { televerserImagePublique } from "@/lib/server/storage";
 
 const SEPT_JOURS_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -64,7 +65,8 @@ export async function definirBio(profileId: string, bio: string): Promise<void> 
 }
 
 export async function definirBanniere(profileId: string, dataUrl: string): Promise<void> {
-  await prisma.organisateur_profils.update({ where: { profile_id: profileId }, data: { banniere_url: dataUrl } });
+  const url = await televerserImagePublique(dataUrl, "organisateur-bannieres", profileId);
+  await prisma.organisateur_profils.update({ where: { profile_id: profileId }, data: { banniere_url: url } });
 }
 
 /** Point 164 : photo organisateur modifiable une fois par semaine. */
@@ -78,9 +80,10 @@ export async function peutChangerPhoto(profileId: string): Promise<{ ok: boolean
 }
 
 export async function definirPhoto(profileId: string, dataUrl: string): Promise<void> {
+  const url = await televerserImagePublique(dataUrl, "organisateur-photos", profileId);
   await prisma.organisateur_profils.update({
     where: { profile_id: profileId },
-    data: { photo_url: dataUrl, photo_modifiee_le: new Date() },
+    data: { photo_url: url, photo_modifiee_le: new Date() },
   });
 }
 

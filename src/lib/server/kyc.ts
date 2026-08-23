@@ -7,10 +7,12 @@
  * examen. La table kyc_verifications existait déjà en base (migration
  * v2_identite_organisateurs) mais rien ne l'utilisait.
  *
- * Les 3 images (recto/verso/selfie) sont stockées en data URL directement
- * dans les colonnes text — même pattern déjà utilisé pour
- * organisateur_profils.photo_url/banniere_url (pas de object storage dédié
- * dans ce projet, chantier séparé si le volume l'exige un jour).
+ * Les 3 images (recto/verso/selfie) sont téléversées dans le bucket privé
+ * kyc-documents (cf. src/lib/server/storage.ts) — les colonnes recto_url/
+ * verso_url/selfie_url ne stockent que le CHEMIN dans le bucket, jamais une
+ * URL directement affichable (bucket privé, aucune lecture publique). La
+ * lecture (admin dans /tourney-control) passe par une URL signée temporaire,
+ * générée à la demande.
  */
 
 import { createHash } from "crypto";
@@ -18,6 +20,7 @@ import { prisma } from "@/lib/prisma";
 import type { statut_kyc } from "@/generated/prisma/client";
 import { documentEstListeNoire } from "@/lib/server/moderation";
 import { analyserDocument, analyserSelfie } from "@/lib/server/kycAnalyse";
+import { televerserDocumentPrive, urlSigneeDocument } from "@/lib/server/storage";
 
 export type KycJSON = {
   id: string;
@@ -56,7 +59,11 @@ export async function soumettreVerificationKyc(profileId: string, s: SoumissionK
   const existante = await derniereVerificationKyc(profileId);
   if (existante && existante.statut !== "refusee") return { ok: true, data: existante };
 
-  const documentHash = createHash("sha256").update(s.rectoUrl).digest("hex");
+  // Hash du contenu réel de l'image (le payload base64, pas le préfixe
+  // "data:image/...;base64," qui ne dit rien sur l'image elle-même) — pour
+  // que deux soumissions de la même pièce se reconnaissent comme identiques
+  // quel que soit le format d'encodage amont.
+  const documentHash = createHash("sha256").update(s.rectoUrl.split(",").pop() ?? s.rectoUrl).digest("hex");
   if (await documentEstListeNoire(documentHash)) {
     return { ok: false, erreur: "Cette pièce d'identité ne peut pas être utilisée pour une vérification." };
   }
@@ -64,7 +71,9 @@ export async function soumettreVerificationKyc(profileId: string, s: SoumissionK
   // Pré-filtre automatique léger (OCR + détection de visage) : rejette les
   // soumissions manifestement invalides avant même d'atteindre la revue
   // humaine. Ce n'est qu'un heuristique — la revue dans /tourney-control
-  // reste la décision finale pour tout ce qui passe ce filtre.
+  // reste la décision finale pour tout ce qui passe ce filtre. Exécuté sur
+  // les data URL d'origine, avant téléversement (l'analyse a besoin des
+  // octets bruts, pas d'un chemin de bucket).
   const [rectoAnalyse, versoAnalyse, selfieAnalyse] = await Promise.all([
     analyserDocument(s.rectoUrl),
     analyserDocument(s.versoUrl),
@@ -74,13 +83,19 @@ export async function soumettreVerificationKyc(profileId: string, s: SoumissionK
   if (!versoAnalyse.ok) return { ok: false, erreur: `Verso : ${versoAnalyse.raison}` };
   if (!selfieAnalyse.ok) return { ok: false, erreur: `Selfie : ${selfieAnalyse.raison}` };
 
+  const [rectoChemin, versoChemin, selfieChemin] = await Promise.all([
+    televerserDocumentPrive(s.rectoUrl, profileId, "recto"),
+    televerserDocumentPrive(s.versoUrl, profileId, "verso"),
+    televerserDocumentPrive(s.selfieUrl, profileId, "selfie"),
+  ]);
+
   const row = await prisma.kyc_verifications.create({
     data: {
       profile_id: profileId,
       type_piece: s.typePiece,
-      recto_url: s.rectoUrl,
-      verso_url: s.versoUrl,
-      selfie_url: s.selfieUrl,
+      recto_url: rectoChemin,
+      verso_url: versoChemin,
+      selfie_url: selfieChemin,
       age_confirme: s.ageConfirme,
       document_hash: documentHash,
       statut: "en_attente",
@@ -97,14 +112,18 @@ export async function verificationsKycEnAttente(): Promise<KycAdminJSON[]> {
     orderBy: { created_at: "asc" },
     include: { profiles: { include: { organisateur_profils: true } } },
   });
-  return lignes.map((l) => ({
-    ...versKycJSON(l),
-    profileId: l.profile_id,
-    nomOrganisateur: l.profiles.organisateur_profils?.nom_organisateur ?? l.profiles.pseudo,
-    rectoUrl: l.recto_url,
-    versoUrl: l.verso_url,
-    selfieUrl: l.selfie_url,
-  }));
+  return Promise.all(
+    lignes.map(async (l) => ({
+      ...versKycJSON(l),
+      profileId: l.profile_id,
+      nomOrganisateur: l.profiles.organisateur_profils?.nom_organisateur ?? l.profiles.pseudo,
+      // URL signées temporaires (5 min) — le bucket kyc-documents est privé,
+      // jamais de lien permanent stocké ou renvoyé.
+      rectoUrl: (await urlSigneeDocument(l.recto_url)) ?? "",
+      versoUrl: (await urlSigneeDocument(l.verso_url)) ?? "",
+      selfieUrl: (await urlSigneeDocument(l.selfie_url)) ?? "",
+    })),
+  );
 }
 
 /** Traite une vérification (valide/refuse) et notifie le demandeur. */

@@ -9,6 +9,7 @@ import {
   INCLUDE_TOURNOI_LISTE,
 } from "@/lib/server/tournois";
 import { peutCreerTournoiPayant } from "@/lib/server/moderation";
+import { televerserImagePublique } from "@/lib/server/storage";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -101,6 +102,11 @@ export async function POST(request: Request) {
       )
     : [];
 
+  const banniereUrlBrute = typeof body.banniereUrl === "string" ? body.banniereUrl : undefined;
+  const banniereUrl = banniereUrlBrute?.startsWith("data:")
+    ? await televerserImagePublique(banniereUrlBrute, "tournois-bannieres", `${user.id}-${Date.now()}`)
+    : banniereUrlBrute;
+
   const tournoi = await prisma.tournois.create({
     data: {
       jeu_id: jeuId,
@@ -125,7 +131,7 @@ export async function POST(request: Request) {
       checkin_le: new Date(checkinTs),
       reglement,
       informations: typeof body.informations === "string" ? body.informations.trim() || undefined : undefined,
-      banniere_url: typeof body.banniereUrl === "string" ? body.banniereUrl : undefined,
+      banniere_url: banniereUrl,
       symbole_id: typeof body.symboleId === "string" ? body.symboleId : undefined,
       repartition_cash_prize:
         repartitionValide.length > 0
