@@ -40,20 +40,6 @@ export async function enregistrerInscription(tournoiId: string, tag?: string, eq
   return { ok: true };
 }
 
-export type ResultatAnnulationInscription = { ok: boolean; erreur?: string; remboursementXof?: number };
-
-/** Annule ma propre inscription — uniquement avant l'ouverture du check-in
- * (vérifié aussi côté serveur). Le remboursement effectif (mouvement wallet)
- * reste à la charge de l'appelant : cette fonction ne fait que libérer la
- * place et renvoyer le montant à recréditer. */
-export async function annulerMonInscription(tournoiId: string): Promise<ResultatAnnulationInscription> {
-  const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`, { method: "DELETE" });
-  const json = await reponse.json().catch(() => null);
-  if (!json?.success) return { ok: false, erreur: json?.error };
-  cache = (cache ?? []).filter((i) => i.tournoiId !== tournoiId);
-  return { ok: true, remboursementXof: json.data?.remboursementXof };
-}
-
 /** Renomme l'équipe de l'inscription courante (capitaine uniquement, avant le
  * début du tournoi — le verrouillage post-démarrage est géré par l'appelant). */
 export async function renommerEquipe(tournoiId: string, nouveauNom: string): Promise<ResultatInscription> {

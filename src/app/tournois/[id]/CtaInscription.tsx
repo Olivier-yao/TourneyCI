@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bookmark, Bell, CheckCircle2, Users, Pencil, Check as CheckIcon, Sparkles, Crown, Radio, Plus } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +48,7 @@ export function CtaInscription({
   fermeInscriptions = false,
   estMonTournoi = false,
   enDirect = false,
+  onHauteurChange,
 }: {
   tournoiId: string;
   titre: string;
@@ -64,8 +65,36 @@ export function CtaInscription({
   fermeInscriptions?: boolean;
   estMonTournoi?: boolean;
   enDirect?: boolean;
+  /** Hauteur réelle (px) de la barre fixe du bas — ce composant a plusieurs
+   * variantes de hauteur très différente (simple bouton "S'inscrire" vs.
+   * bannières d'invitation d'équipe empilées), donc un padding-bottom fixe
+   * côté page ne suffit jamais à toutes les couvrir sans se chevaucher avec
+   * le contenu au-dessus. La page appelante réserve cet espace dynamiquement
+   * plutôt que de deviner une valeur. */
+  onHauteurChange?: (px: number) => void;
 }) {
   const router = useRouter();
+  const barreRef = useRef<HTMLDivElement>(null);
+
+  // Mesure synchrone (avant peinture) à chaque rendu : couvre le cas le plus
+  // fréquent, une bannière qui apparaît/disparaît suite à un changement
+  // d'état React (invitation d'équipe, renommage...). Le ResizeObserver en
+  // complément couvre les cas plus rares où la taille change sans re-rendu
+  // React (redimensionnement de fenêtre, retour de police).
+  useLayoutEffect(() => {
+    if (barreRef.current && onHauteurChange) onHauteurChange(barreRef.current.offsetHeight);
+  });
+
+  useEffect(() => {
+    const el = barreRef.current;
+    if (!el || !onHauteurChange) return;
+    const observer = new ResizeObserver((entries) => {
+      const hauteur = entries[0]?.contentRect.height;
+      if (hauteur !== undefined) onHauteurChange(el.offsetHeight);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
   const estEquipes = typeCompetition === "equipes";
   const estBREquipes = typeCompetition === "battle_royale" && brSousType && brSousType !== "solo";
   const [choixEquipe, setChoixEquipe] = useState(false);
@@ -330,6 +359,7 @@ export function CtaInscription({
   if (estMonTournoi) {
     return (
       <div
+        ref={barreRef}
         className="fixed bottom-0 left-0 right-0 px-5 py-4 flex items-center gap-3"
         style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
       >
@@ -361,6 +391,7 @@ export function CtaInscription({
   if (inscrit) {
     return (
       <div
+        ref={barreRef}
         className="fixed bottom-0 left-0 right-0 px-5 py-4 flex flex-col gap-2.5"
         style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
       >
@@ -449,6 +480,7 @@ export function CtaInscription({
 
   return (
     <div
+      ref={barreRef}
       className="fixed bottom-0 left-0 right-0 px-5 py-4 flex flex-col gap-3"
       style={{ background: "var(--ds-bg)", borderTop: "1px solid var(--ds-border)" }}
     >

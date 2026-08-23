@@ -26,12 +26,11 @@ import { Avatar } from "@/components/ds/Avatar";
 import { formatXof } from "@/lib/formatXof";
 import { type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, codeRound, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
-import { inscriptionDe, annulerMonInscription } from "@/lib/mockInscriptions";
+import { inscriptionDe } from "@/lib/mockInscriptions";
 import { lireProfil, attendreProfil, tagDeJoueur } from "@/lib/mockProfil";
 import { presentsDuTournoi, confirmerMaPresence } from "@/lib/mockCheckin";
 import { infosRoomDuTournoi, type InfosRoom } from "@/lib/mockRoomInfo";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
-import { crediter } from "@/lib/mockWallet";
 
 const RAFRAICHISSEMENT_MS = 15_000;
 
@@ -213,7 +212,6 @@ function ListeEntrants({ titre, total, lignes, showTotVoir, tournoiId, photoDeMo
  * FicheDirectSpectateur.tsx pour les spectateurs, adapté à quelqu'un qui a
  * des enjeux propres (son statut, son match, son adversaire). */
 export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
-  const router = useRouter();
   const [monNom, setMonNom] = useState("");
   const [maPhoto, setMaPhoto] = useState<string | undefined>(undefined);
   const [matchs, setMatchs] = useState<MatchTournoi[]>([]);
@@ -223,9 +221,6 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
   const [pret, setPret] = useState(false);
   const [confirmation, setConfirmation] = useState(false);
   const [maintenant, setMaintenant] = useState(() => Date.now());
-  const [confirmerAnnulation, setConfirmerAnnulation] = useState(false);
-  const [enAnnulation, setEnAnnulation] = useState(false);
-  const [erreurAnnulation, setErreurAnnulation] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setMaintenant(Date.now()), 1000);
@@ -281,22 +276,6 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
     setPresents(await confirmerMaPresence(tournoi.id));
     setConfirmation(true);
     setTimeout(() => setConfirmation(false), 2000);
-  }
-
-  async function annuler() {
-    setEnAnnulation(true);
-    setErreurAnnulation(null);
-    const resultat = await annulerMonInscription(tournoi.id);
-    if (!resultat.ok) {
-      setEnAnnulation(false);
-      setConfirmerAnnulation(false);
-      setErreurAnnulation(resultat.erreur ?? "Impossible d'annuler pour l'instant.");
-      return;
-    }
-    if (resultat.remboursementXof) {
-      await crediter(resultat.remboursementXof, `Remboursement · ${tournoi.titre}`, "remboursement", tournoi.id);
-    }
-    router.push(`/tournois/${tournoi.id}`);
   }
 
   const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : 0;
@@ -450,50 +429,8 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
 
           <div className="h-px" style={{ background: "linear-gradient(to right, transparent, var(--ds-border) 48px, var(--ds-border) calc(100% - 48px), transparent)" }} />
 
-          <div className="px-5 pt-3.5">
+          <div className="px-5 pt-3.5 pb-6">
             <ListeEntrants titre="Inscrits" total={`${tournoi.placesInscrites} sur ${tournoi.placesTotal}`} lignes={entrantsApercu} showTotVoir tournoiId={tournoi.id} photoDeMoi={maPhoto} />
-          </div>
-
-          <div className="mt-auto px-5" style={{ paddingTop: 16, paddingBottom: 22, borderTop: "1px solid var(--ds-border)" }}>
-            {erreurAnnulation && (
-              <p className="mb-2 text-xs text-center" style={{ color: "var(--ds-danger)" }}>{erreurAnnulation}</p>
-            )}
-            {confirmerAnnulation ? (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-center" style={{ color: "var(--ds-text-muted)" }}>
-                  Confirmer l&apos;annulation ? {tournoi.fraisXof > 0 ? `${formatXof(tournoi.fraisXof)} seront recrédités sur ta TourneyCard.` : "Ta place sera libérée."}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmerAnnulation(false)}
-                    className={`flex-1 h-11 flex items-center justify-center text-sm font-medium ${PRESS}`}
-                    style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
-                  >
-                    Garder ma place
-                  </button>
-                  <button
-                    type="button"
-                    onClick={annuler}
-                    disabled={enAnnulation}
-                    className={`flex-1 h-11 flex items-center justify-center text-sm font-medium disabled:opacity-60 ${PRESS}`}
-                    style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}
-                  >
-                    {enAnnulation ? "Annulation…" : "Confirmer"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmerAnnulation(true)}
-                className={`w-full h-[46px] flex items-center justify-center gap-2 text-[13px] font-medium ${PRESS}`}
-                style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-neutral-500)" }}
-              >
-                <XCircle size={16} strokeWidth={2} />
-                Annuler mon inscription
-              </button>
-            )}
           </div>
         </>
       )}

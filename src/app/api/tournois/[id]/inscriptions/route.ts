@@ -70,36 +70,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 }
 
-/** Annule MA propre inscription (le participant, pas l'organisateur) — point
- * demandé explicitement réservé à avant l'ouverture du check-in (au-delà,
- * l'organisateur a déjà commencé à préparer le bracket sur cette base :
- * cf. MaFicheInscrit.tsx, qui ne montre ce bouton que dans cet état). Rembourse
- * le montant réellement payé à l'inscription (montant_paye_xof) — ou, pour une
- * inscription antérieure à l'ajout de ce champ, les frais unitaires actuels du
- * tournoi en repli, seule approximation disponible dans ce cas. */
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await utilisateurConnecte();
-  if (!user) return nonAuthentifie();
-
-  const { id } = await params;
-  const tournoi = await prisma.tournois.findUnique({ where: { id } });
-  if (!tournoi) {
-    return NextResponse.json({ success: false, error: "Tournoi introuvable." }, { status: 404 });
-  }
-  if (tournoi.en_direct || tournoi.termine_le || tournoi.annule_le || Date.now() >= tournoi.checkin_le.getTime()) {
-    return NextResponse.json({ success: false, error: "Le check-in a déjà ouvert, il n'est plus possible d'annuler ton inscription." }, { status: 409 });
-  }
-
-  const inscription = await prisma.inscriptions.findUnique({ where: { tournoi_id_profile_id: { tournoi_id: id, profile_id: user.id } } });
-  if (!inscription) {
-    return NextResponse.json({ success: false, error: "Inscription introuvable." }, { status: 404 });
-  }
-
-  await prisma.inscriptions.delete({ where: { id: inscription.id } });
-  const remboursementXof = inscription.montant_paye_xof ?? tournoi.frais_xof;
-  return NextResponse.json({ success: true, data: { remboursementXof } });
-}
-
 /** Renomme l'équipe de MON inscription (capitaine uniquement, avant le début
  * du tournoi — cf. renommerEquipe dans mockInscriptions.ts). */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

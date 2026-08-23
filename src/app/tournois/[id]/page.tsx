@@ -347,6 +347,11 @@ function DetailTournoiInterne() {
   const [avisCompte, setAvisCompte] = useState({ coeurs: 0, coeursBrises: 0 });
   const [matchsTournoi, setMatchsTournoi] = useState<MatchTournoi[]>([]);
   const [participantsBRCount, setParticipantsBRCount] = useState(0);
+  // Hauteur réelle de la barre CtaInscription (mesurée via ResizeObserver,
+  // cf. CtaInscription.tsx) — remplace un padding-bottom fixe qui ne
+  // couvrait pas ses variantes les plus hautes (bannières d'invitation
+  // d'équipe empilées), d'où le chevauchement avec le contenu au-dessus.
+  const [ctaHauteur, setCtaHauteur] = useState(96);
 
   useEffect(() => {
     async function charger() {
@@ -509,7 +514,10 @@ function DetailTournoiInterne() {
         <BoutonPartager />
       </div>
 
-      <div className={`px-5 relative flex-1 flex flex-col gap-3 pb-28 ${tournoi.enDirect ? "mt-4" : "-mt-6"}`}>
+      <div
+        className={`px-5 relative flex-1 flex flex-col gap-3 ${tournoi.enDirect ? "mt-4" : "-mt-6"}`}
+        style={{ paddingBottom: ctaHauteur + 16 }}
+      >
         <div className="flex gap-1.5 flex-wrap">
           <span
             className="px-2.5 py-1 text-[11px]"
@@ -794,6 +802,7 @@ function DetailTournoiInterne() {
         tournoiCommence={tournoi.enDirect || Boolean(tournoi.termine) || Boolean(tournoi.annule)}
         fermeInscriptions={fermeInscriptions}
         estMonTournoi={estMonTournoi}
+        onHauteurChange={setCtaHauteur}
       />
 
       <Modal ouvert={modaleOuverte === "informations"} titre="Informations" onFermer={() => setModaleOuverte(null)}>
