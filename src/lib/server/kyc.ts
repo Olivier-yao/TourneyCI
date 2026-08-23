@@ -17,6 +17,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import type { statut_kyc } from "@/generated/prisma/client";
 import { documentEstListeNoire } from "@/lib/server/moderation";
+import { analyserDocument, analyserSelfie } from "@/lib/server/kycAnalyse";
 
 export type KycJSON = {
   id: string;
@@ -59,6 +60,19 @@ export async function soumettreVerificationKyc(profileId: string, s: SoumissionK
   if (await documentEstListeNoire(documentHash)) {
     return { ok: false, erreur: "Cette pièce d'identité ne peut pas être utilisée pour une vérification." };
   }
+
+  // Pré-filtre automatique léger (OCR + détection de visage) : rejette les
+  // soumissions manifestement invalides avant même d'atteindre la revue
+  // humaine. Ce n'est qu'un heuristique — la revue dans /tourney-control
+  // reste la décision finale pour tout ce qui passe ce filtre.
+  const [rectoAnalyse, versoAnalyse, selfieAnalyse] = await Promise.all([
+    analyserDocument(s.rectoUrl),
+    analyserDocument(s.versoUrl),
+    analyserSelfie(s.selfieUrl),
+  ]);
+  if (!rectoAnalyse.ok) return { ok: false, erreur: `Recto : ${rectoAnalyse.raison}` };
+  if (!versoAnalyse.ok) return { ok: false, erreur: `Verso : ${versoAnalyse.raison}` };
+  if (!selfieAnalyse.ok) return { ok: false, erreur: `Selfie : ${selfieAnalyse.raison}` };
 
   const row = await prisma.kyc_verifications.create({
     data: {

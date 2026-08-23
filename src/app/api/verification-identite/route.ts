@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
 import { derniereVerificationKyc, soumettreVerificationKyc } from "@/lib/server/kyc";
 
+// L'analyse automatique (OCR + détection de visage) peut prendre plusieurs
+// secondes, surtout au premier appel (téléchargement des modèles) — la
+// limite par défaut (10s) est trop courte.
+export const maxDuration = 60;
+
 export async function GET() {
   const user = await utilisateurConnecte();
   if (!user) return nonAuthentifie();
