@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { Search, X, SlidersHorizontal, Ticket, Flame, Bell, XCircle, Compass, RotateCcw, ChevronRight } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { CarteTournoi, elementVariants } from "@/components/ds/CarteTournoi";
-import { genreDuJeu, modeDuTournoi, tousLesTournois, JEUX, type Tournoi } from "@/lib/mockTournaments";
+import { genreDuJeu, modeDuTournoi, pageTournois, JEUX, type Tournoi } from "@/lib/mockTournaments";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
@@ -26,29 +26,50 @@ export default function TournoisPage() {
   const [filtres, setFiltres] = useState<FiltresValeur>(FILTRES_VIDES);
   const [requete, setRequete] = useState("");
   const [tousLesTournoisState, setTousLesTournoisState] = useState<Tournoi[]>([]);
+  const [curseurSuivant, setCurseurSuivant] = useState<number | null>(null);
+  const [chargementPlus, setChargementPlus] = useState(false);
   const [idsInscrits, setIdsInscrits] = useState<Set<string>>(new Set());
+  const nbCharges = useRef(0);
+  useEffect(() => {
+    nbCharges.current = tousLesTournoisState.length;
+  });
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     async function charger() {
-       
-      setTousLesTournoisState(await tousLesTournois());
+      const premierePage = await pageTournois();
+      setTousLesTournoisState(premierePage.tournois);
+      setCurseurSuivant(premierePage.curseurSuivant);
       setIdsInscrits(new Set((await mesInscriptions()).map((i) => i.tournoiId)));
     }
     charger();
   }, []);
 
-  // Bascule en_direct/termine et disparition (fenêtre de grâce de 2 min
-  // après clôture, cf. estEnDirect côté serveur).
+  // Recharge autant de tournois que déjà affichés (préserve la profondeur de
+  // pagination atteinte par l'utilisateur, via la ref plutôt que l'état pour
+  // rester à jour dans l'intervalle sans le recréer) — bascule en_direct/
+  // termine et disparition (fenêtre de grâce de 2 min après clôture, cf.
+  // estEnDirect côté serveur).
+  async function rafraichirPremierePage() {
+    const page = await pageTournois(undefined, Math.max(nbCharges.current, 30));
+    setTousLesTournoisState(page.tournois);
+    setCurseurSuivant(page.curseurSuivant);
+  }
   useEffect(() => {
-    const id = setInterval(() => { tousLesTournois().then(setTousLesTournoisState); }, 60_000);
+    const id = setInterval(rafraichirPremierePage, 60_000);
     return () => clearInterval(id);
   }, []);
-  useRealtimeRefetch(
-    [{ table: "tournois", event: "*" }],
-    () => { tousLesTournois().then(setTousLesTournoisState); },
-  );
+  useRealtimeRefetch([{ table: "tournois", event: "*" }], rafraichirPremierePage);
+
+  async function chargerPlus() {
+    if (!curseurSuivant || chargementPlus) return;
+    setChargementPlus(true);
+    const page = await pageTournois(curseurSuivant);
+    setTousLesTournoisState((prev) => [...prev, ...page.tournois]);
+    setCurseurSuivant(page.curseurSuivant);
+    setChargementPlus(false);
+  }
 
   function correspond(t: Tournoi, f: FiltresValeur) {
     const jeuLibreActif = Boolean(f.jeuLibre?.trim());
@@ -214,6 +235,18 @@ export default function TournoisPage() {
         {tournois.map((t) => (
           <CarteTournoi key={t.id} tournoi={t} />
         ))}
+
+        {onglet === "tous" && curseurSuivant !== null && (
+          <button
+            type="button"
+            onClick={chargerPlus}
+            disabled={chargementPlus}
+            className="h-11 flex items-center justify-center text-sm font-medium cursor-pointer disabled:cursor-default disabled:opacity-60"
+            style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+          >
+            {chargementPlus ? "Chargement..." : "Charger plus de tournois"}
+          </button>
+        )}
 
         {tournois.length === 0 && onglet === "inscriptions" && (
           <motion.div variants={elementVariants} className="flex flex-col items-start gap-4 pt-6">

@@ -30,7 +30,19 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const organisateurMoi = searchParams.get("organisateur") === "me";
   const enDirect = searchParams.get("enDirect") === "1";
-  const nonFiltree = !organisateurMoi && !enDirect;
+  // Pagination réelle (curseur = created_at en ms du dernier élément déjà
+  // chargé) : utilisée par l'écran "Tous les tournois" (/tournois), le seul
+  // vrai catalogue parcourable avec recherche/filtres — un bouton "Charger
+  // plus" y demande la page suivante plutôt que de dépendre du plafond de
+  // sécurité ci-dessous. accueil/en-direct restent sur l'appel non paginé
+  // (des fils "en ce moment", naturellement bornés par construction) : ce
+  // paramètre est optionnel et rétrocompatible, absent = comportement
+  // inchangé pour ces écrans.
+  const curseurBrut = searchParams.get("curseur");
+  const curseur = curseurBrut ? new Date(Number(curseurBrut)) : undefined;
+  const limiteBrute = Number(searchParams.get("limite"));
+  const limite = Number.isFinite(limiteBrute) && limiteBrute > 0 ? Math.min(limiteBrute, LIMITE_TOURNOIS) : LIMITE_TOURNOIS;
+  const nonFiltree = !organisateurMoi && !enDirect && !curseur;
 
   if (nonFiltree && cacheListeNonFiltree && cacheListeNonFiltree.expireA > Date.now()) {
     return NextResponse.json({ success: true, data: cacheListeNonFiltree.donnees });
@@ -52,23 +64,20 @@ export async function GET(request: Request) {
       ...(enDirect
         ? { OR: [{ en_direct: true }, { termine_le: null, annule_le: null, debut_tournoi_le: { lte: new Date() } }] }
         : {}),
+      ...(curseur ? { created_at: { lt: curseur } } : {}),
     },
     include: INCLUDE_TOURNOI_LISTE,
     orderBy: { created_at: "desc" },
-    // Garde-fou : sans borne, cette requête charge l'intégralité de la table
-    // (+ 4 relations jointes) à chaque appel — sans effet aujourd'hui (11
-    // tournois au total) mais deviendrait un vrai problème de croissance non
-    // bornée. Une vraie pagination avec UI dédiée (recherche/filtres des 3
-    // écrans de liste) est un chantier plus large, pas fait ici — ceci
-    // empêche seulement le pire cas (des milliers de lignes chargées d'un
-    // coup) en attendant.
-    take: LIMITE_TOURNOIS,
+    // Garde-fou pour les appels non paginés (accueil/en-direct) : sans
+    // borne, chargerait l'intégralité de la table à chaque appel.
+    take: limite,
   });
 
   const donnees = tournois.map(versTournoiJSON);
+  const curseurSuivant = tournois.length === limite ? tournois[tournois.length - 1].created_at.getTime() : null;
   if (nonFiltree) cacheListeNonFiltree = { expireA: Date.now() + DUREE_CACHE_LISTE_MS, donnees };
 
-  return NextResponse.json({ success: true, data: donnees });
+  return NextResponse.json({ success: true, data: donnees, curseurSuivant });
 }
 
 export async function POST(request: Request) {

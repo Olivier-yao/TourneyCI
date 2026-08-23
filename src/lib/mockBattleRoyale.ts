@@ -98,6 +98,16 @@ export async function manchesBR(tournoiId: string): Promise<MancheBR[]> {
   return (await chargerManchesBR(tournoiId)).manches;
 }
 
+/** Nombre de manches déjà closes pour plusieurs tournois en un seul appel —
+ * remplace un fetch par tournoi sur les écrans qui en listent plusieurs
+ * (en-direct). */
+export async function nbManchesBRDePlusieursTournois(tournoiIds: string[]): Promise<Record<string, number>> {
+  if (tournoiIds.length === 0) return {};
+  const reponse = await fetch(`/api/tournois/manches-br-comptes?ids=${tournoiIds.map(encodeURIComponent).join(",")}`);
+  const resultat = await reponseJson<Record<string, number>>(reponse);
+  return resultat.ok ? resultat.data : {};
+}
+
 /** Point 205 : aperçu provisoire de la manche en cours de saisie, poussé par
  * "Valider" — visible immédiatement des spectateurs (classement en direct)
  * sans clôturer la manche. Volontairement séparé de manchesBR/

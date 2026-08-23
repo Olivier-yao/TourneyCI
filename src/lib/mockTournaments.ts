@@ -340,6 +340,25 @@ export async function tousLesTournois(options?: { organisateurMoi?: boolean; enD
   return resultat.ok ? resultat.data : [];
 }
 
+const TAILLE_PAGE_TOURNOIS = 30;
+
+export type PageTournois = { tournois: Tournoi[]; curseurSuivant: number | null };
+
+/** Pagination réelle (curseur = created_at en ms du dernier tournoi déjà
+ * chargé) — pour l'écran "Tous les tournois", le seul vrai catalogue
+ * parcourable avec recherche/filtres. `curseur` omis pour la première page ;
+ * `limite` par défaut à TAILLE_PAGE_TOURNOIS, personnalisable pour recharger
+ * d'un coup autant de tournois que déjà affichés (rafraîchissement
+ * temps réel sans perdre la profondeur de pagination déjà atteinte). */
+export async function pageTournois(curseur?: number, limite = TAILLE_PAGE_TOURNOIS): Promise<PageTournois> {
+  const params = new URLSearchParams({ limite: String(limite) });
+  if (curseur) params.set("curseur", String(curseur));
+  const reponse = await fetch(`/api/tournois?${params}`);
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { tournois: [], curseurSuivant: null };
+  return { tournois: json.data as Tournoi[], curseurSuivant: (json.curseurSuivant as number | null) ?? null };
+}
+
 export async function tournoiParId(id: string): Promise<Tournoi | undefined> {
   const reponse = await fetch(`/api/tournois/${id}`);
   const resultat = await reponseJson<Tournoi>(reponse);

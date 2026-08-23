@@ -9,7 +9,7 @@ import { symboleParId } from "@/lib/mockSymboles";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDePlusieursTournois, type MatchTournoi } from "@/lib/mockBracket";
-import { manchesBR } from "@/lib/mockBattleRoyale";
+import { nbManchesBRDePlusieursTournois } from "@/lib/mockBattleRoyale";
 import { compterAvisPlusieurs } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
@@ -98,12 +98,8 @@ export default function EnDirectPage() {
 
   useEffect(() => {
     async function charger() {
-      const entrees = await Promise.all(
-        tousLesTournoisState
-          .filter((t) => t.enDirect && t.type === "battle_royale")
-          .map(async (t) => [t.id, (await manchesBR(t.id)).length] as const),
-      );
-      setManchesBRParTournoi(Object.fromEntries(entrees));
+      const ids = tousLesTournoisState.filter((t) => t.enDirect && t.type === "battle_royale").map((t) => t.id);
+      setManchesBRParTournoi(await nbManchesBRDePlusieursTournois(ids));
     }
     charger();
   }, [tousLesTournoisState]);
