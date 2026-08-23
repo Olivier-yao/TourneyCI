@@ -95,8 +95,7 @@ export function VueOrganisateurMatch({
 
   useEffect(() => {
     async function charger() {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLitige(litigeDuMatch(matchInitial.id));
+      setLitige(await litigeDuMatch(matchInitial.id));
       const tournoi = await tournoiParId(tournoiId);
       setCategorie(mappeGenre(tournoi ? genreDuJeu(tournoi.jeuId) : undefined));
       const matchs = await matchsDuTournoi(tournoiId);
@@ -128,10 +127,10 @@ export function VueOrganisateurMatch({
     onMaj();
   }
 
-  function trancherLitige(statut: "resolu_faveur" | "rejete") {
+  async function trancherLitige(statut: "resolu_faveur" | "rejete") {
     if (!litige) return;
-    resoudreLitige(litige.id, statut);
-    setLitige({ ...litige, statut });
+    const maj = await resoudreLitige(matchInitial.id, statut);
+    if (maj) setLitige(maj);
   }
 
   function choisirCategorie(id: CategorieEvenement) {

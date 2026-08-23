@@ -9,6 +9,7 @@
 import type { AnalyseDemandeOrganisateur } from "./mockAnalyseAutomatique";
 import type { StatutDemandeOrganisateur } from "./mockDemandesOrganisateur";
 import type { StatutDemandeAnnulation } from "./mockDemandesAnnulation";
+import type { Litige } from "./mockLitige";
 
 export type EtapeConnexionAdmin = "identifiants" | "pin" | "interface";
 
@@ -162,4 +163,13 @@ export async function traiterVerificationKycAdmin(id: string, statut: "validee" 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ statut }),
   });
+}
+
+/** Supervision (lecture seule) : les litiges sont tranchés par
+ * l'organisateur du tournoi concerné, jamais depuis cette interface. */
+export async function litigesEnAttenteAdmin(): Promise<Litige[]> {
+  const reponse = await fetch("/api/tourney-control/litiges");
+  if (!reponse.ok) return [];
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : [];
 }

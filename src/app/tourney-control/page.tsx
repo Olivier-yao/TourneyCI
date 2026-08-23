@@ -39,6 +39,7 @@ import {
   leverSuspensionAdmin,
   verificationsKycEnAttenteAdmin,
   traiterVerificationKycAdmin,
+  litigesEnAttenteAdmin,
   type DemandeOrganisateurAdmin,
   type DemandeAnnulationAdmin,
   type OrganisateurModerationAdmin,
@@ -46,7 +47,7 @@ import {
 } from "@/lib/mockTourneyControl";
 import type { AnalyseDemandeOrganisateur } from "@/lib/mockAnalyseAutomatique";
 import { plaintesEnAttente, traiterPlainte, type Plainte } from "@/lib/mockPlaintes";
-import { mesLitiges, type Litige, type StatutLitige } from "@/lib/mockLitige";
+import type { Litige, StatutLitige } from "@/lib/mockLitige";
 
 /**
  * Interface administrateur sécurisée (point 160, restylée point 170 selon le
@@ -783,7 +784,7 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   async function rafraichir() {
     setDemandesOrga(await demandesOrganisateurEnAttente());
     setPlaintes(plaintesEnAttente());
-    setLitiges(mesLitiges());
+    setLitiges(await litigesEnAttenteAdmin());
     setDemandesAnnul(await demandesAnnulationEnAttente());
     setFileModeration(await organisateursModeration());
     setVerificationsKyc(await verificationsKycEnAttenteAdmin());

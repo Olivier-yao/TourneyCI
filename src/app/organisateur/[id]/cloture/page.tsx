@@ -21,7 +21,7 @@ import { classementFinalBR, manchesBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel, estCertifie } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { demandeAnnulationPourTournoi, type DemandeAnnulation } from "@/lib/mockDemandesAnnulation";
-import { mesLitiges } from "@/lib/mockLitige";
+import { nbLitigesOuvertsTournoi } from "@/lib/mockLitige";
 import { formatXof } from "@/lib/formatXof";
 
 /** Écran dédié de clôture (revu suite au retour utilisateur : la clôture et
@@ -47,6 +47,7 @@ export default function ClotureTournoiPage() {
   const [matchsBracket, setMatchsBracket] = useState<MatchTournoi[]>([]);
   const [manchesJouees, setManchesJouees] = useState(0);
   const [jeSuisCertifie, setJeSuisCertifie] = useState(false);
+  const [litigesOuverts, setLitigesOuverts] = useState(0);
 
   async function rafraichirTournoi() {
     setTournoi(await tournoiParId(params.id));
@@ -59,6 +60,7 @@ export default function ClotureTournoiPage() {
       setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
       setDemandeEnAttente(await demandeAnnulationPourTournoi(params.id));
       setJeSuisCertifie(await estCertifie());
+      setLitigesOuverts(await nbLitigesOuvertsTournoi(params.id));
       setPret(true);
     });
   }, [params.id]);
@@ -105,7 +107,6 @@ export default function ClotureTournoiPage() {
         : 0
     : 0;
 
-  const litigesOuverts = tournoi ? mesLitiges().filter((l) => l.tournoiId === tournoi.id && l.statut === "en_attente").length : 0;
   const sequestreXof = tournoi ? cashPrizeAffiche(tournoi) : 0;
   const nbFinalistes = tournoi?.repartitionCashPrize?.length ?? 0;
   const previsionVersements = tournoi && nbFinalistes > 0 ? repartitionAutomatique(sequestreXof, nbFinalistes) : [];

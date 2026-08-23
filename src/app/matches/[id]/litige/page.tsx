@@ -67,13 +67,13 @@ export default function LitigePage() {
 
   useEffect(() => {
     async function charger() {
-      const existant = litigeDuMatch(params.id);
+      const existant = await litigeDuMatch(params.id);
       if (existant) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setLitige(existant);
         setEtape("suivi");
       }
-      setHistorique(mesLitiges().filter((l) => l.matchId !== params.id).slice(0, 3));
+      setHistorique((await mesLitiges()).filter((l) => l.matchId !== params.id).slice(0, 3));
       const m = await matchParId(params.id);
       setMatch(m);
       if (!m) {
@@ -101,10 +101,10 @@ export default function LitigePage() {
   const monPseudo = lireProfil().pseudo;
   const adversaire = match.joueur1 === monPseudo ? match.joueur2 : match.joueur1;
 
-  function ajouterPreuve(nom: string) {
+  async function ajouterPreuve(nom: string) {
     if (litige) {
-      ajouterPreuveLitige(litige.id, nom);
-      setLitige({ ...litige, preuves: [...litige.preuves, nom] });
+      const maj = await ajouterPreuveLitige(params.id, nom);
+      if (maj) setLitige(maj);
     } else {
       setPreuves((p) => [...p, nom]);
     }
@@ -116,20 +116,10 @@ export default function LitigePage() {
     if (fichier) ajouterPreuve(fichier.name);
   }
 
-  function envoyerLitige() {
+  async function envoyerLitige() {
     if (!motifId || !tournoi) return;
-    const motif = MOTIFS.find((m) => m.id === motifId);
-    const nouveau = creerLitige({
-      matchId: params.id,
-      tournoiId: tournoi.id,
-      tournoiTitre: tournoi.titre,
-      adversaire: adversaire ?? "l'adversaire",
-      arbitre: tournoi.organisateur,
-      motifId,
-      motifLabel: motif?.label ?? "Autre motif",
-      description: description.trim(),
-      preuves,
-    });
+    const nouveau = await creerLitige({ matchId: params.id, motifId, description: description.trim(), preuves });
+    if (!nouveau) return;
     setLitige(nouveau);
     setEtape("suivi");
   }
