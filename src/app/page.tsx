@@ -6,7 +6,7 @@ import { RedirectionSiConnecte } from "./RedirectionSiConnecte";
 
 export const metadata: Metadata = {
   description:
-    "Tourney organise des tournois gaming en Côte d'Ivoire : inscriptions, brackets générés automatiquement, scores en direct et classement — pour la communauté PLAY UP CÔTE D'IVOIRE.",
+    "Tourney organise des tournois gaming en Côte d'Ivoire : inscriptions, brackets générés automatiquement, scores en direct et classement.",
 };
 
 const ATOUTS = [
@@ -40,7 +40,7 @@ export default function Home() {
             Le tournoi gaming commence ici
           </h1>
           <p className="text-sm leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-            Tourney organise les tournois de la communauté <strong style={{ color: "var(--ds-text)" }}>PLAY UP CÔTE D&apos;IVOIRE</strong> :
+            Tourney organise les tournois gaming de la communauté ivoirienne :
             inscriptions, brackets, scores en direct et classement, le tout depuis ton téléphone.
           </p>
         </div>

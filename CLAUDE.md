@@ -3,7 +3,7 @@
 # Tourney — Contexte projet
 
 App de gestion de tournoi gaming IRL (inscriptions, bracket, scores en direct)
-pour des événements type PLAY UP CÔTE D'IVOIRE, communauté TikTok gaming à Abidjan.
+pour des événements gaming en Côte d'Ivoire.
 
 ## Stack
 - Next.js (App Router) + Tailwind CSS
