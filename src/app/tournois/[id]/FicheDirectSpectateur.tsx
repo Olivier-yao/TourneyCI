@@ -31,9 +31,10 @@ import {
 } from "@/lib/mockBracket";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { CarteOrganisateur } from "./CarteOrganisateur";
 
-const RAFRAICHISSEMENT_MS = 15_000;
+const RAFRAICHISSEMENT_MS = 60_000;
 const SEUIL_TEXTE_LONG = 140;
 
 function initiales(nom: string): string {
@@ -289,6 +290,11 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
     };
   }, [tournoi.id]);
 
+  useRealtimeRefetch(
+    [{ table: "matches", filter: `tournoi_id=eq.${tournoi.id}`, event: "*" }],
+    () => { matchsDuTournoi(tournoi.id).then(setMatchs); },
+  );
+
   const matchVedette = matchs.find((m) => m.statut === "en_cours");
 
   useEffect(() => {
@@ -308,6 +314,11 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
       clearInterval(id);
     };
   }, [matchVedette]);
+
+  useRealtimeRefetch(
+    matchVedette ? [{ table: "match_evenements", filter: `match_id=eq.${matchVedette.id}` }] : [],
+    () => { if (matchVedette) evenementsDuMatch(matchVedette.id).then(setEvenements); },
+  );
 
   async function partager() {
     const url = window.location.href;

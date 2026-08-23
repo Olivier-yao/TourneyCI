@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, XCircle } from "lucide-react";
+import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, XCircle, CalendarClock } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
 import { AvatarPile } from "@/components/ds/Avatar";
 import { Modal } from "@/components/ds/Modal";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { formatXof } from "@/lib/formatXof";
+import { formatCompteARebours } from "@/lib/tournoiFormat";
 import {
   tournoiParId,
   inscriptionsFermees,
@@ -30,6 +31,7 @@ import { monAvisPourTournoi, compterAvis } from "@/lib/mockAvis";
 import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";
 import { AvisCoeur } from "@/components/ds/AvisCoeur";
 import { AppelResultats } from "@/components/ds/AppelResultats";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { CtaInscription } from "./CtaInscription";
 import { CarteOrganisateur } from "./CarteOrganisateur";
 import { FicheDirectSpectateur } from "./FicheDirectSpectateur";
@@ -353,6 +355,12 @@ function DetailTournoiInterne() {
   // couvrait pas ses variantes les plus hautes (bannières d'invitation
   // d'équipe empilées), d'où le chevauchement avec le contenu au-dessus.
   const [ctaHauteur, setCtaHauteur] = useState(96);
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setMaintenant(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     async function charger() {
@@ -413,6 +421,19 @@ function DetailTournoiInterne() {
     charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  // Rafraîchit le tournoi (statut en_direct/termine, présent au chargement
+  // uniquement jusqu'ici) et ses matchs dès qu'un changement survient côté
+  // serveur — sans ça, un spectateur resté sur cette fiche ne voit jamais la
+  // bascule "en direct" ni l'annonce du vainqueur sans recharger la page.
+  useRealtimeRefetch(
+    [{ table: "tournois", filter: `id=eq.${params.id}`, event: "UPDATE" }],
+    () => { tournoiParId(params.id).then((t) => t && setTournoi(t)); },
+  );
+  useRealtimeRefetch(
+    tournoi && tournoi.type !== "battle_royale" ? [{ table: "matches", filter: `tournoi_id=eq.${params.id}`, event: "*" }] : [],
+    () => { matchsDuTournoi(params.id).then(setMatchsTournoi); },
+  );
 
   if (!pret) return null;
 
@@ -657,6 +678,23 @@ function DetailTournoiInterne() {
             {tournoi.checkin && <Vignette label="Check-in" valeur={tournoi.checkin} />}
           </div>
         )}
+        {!tournoi.enDirect && !tournoi.annule && tournoi.debutTournoiTs !== undefined && tournoi.debutTournoiTs > maintenant && (
+          <div
+            className="p-3.5 flex items-center gap-3"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
+          >
+            <CalendarClock size={18} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                Début du tournoi · {tournoi.dateLabel}
+              </div>
+              <div className="mt-0.5 text-lg" style={{ fontFamily: "var(--ds-font-mono)", letterSpacing: "-0.02em", color: "var(--ds-accent-300)" }}>
+                {formatCompteARebours(tournoi.debutTournoiTs - maintenant)}
+              </div>
+            </div>
+          </div>
+        )}
+
         {cashPrizeEstEstime(tournoi) && cashPrizeAffiche(tournoi) > 0 && (
           <p className="text-xs -mt-1" style={{ color: "var(--ds-muted)" }}>
             Cash prize estimé, basé sur les inscriptions actuelles — il évolue avec chaque nouvel inscrit jusqu&apos;à la clôture.

@@ -9,6 +9,7 @@ import { CarteTournoi, elementVariants } from "@/components/ds/CarteTournoi";
 import { genreDuJeu, modeDuTournoi, tousLesTournois, JEUX, type Tournoi } from "@/lib/mockTournaments";
 import { mesInscriptions } from "@/lib/mockInscriptions";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
 
 const conteneurVariants = {
@@ -37,6 +38,17 @@ export default function TournoisPage() {
     }
     charger();
   }, []);
+
+  // Bascule en_direct/termine et disparition (fenêtre de grâce de 2 min
+  // après clôture, cf. estEnDirect côté serveur).
+  useEffect(() => {
+    const id = setInterval(() => { tousLesTournois().then(setTousLesTournoisState); }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  useRealtimeRefetch(
+    [{ table: "tournois", event: "*" }],
+    () => { tousLesTournois().then(setTousLesTournoisState); },
+  );
 
   function correspond(t: Tournoi, f: FiltresValeur) {
     const jeuLibreActif = Boolean(f.jeuLibre?.trim());

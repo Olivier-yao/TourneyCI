@@ -19,6 +19,7 @@ import { mesFavoris, basculerFavori } from "@/lib/mockFavoris";
 import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type GenreJeu, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
 import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
@@ -101,6 +102,19 @@ export default function AccueilV2Page() {
     }
     charger();
   }, []);
+
+  // Bascule en_direct/termine et disparition (fenêtre de grâce de 2 min
+  // après clôture, cf. estEnDirect côté serveur) : rafraîchi séparément du
+  // chargement initial ci-dessus pour ne pas relancer notifs/favoris/profil
+  // à chaque changement de statut d'un tournoi.
+  useEffect(() => {
+    const id = setInterval(() => { tousLesTournois().then(setTournois); }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  useRealtimeRefetch(
+    [{ table: "tournois", event: "*" }],
+    () => { tousLesTournois().then(setTournois); },
+  );
 
   if (!connecte) return null;
 

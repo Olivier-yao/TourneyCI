@@ -20,31 +20,25 @@ import {
   ChevronRight,
   TreePine,
   Gavel,
+  Swords,
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { Avatar } from "@/components/ds/Avatar";
 import { formatXof } from "@/lib/formatXof";
 import { type Tournoi } from "@/lib/mockTournaments";
+import { formatCompteARebours } from "@/lib/tournoiFormat";
 import { matchsDuTournoi, codeRound, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
 import { inscriptionDe } from "@/lib/mockInscriptions";
 import { lireProfil, attendreProfil, tagDeJoueur } from "@/lib/mockProfil";
 import { presentsDuTournoi, confirmerMaPresence } from "@/lib/mockCheckin";
 import { infosRoomDuTournoi, type InfosRoom } from "@/lib/mockRoomInfo";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-const RAFRAICHISSEMENT_MS = 15_000;
+const RAFRAICHISSEMENT_MS = 60_000;
 
 function initiales(nom: string): string {
   return nom.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase();
-}
-
-function formatCompteARebours(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const deux = (n: number) => String(n).padStart(2, "0");
-  return h > 0 ? `${deux(h)}:${deux(m)}:${deux(s)}` : `${deux(m)}:${deux(s)}`;
 }
 
 async function partager() {
@@ -251,6 +245,11 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
     };
   }, [tournoi.id]);
 
+  useRealtimeRefetch(
+    [{ table: "matches", filter: `tournoi_id=eq.${tournoi.id}`, event: "*" }],
+    () => { matchsDuTournoi(tournoi.id).then(setMatchs); },
+  );
+
   const checkinOuvert = tournoi.checkinTs !== undefined && maintenant >= tournoi.checkinTs;
   const etat = tournoi.enDirect ? "en_direct" : checkinOuvert ? "checkin_ouvert" : "avant_checkin";
 
@@ -287,10 +286,16 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
     (m.joueur1 === monNom && (m.score1 ?? 0) < (m.score2 ?? 0)) || (m.joueur2 === monNom && (m.score2 ?? 0) < (m.score1 ?? 0));
   const estElimine = Boolean(dernierTermine && jaiPerdu(dernierTermine) && !matchEnCours);
   const prochainMatch = mesMatchs.find((m) => m.statut === "a_venir");
+  // Un match "a_venir" dont les deux joueurs sont déjà connus n'attend plus
+  // qu'un round adverse — il est prêt, seul le lancement par l'organisateur
+  // manque (cf. demarrerMatch, point 150). Distinct du cas où un adversaire
+  // reste à déterminer : c'est cette dernière situation, et seulement elle,
+  // qui justifie l'écran "Tu es qualifié" ci-dessous.
+  const matchPret = Boolean(prochainMatch && prochainMatch.joueur1 && prochainMatch.joueur2);
   // Le match qui déterminera mon prochain adversaire : l'autre demi
   // alimentant ma prochaine place dans l'arbre (position/2 du round
   // précédent), différente du match que je viens de gagner.
-  const matchAdversaireAVenir = prochainMatch
+  const matchAdversaireAVenir = prochainMatch && !matchPret
     ? matchs.find(
         (m) =>
           m.round === prochainMatch.round - 1 &&
@@ -519,6 +524,29 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
                   <Gavel size={13} strokeWidth={2} />
                   Signaler un litige
                 </Link>
+              </div>
+            </div>
+          ) : matchPret && prochainMatch ? (
+            <div className="p-4 flex flex-col items-center text-center" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}>
+              <div
+                className="flex items-center justify-center"
+                style={{ width: 60, height: 68, background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)", clipPath: "polygon(50% 0%, 100% 16%, 100% 68%, 50% 100%, 0% 68%, 0% 16%)" }}
+              >
+                <Swords size={24} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+              </div>
+              <div className="mt-3 text-[19px] font-medium" style={{ fontFamily: "var(--ds-font-heading)" }}>
+                {mesMatchsTermines.length > 0 ? "Ton prochain match arrive" : "Ton match arrive"}
+              </div>
+              <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+                {libelleRound(prochainMatch.round, totalRounds)} · en attente que l&apos;organisateur le lance.
+              </div>
+
+              <div className="mt-3.5 w-full p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", boxShadow: "var(--ds-shadow-sm)" }}>
+                <div className="flex items-center justify-center gap-2.5 text-[13px]">
+                  <span className="font-medium">{prochainMatch.joueur1}</span>
+                  <span style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>VS</span>
+                  <span className="font-medium">{prochainMatch.joueur2}</span>
+                </div>
               </div>
             </div>
           ) : (

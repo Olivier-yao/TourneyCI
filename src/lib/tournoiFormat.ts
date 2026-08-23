@@ -28,6 +28,7 @@ export function formatDuTournoi(t: {
 }
 
 const JOURS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const MOIS = ["jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 
 function heureUtc(ts: number): string {
   const d = new Date(ts);
@@ -35,10 +36,12 @@ function heureUtc(ts: number): string {
 }
 
 /** Abidjan est en GMT toute l'année (pas d'heure d'été) — les heures UTC
- * s'affichent donc telles quelles, sans conversion de fuseau. */
+ * s'affichent donc telles quelles, sans conversion de fuseau. Inclut le
+ * quantième (pas seulement le jour de semaine) : "Vendredi" seul ne dit pas
+ * si c'est ce vendredi ou le suivant. */
 export function formaterDateLabel(ts: number): string {
   const d = new Date(ts);
-  return `${JOURS[d.getUTCDay()]} ${heureUtc(ts)} GMT`;
+  return `${JOURS[d.getUTCDay()]} ${d.getUTCDate()} ${MOIS[d.getUTCMonth()]} · ${heureUtc(ts)} GMT`;
 }
 
 export function formaterHeureCheckin(ts: number): string {
@@ -49,6 +52,18 @@ export function formaterHeureCheckin(ts: number): string {
 const MINUTE_MS = 60_000;
 const HEURE_MS = 3_600_000;
 const JOUR_MS = 86_400_000;
+
+/** Décompte "HH:MM:SS" (ou "MM:SS" en dessous d'une heure) jusqu'à un
+ * horodatage — utilisé par tout écran affichant un compte à rebours avant
+ * un événement (ouverture du check-in, début du tournoi). */
+export function formatCompteARebours(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const deux = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${deux(h)}:${deux(m)}:${deux(s)}` : `${deux(m)}:${deux(s)}`;
+}
 
 /** Horodatage relatif à l'instant présent (notifications) — recalculé côté
  * serveur à chaque lecture plutôt que stocké, comme les autres libellés de

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { matchParId, type MatchTournoi } from "@/lib/mockBracket";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { tournoiParId } from "@/lib/mockTournaments";
@@ -50,6 +51,11 @@ export function MatchLiveClient({ matchId }: { matchId: string }) {
     charger();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
+
+  useRealtimeRefetch(
+    [{ table: "matches", filter: `id=eq.${matchId}`, event: "UPDATE" }],
+    () => { rafraichir(); },
+  );
 
   if (role === "chargement") {
     return <div className="min-h-screen" style={{ background: "var(--ds-bg)" }} />;

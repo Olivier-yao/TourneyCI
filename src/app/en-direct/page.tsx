@@ -12,6 +12,9 @@ import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
 import { manchesBR } from "@/lib/mockBattleRoyale";
 import { compterAvisPlusieurs } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
+
+const RAFRAICHISSEMENT_MS = 60_000;
 
 type Tri = "cashprize" | "participants" | "recent";
 
@@ -64,7 +67,17 @@ export default function EnDirectPage() {
       setTousLesTournoisState(await tousLesTournois());
     }
     charger();
+    const id = setInterval(charger, RAFRAICHISSEMENT_MS);
+    return () => clearInterval(id);
   }, []);
+
+  // Bascule en_direct/termine et disparition (fenêtre de grâce de 2 min
+  // après clôture, cf. estEnDirect côté serveur) : sans ça, cette liste ne
+  // reflète l'état réel qu'au chargement de la page.
+  useRealtimeRefetch(
+    [{ table: "tournois", event: "*" }],
+    () => { tousLesTournois().then(setTousLesTournoisState); },
+  );
 
   useEffect(() => {
     async function charger() {

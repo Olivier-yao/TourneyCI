@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { creerClientSupabaseNavigateur } from "@/lib/supabase/client";
 
-export type CanalRealtime = { table: string; filter?: string };
+export type CanalRealtime = { table: string; filter?: string; event?: "INSERT" | "UPDATE" | "*" };
 
 /**
  * Déclenche `onChange` à chaque ligne insérée en base correspondant à un
@@ -30,7 +30,7 @@ export function useRealtimeRefetch(canaux: CanalRealtime[], onChange: () => void
     for (const c of canaux) {
       channel.on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: c.table, filter: c.filter },
+        { event: c.event ?? "INSERT", schema: "public", table: c.table, filter: c.filter },
         () => onChangeRef.current(),
       );
     }

@@ -31,6 +31,11 @@ export function depuisTypeCompetition(valeur: type_competition): "1v1" | "equipe
   return valeur === "v1" ? "1v1" : valeur;
 }
 
+/** Un tournoi fraîchement clôturé reste visible dans les listes "en direct"
+ * quelques minutes de plus, le temps que les spectateurs voient le score
+ * final/le vainqueur passer avant qu'il ne disparaisse silencieusement. */
+const GRACE_APRES_CLOTURE_MS = 2 * 60_000;
+
 /** Un tournoi passe "en direct" tout seul dès que l'heure de début est
  * atteinte (et qu'il n'est ni terminé ni annulé) — pas besoin d'action
  * organisateur ni de tâche planifiée : calculé à la lecture, comme
@@ -38,8 +43,9 @@ export function depuisTypeCompetition(valeur: type_competition): "1v1" | "equipe
  * un futur déclenchement manuel anticipé, mais rien ne l'écrit à true
  * aujourd'hui. */
 export function estEnDirect(row: { en_direct: boolean; termine_le: Date | null; annule_le: Date | null; debut_tournoi_le: Date }): boolean {
+  if (row.annule_le) return false;
+  if (row.termine_le) return Date.now() - row.termine_le.getTime() < GRACE_APRES_CLOTURE_MS;
   if (row.en_direct) return true;
-  if (row.termine_le || row.annule_le) return false;
   return Date.now() >= row.debut_tournoi_le.getTime();
 }
 

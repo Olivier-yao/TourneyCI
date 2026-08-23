@@ -9,7 +9,10 @@ import { matchsDuTournoi, genererBracket, type MatchTournoi } from "@/lib/mockBr
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { notifierParticipants } from "@/lib/mockNotifications";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { BracketV2 } from "./BracketV2";
+
+const RAFRAICHISSEMENT_MS = 60_000;
 
 /** Tirage au sort de l'ordre des participants — aucune saisie manuelle de
  * l'organisateur : le bracket se construit uniquement à partir des inscrits
@@ -53,8 +56,22 @@ export default function BracketPage() {
   }, [tournoi]);
 
   useEffect(() => {
-    matchsDuTournoi(params.id).then(setMatches);
+    let annule = false;
+    function charger() {
+      matchsDuTournoi(params.id).then((liste) => { if (!annule) setMatches(liste); });
+    }
+    charger();
+    const id = setInterval(charger, RAFRAICHISSEMENT_MS);
+    return () => {
+      annule = true;
+      clearInterval(id);
+    };
   }, [params.id]);
+
+  useRealtimeRefetch(
+    [{ table: "matches", filter: `tournoi_id=eq.${params.id}`, event: "*" }],
+    () => { matchsDuTournoi(params.id).then(setMatches); },
+  );
 
   const fermees = tournoi ? inscriptionsFermees(tournoi) : false;
   const assezDeMonde = (tournoi?.inscrits.length ?? 0) >= 2;
