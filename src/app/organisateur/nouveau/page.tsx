@@ -11,7 +11,7 @@ import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
 import { lireSolde, debiter } from "@/lib/mockWallet";
-import { peutCreerTournoiPayant, nomOrganisateurActuel, onboardingOrganisateurComplet, estCertifie, estOrganisateurCertifie, reglementCertifieAccepte } from "@/lib/mockOrganisateur";
+import { peutCreerTournoiPayant, onboardingOrganisateurComplet, estCertifie, estOrganisateurCertifie, reglementCertifieAccepte } from "@/lib/mockOrganisateur";
 import { AlerteVerificationIdentite } from "@/components/ds/AlerteVerificationIdentite";
 import { MiniatureFormat } from "@/components/ds/MiniatureFormat";
 import { formatXof } from "@/lib/formatXof";
@@ -236,7 +236,10 @@ export default function NouveauTournoiPage() {
   const debutTournoiTs = versTimestamp(dateJour, dateHeure);
   const checkinTs = versTimestamp(dateJour, checkinHeure);
   const finInscriptionsTs = versTimestamp(finInscJour, finInscHeure);
-  const AUJOURDHUI = versJourHeure(Date.now()).jour;
+  // Figé au montage plutôt que recalculé à chaque rendu : borne "min" du
+  // sélecteur de date, une session de création de tournoi dure des minutes,
+  // pas des jours — pas besoin qu'elle bouge pendant que le formulaire est ouvert.
+  const [AUJOURDHUI] = useState(() => versJourHeure(Date.now()).jour);
 
   // La fin des inscriptions suit automatiquement l'heure de check-in (20 min
   // avant) tant que l'organisateur ne l'a pas lui-même ajustée — même
@@ -249,7 +252,6 @@ export default function NouveauTournoiPage() {
     setFinInscJour(jour);
     setFinInscHeure(heure);
   }, [checkinTs, finInscAjusteManuellement]);
-  const checkin = checkinHeure ? `${checkinHeure.replace(":", "h")}` : "";
   const [reglement, setReglement] = useState("");
   const [informations, setInformations] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);

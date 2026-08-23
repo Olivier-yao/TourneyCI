@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { type_mouvement } from "@/generated/prisma/client";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
-import { versMouvementJSON, soldeDepuisMouvements } from "@/lib/server/wallet";
+import { versMouvementJSON } from "@/lib/server/wallet";
 
 const TYPES_VALIDES: type_mouvement[] = ["gain", "inscription", "recharge", "retrait", "commission", "financement", "remboursement"];
 

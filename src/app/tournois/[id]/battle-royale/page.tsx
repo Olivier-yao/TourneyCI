@@ -32,7 +32,7 @@ export default function BattleRoyalePage() {
     // synchronisé côté client une fois monté (évite un mismatch d'hydratation).
     async function charger() {
       const t = await tournoiParId(params.id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTournoi(t);
       setOrganisateur(t?.organisateur === nomOrganisateurActuel());
       setManches(await manchesBR(params.id));

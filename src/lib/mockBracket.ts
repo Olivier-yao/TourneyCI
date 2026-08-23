@@ -70,6 +70,17 @@ export async function matchsDuTournoi(tournoiId: string): Promise<MatchTournoi[]
   return resultat.ok ? resultat.data : [];
 }
 
+/** Matchs de plusieurs tournois en un seul appel — remplace un fetch par
+ * tournoi sur les écrans qui en listent plusieurs (accueil, en-direct).
+ * Renvoie une liste vide pour tout id sans match (bracket pas encore
+ * généré), jamais d'entrée manquante. */
+export async function matchsDePlusieursTournois(tournoiIds: string[]): Promise<Record<string, MatchTournoi[]>> {
+  if (tournoiIds.length === 0) return {};
+  const reponse = await fetch(`/api/tournois/matches-groupes?ids=${tournoiIds.map(encodeURIComponent).join(",")}`);
+  const resultat = await reponseJson<Record<string, MatchTournoi[]>>(reponse);
+  return resultat.ok ? resultat.data : {};
+}
+
 export async function matchParId(id: string): Promise<MatchTournoi | undefined> {
   const reponse = await fetch(`/api/matches/${id}`);
   const resultat = await reponseJson<MatchTournoi>(reponse);

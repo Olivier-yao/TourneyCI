@@ -45,7 +45,7 @@ export function VueParticipantMatch({
     async function charger() {
       const matchs = await matchsDuTournoi(tournoiId);
       const totalRounds = matchs.length > 0 ? Math.max(...matchs.map((m) => m.round)) : match.round;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setRoundLabel(libelleRound(match.round, totalRounds));
       const tournoi = await tournoiParId(tournoiId);
       setInscrits(tournoi?.placesInscrites ?? 0);

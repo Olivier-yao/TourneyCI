@@ -17,6 +17,7 @@
     "@tensorflow-models/blazeface": "^0.1.0",
     "@tensorflow/tfjs": "^4.22.0",
     "@tensorflow/tfjs-backend-cpu": "^4.22.0",
+    "@vercel/functions": "^3.9.5",
     "jpeg-js": "^0.4.4",
     "lucide-react": "^1.28.0",
     "motion": "^12.43.0",

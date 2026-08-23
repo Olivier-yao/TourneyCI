@@ -21,7 +21,7 @@ export default function FavorisPage() {
     async function charger() {
       const favoris = await mesFavoris();
       const resultats = await Promise.all(favoris.map((id) => tournoiParId(id)));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTournois(resultats.filter((t): t is Tournoi => Boolean(t)));
     }
     charger();

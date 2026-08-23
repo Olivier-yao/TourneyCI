@@ -39,7 +39,7 @@ export default function ChatSpectateursTournoiPage() {
     let intervalId: ReturnType<typeof setInterval> | undefined;
     async function charger() {
       const t = await tournoiParId(params.id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTournoi(t);
       if (!t) {
         setPret(true);
@@ -54,7 +54,7 @@ export default function ChatSpectateursTournoiPage() {
       if (intervalId) clearInterval(intervalId);
       if (minuteurRef.current) clearInterval(minuteurRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [params.id]);
 
   useRealtimeRefetch(

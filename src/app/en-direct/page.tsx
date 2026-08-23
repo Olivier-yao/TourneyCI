@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { symboleParId } from "@/lib/mockSymboles";
 import { formatXof } from "@/lib/formatXof";
 import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
-import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
+import { matchsDePlusieursTournois, type MatchTournoi } from "@/lib/mockBracket";
 import { manchesBR } from "@/lib/mockBattleRoyale";
 import { compterAvisPlusieurs } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
@@ -63,7 +63,7 @@ export default function EnDirectPage() {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     async function charger() {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTousLesTournoisState(await tousLesTournois());
     }
     charger();
@@ -81,12 +81,8 @@ export default function EnDirectPage() {
 
   useEffect(() => {
     async function charger() {
-      const entrees = await Promise.all(
-        tousLesTournoisState
-          .filter((t) => t.enDirect && t.type !== "battle_royale")
-          .map(async (t) => [t.id, await matchsDuTournoi(t.id)] as const),
-      );
-      setMatchsParTournoi(Object.fromEntries(entrees));
+      const ids = tousLesTournoisState.filter((t) => t.enDirect && t.type !== "battle_royale").map((t) => t.id);
+      setMatchsParTournoi(await matchsDePlusieursTournois(ids));
     }
     charger();
   }, [tousLesTournoisState]);

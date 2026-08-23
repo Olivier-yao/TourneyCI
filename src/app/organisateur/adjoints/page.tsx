@@ -64,7 +64,7 @@ export default function AdjointsPage() {
 
   useEffect(() => {
     rafraichir();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   async function ajouter() {

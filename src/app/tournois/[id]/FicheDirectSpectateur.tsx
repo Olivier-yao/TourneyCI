@@ -13,12 +13,10 @@ import {
   Radio,
   Share2,
   Users,
-  X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { PRESS } from "@/components/ds/Button";
 import { AvatarPile } from "@/components/ds/Avatar";
-import { formatXof } from "@/lib/formatXof";
 import { cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import {
   matchsDuTournoi,

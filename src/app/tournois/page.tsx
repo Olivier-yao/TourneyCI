@@ -32,7 +32,7 @@ export default function TournoisPage() {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
     // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
     async function charger() {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTousLesTournoisState(await tousLesTournois());
       setIdsInscrits(new Set((await mesInscriptions()).map((i) => i.tournoiId)));
     }

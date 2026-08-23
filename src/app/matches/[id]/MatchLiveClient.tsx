@@ -35,7 +35,7 @@ export function MatchLiveClient({ matchId }: { matchId: string }) {
   useEffect(() => {
     async function charger() {
       await attendreProfil();
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setMonPseudo(lireProfil().pseudo);
       const m = await rafraichir();
       if (!m) {

@@ -794,6 +794,14 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   const [saison, setSaison] = useState<SaisonAdmin | undefined>(undefined);
   const [nomSaisie, setNomSaisie] = useState("");
   const [enregistrementNom, setEnregistrementNom] = useState(false);
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+
+  useEffect(() => {
+    // Granularité minute (pas seconde) : l'onglet Saisons n'affiche qu'un
+    // nombre de jours restants, pas de décompte précis.
+    const id = setInterval(() => setMaintenant(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   async function rafraichir() {
     setDemandesOrga(await demandesOrganisateurEnAttente());
@@ -1055,7 +1063,6 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
             ))}
 
           {onglet === "saisons" && saison && (() => {
-            const maintenant = Date.now();
             const dureeTotaleJours = Math.max(1, Math.round((saison.finLe - saison.debutLe) / 86_400_000));
             const joursEcoules = Math.min(dureeTotaleJours, Math.max(0, Math.round((maintenant - saison.debutLe) / 86_400_000)));
             const joursRestants = Math.max(0, Math.ceil((saison.finLe - maintenant) / 86_400_000));

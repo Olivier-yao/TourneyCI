@@ -264,7 +264,10 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       }
     }
     charger();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      annule = true;
+    };
+     
   }, [tournoi.id, etat]);
 
   if (!pret) return null;

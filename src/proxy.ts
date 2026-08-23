@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 /** Rafraîchit la session Supabase (token proche de l'expiration) à chaque
  * requête et repropage les cookies mis à jour — sans ça, une session peut
  * expirer silencieusement côté client entre deux vérifications. */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let reponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

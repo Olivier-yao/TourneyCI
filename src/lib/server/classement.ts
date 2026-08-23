@@ -38,6 +38,13 @@ function initiales(nom: string): string {
     .toUpperCase();
 }
 
+// Garde-fou : sans borne, le classement charge et trie TOUS les joueurs
+// ayant marqué un point cette saison, à chaque vue. Sans effet aujourd'hui
+// (aucun joueur classé), mais empêche une croissance non bornée. Une vraie
+// pagination (au-delà d'un top N, avec recherche/scroll dédiés) est un
+// chantier d'interface à part, pas fait ici.
+const LIMITE_CLASSEMENT = 500;
+
 /** Classement de la saison donnée, tous jeux confondus, points sommés par
  * profil, trié décroissant — aucune entrée pour un profil qui n'a encore
  * reçu aucun point cette saison (pas de ligne à 0 par défaut, contrairement
@@ -48,6 +55,7 @@ export async function classementGlobal(saisonId: string, profileIdMoi?: string):
     where: { saison_id: saisonId },
     _sum: { points: true },
     orderBy: { _sum: { points: "desc" } },
+    take: LIMITE_CLASSEMENT,
   });
   if (totaux.length === 0) return [];
 
@@ -75,11 +83,31 @@ export async function classementGlobal(saisonId: string, profileIdMoi?: string):
 }
 
 /** Position dans le classement de la saison donnée — undefined si le profil
- * n'a encore aucun point CETTE saison, plutôt qu'un rang arbitraire. */
+ * n'a encore aucun point CETTE saison, plutôt qu'un rang arbitraire.
+ * Requête d'agrégat ciblée (compte les profils strictement mieux classés)
+ * plutôt que de matérialiser tout le classement (classementGlobal) juste
+ * pour y chercher l'index d'un seul profil — appelée à chaque vue de profil
+ * (une des routes les plus visitées), coûteux à mesure que le nombre de
+ * joueurs classés grandit. */
 export async function rangNationalDe(profileId: string, saisonId: string): Promise<number | undefined> {
-  const classement = await classementGlobal(saisonId);
-  const index = classement.findIndex((e) => e.profileId === profileId);
-  return index >= 0 ? index + 1 : undefined;
+  const mesPoints = await prisma.points_classement.aggregate({
+    where: { saison_id: saisonId, profile_id: profileId },
+    _sum: { points: true },
+  });
+  const total = mesPoints._sum.points;
+  if (total === null) return undefined;
+
+  const resultat = await prisma.$queryRaw<{ rang: bigint }[]>`
+    select count(*) + 1 as rang
+    from (
+      select profile_id, sum(points) as total
+      from points_classement
+      where saison_id = ${saisonId}::uuid
+      group by profile_id
+    ) t
+    where t.total > ${total}
+  `;
+  return Number(resultat[0]?.rang ?? 1);
 }
 
 /** Total à VIE, toutes saisons confondues — sert au palier de progression

@@ -19,7 +19,9 @@ export type CanalRealtime = { table: string; filter?: string; event?: "INSERT" |
  */
 export function useRealtimeRefetch(canaux: CanalRealtime[], onChange: () => void, actif = true) {
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   const cle = canaux.map((c) => `${c.table}:${c.filter ?? ""}`).join("|");
 

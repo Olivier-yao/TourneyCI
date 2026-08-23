@@ -42,7 +42,7 @@ export default function InscritsPage() {
       setPret(true);
     }
     charger();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [params.id]);
 
   const inscrits = useMemo(() => {

@@ -52,11 +52,23 @@ async function creerSaisonSuivante(): Promise<SaisonJSON> {
   }
 }
 
+// Cache mémoire court (par instance serverless) : appelée à chaque vue de
+// profil, de classement, de fiche joueur — une saison ne change qu'une fois
+// toutes les DUREE_SAISON_JOURS jours, une fraîcheur de quelques dizaines de
+// secondes ne change rien pour personne. Invalidé explicitement à chaque
+// écriture (nom_suivant, bascule de saison) pour que l'admin voie son propre
+// changement immédiatement plutôt que d'attendre l'expiration.
+const DUREE_CACHE_SAISON_MS = 30_000;
+let cacheSaison: { expireA: number; saison: SaisonJSON } | null = null;
+
 export async function saisonActuelle(): Promise<SaisonJSON> {
+  if (cacheSaison && cacheSaison.expireA > Date.now()) return cacheSaison.saison;
+
   const maintenant = new Date();
   const enCours = await prisma.saisons.findFirst({ where: { debut_le: { lte: maintenant }, fin_le: { gt: maintenant } }, orderBy: { numero: "desc" } });
-  if (enCours) return versSaisonJSON(enCours);
-  return creerSaisonSuivante();
+  const saison = enCours ? versSaisonJSON(enCours) : await creerSaisonSuivante();
+  cacheSaison = { expireA: Date.now() + DUREE_CACHE_SAISON_MS, saison };
+  return saison;
 }
 
 /** Réservé à l'admin (/tourney-control) : nom déjà choisi pour la saison à
@@ -65,4 +77,5 @@ export async function saisonActuelle(): Promise<SaisonJSON> {
 export async function definirNomSaisonSuivante(nom: string): Promise<void> {
   const actuelle = await saisonActuelle();
   await prisma.saisons.update({ where: { id: actuelle.id }, data: { nom_suivant: nom.trim() || null } });
+  cacheSaison = null;
 }

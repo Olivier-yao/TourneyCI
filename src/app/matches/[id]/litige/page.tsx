@@ -69,7 +69,7 @@ export default function LitigePage() {
     async function charger() {
       const existant = await litigeDuMatch(params.id);
       if (existant) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setLitige(existant);
         setEtape("suivi");
       }

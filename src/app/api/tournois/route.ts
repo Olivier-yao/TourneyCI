@@ -23,6 +23,7 @@ import { televerserImagePublique } from "@/lib/server/storage";
 // vérité pour les changements de statut), mais évitent qu'un pic de trafic
 // ne déclenche autant de requêtes DB que de visiteurs simultanés.
 const DUREE_CACHE_LISTE_MS = 5_000;
+const LIMITE_TOURNOIS = 300;
 let cacheListeNonFiltree: { expireA: number; donnees: unknown[] } | null = null;
 
 export async function GET(request: Request) {
@@ -54,6 +55,14 @@ export async function GET(request: Request) {
     },
     include: INCLUDE_TOURNOI_LISTE,
     orderBy: { created_at: "desc" },
+    // Garde-fou : sans borne, cette requête charge l'intégralité de la table
+    // (+ 4 relations jointes) à chaque appel — sans effet aujourd'hui (11
+    // tournois au total) mais deviendrait un vrai problème de croissance non
+    // bornée. Une vraie pagination avec UI dédiée (recherche/filtres des 3
+    // écrans de liste) est un chantier plus large, pas fait ici — ceci
+    // empêche seulement le pire cas (des milliers de lignes chargées d'un
+    // coup) en attendant.
+    take: LIMITE_TOURNOIS,
   });
 
   const donnees = tournois.map(versTournoiJSON);

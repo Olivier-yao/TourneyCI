@@ -48,7 +48,7 @@ export default function SignalerScorePage() {
       setPretPage(true);
     }
     charger();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [params.id]);
 
   if (!pretPage) return null;

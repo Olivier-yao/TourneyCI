@@ -25,7 +25,6 @@ import { matchsDuTournoi, codeRound, type MatchTournoi } from "@/lib/mockBracket
 import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleRoyale";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
-import { classementOrganisateurs } from "@/lib/mockClassementOrganisateurs";
 import { estInscrit } from "@/lib/mockInscriptions";
 import { monAvisPourTournoi, compterAvis } from "@/lib/mockAvis";
 import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";

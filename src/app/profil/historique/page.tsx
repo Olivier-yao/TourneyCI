@@ -16,7 +16,7 @@ export default function HistoriquePage() {
       const inscriptions = await mesInscriptions();
       const tournoisInscrits = await Promise.all(inscriptions.map((i) => tournoiParId(i.tournoiId)));
       const inscrits = tournoisInscrits.filter((t): t is Tournoi => t !== undefined && Boolean(t.termine));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTournois(inscrits);
     }
     charger();

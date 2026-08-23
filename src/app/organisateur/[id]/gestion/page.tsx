@@ -33,6 +33,7 @@ import {
   type Tournoi,
 } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket, libelleRound, codeRound, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import {
   manchesBR,
   mancheEnCoursBR,
@@ -154,6 +155,12 @@ export default function GestionTournoiPage() {
   const [resume, setResume] = useState<ResumeMouvementsTournoi | undefined>(undefined);
   const [demande, setDemande] = useState<DemandeAnnulation | undefined>(undefined);
   const [codeCopie, setCodeCopie] = useState(false);
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setMaintenant(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
@@ -186,6 +193,27 @@ export default function GestionTournoiPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournoi?.id, tournoi?.termine, tournoi?.annule]);
 
+  // Poste de travail pendant l'événement : jusqu'ici chargé une seule fois
+  // au montage, sans aucun rafraîchissement — un organisateur resté sur
+  // cette page ne voyait jamais un score saisi depuis un autre appareil
+  // (adjoint) tant qu'il ne rechargeait pas manuellement.
+  useRealtimeRefetch(
+    [{ table: "tournois", filter: `id=eq.${params.id}`, event: "UPDATE" }],
+    () => { tournoiParId(params.id).then((t) => t && setTournoi(t)); },
+  );
+  useRealtimeRefetch(
+    tournoi && tournoi.type !== "battle_royale" ? [{ table: "matches", filter: `tournoi_id=eq.${params.id}`, event: "*" }] : [],
+    () => { matchsDuTournoi(params.id).then(setMatches); },
+  );
+  useRealtimeRefetch(
+    tournoi && tournoi.type === "battle_royale" ? [{ table: "manche_br_en_cours", filter: `tournoi_id=eq.${params.id}` }, { table: "manches_br", filter: `tournoi_id=eq.${params.id}` }] : [],
+    () => {
+      if (!tournoi) return;
+      mancheEnCoursBR(tournoi.id).then(setMancheEnCours);
+      manchesBR(tournoi.id).then(setManches);
+    },
+  );
+
   if (!pret) return null;
 
   if (!tournoi) {
@@ -215,7 +243,7 @@ export default function GestionTournoiPage() {
   const cashPrize = cashPrizeAffiche(tournoi);
   const estime = cashPrizeEstEstime(tournoi);
   const spectateurs = spectateursDerives(tournoi.id);
-  const checkinOuvert = tournoi.checkinTs !== undefined && Date.now() >= tournoi.checkinTs;
+  const checkinOuvert = tournoi.checkinTs !== undefined && maintenant >= tournoi.checkinTs;
 
   // ---------- en-tête ----------
   const pill = tournoi.annule
@@ -294,7 +322,7 @@ export default function GestionTournoiPage() {
           <>
             <Kpi valeur={`${tournoi.placesInscrites} / ${tournoi.placesTotal}`} label="inscrits" />
             <Kpi valeur={cashPrize > 0 ? formatXof(cashPrize) : "Gratuit"} label={estime ? "estimé" : "cash prize"} accent={cashPrize > 0} />
-            <Kpi valeur={heureCourte(tournoi.debutTournoiTs ?? Date.now())} label="début" />
+            <Kpi valeur={heureCourte(tournoi.debutTournoiTs ?? maintenant)} label="début" />
           </>
         )}
       </div>
@@ -387,7 +415,7 @@ export default function GestionTournoiPage() {
             </div>
             <p className="mt-2 text-[12px] leading-relaxed" style={{ color: "color-mix(in srgb, var(--ds-text) 58%, transparent)" }}>
               {checkinOuvert
-                ? `Le check-in est ouvert, ${presents.length} sur ${tournoi.placesInscrites} inscrits ont confirmé leur présence. Le tournoi démarre à ${heureCourte(tournoi.debutTournoiTs ?? Date.now())}.`
+                ? `Le check-in est ouvert, ${presents.length} sur ${tournoi.placesInscrites} inscrits ont confirmé leur présence. Le tournoi démarre à ${heureCourte(tournoi.debutTournoiTs ?? maintenant)}.`
                 : `Le check-in ouvre à ${tournoi.checkin}. D'ici là, tu peux encore régler le stream et compléter les infos du tournoi.`}
             </p>
             <Link

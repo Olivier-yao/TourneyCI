@@ -52,7 +52,7 @@ export default function ChatInscritsMatchPage() {
     let intervalId: ReturnType<typeof setInterval> | undefined;
     async function charger() {
       const m = await matchParId(params.id);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setMatch(m);
       if (!m) {
         setPret(true);
@@ -76,7 +76,7 @@ export default function ChatInscritsMatchPage() {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [params.id]);
 
   useRealtimeRefetch(
