@@ -56,7 +56,7 @@ export default function EquipeProfilPage() {
     if (e) {
       const props = await propositionsEnAttentePourEquipe(e.id);
       setPropositions(props);
-      setNbMessages(messagesChatEquipe(e.id).length);
+      setNbMessages((await messagesChatEquipe(e.id)).length);
       const entrees = await Promise.all(
         props.map(async (p) => [p.tournoiId, (await tournoiParId(p.tournoiId))?.titre] as const),
       );

@@ -625,6 +625,7 @@ model equipes_profil {
   profiles                  profiles                    @relation(fields: [chef_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   equipes_profil_membres    equipes_profil_membres[]
   invitations_equipe_profil invitations_equipe_profil[]
+  messages_chat_equipe      messages_chat_equipe[]
   propositions_equipe       propositions_equipe[]
 
   @@unique([chef_id, nom])
@@ -970,6 +971,7 @@ model profiles {
   kyc_verifications                                                     kyc_verifications[]
   litiges                                                               litiges[]
   messages_chat                                                         messages_chat[]
+  messages_chat_equipe                                                  messages_chat_equipe[]
   mouvements                                                            mouvements[]
   notifications                                                         notifications[]
   notifs_tournoi_suivis                                                 notifs_tournoi_suivis[]
@@ -1164,6 +1166,21 @@ model points_classement {
   @@schema("public")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model messages_chat_equipe {
+  id             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipe_id      String                   @db.Uuid
+  auteur_id      String?                  @db.Uuid
+  type           type_message_chat_equipe @default(message)
+  texte          String
+  created_at     DateTime                 @default(now()) @db.Timestamptz(6)
+  profiles       profiles?                @relation(fields: [auteur_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  equipes_profil equipes_profil           @relation(fields: [equipe_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([equipe_id, created_at], map: "messages_chat_equipe_equipe_idx")
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
@@ -1347,6 +1364,13 @@ enum salon_chat {
   general
   tribune
   inscrits
+
+  @@schema("public")
+}
+
+enum type_message_chat_equipe {
+  message
+  systeme
 
   @@schema("public")
 }

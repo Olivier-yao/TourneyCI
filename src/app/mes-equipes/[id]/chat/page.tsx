@@ -37,11 +37,13 @@ export default function ChatEquipePage() {
       const p = lireProfil().pseudo;
       setEquipe(e);
       setMoi(p);
-      setMessages(messagesChatEquipe(params.id));
+      setMessages(await messagesChatEquipe(params.id));
       setPret(true);
     }
     charger();
-    const id = setInterval(() => setMessages(messagesChatEquipe(params.id)), RAFRAICHISSEMENT_MS);
+    const id = setInterval(() => {
+      messagesChatEquipe(params.id).then(setMessages);
+    }, RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
   }, [params.id]);
 
@@ -56,11 +58,11 @@ export default function ChatEquipePage() {
     );
   }
 
-  function envoyer() {
+  async function envoyer() {
     if (!texte.trim() || !equipe) return;
-    envoyerMessageChatEquipe(equipe.id, moi, texte);
+    const texteEnvoye = texte;
     setTexte("");
-    setMessages(messagesChatEquipe(equipe.id));
+    setMessages(await envoyerMessageChatEquipe(equipe.id, texteEnvoye));
   }
 
   return (
@@ -102,7 +104,7 @@ export default function ChatEquipePage() {
             const mine = m.auteur === moi;
             const precedent = messages[i - 1];
             const meme = precedent && precedent.type === "message" && precedent.auteur === m.auteur;
-            const estChefAuteur = m.auteur === equipe.chef;
+            const estChefAuteur = m.estChef ?? false;
             return (
               <div key={m.id} className="flex gap-2.5 max-w-[86%]" style={{ alignSelf: mine ? "flex-end" : "flex-start" }}>
                 {!mine && !meme && (
