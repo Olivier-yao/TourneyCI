@@ -168,3 +168,42 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
 
   return { gagnantsCredites, cashPrizeTotalXof };
 }
+
+export type ResultatRemboursement = { nbRembourses: number; totalXof: number };
+
+/** Rembourse chaque inscrit réel d'un tournoi annulé — appelée par
+ * traiterDemande()/creerDemande() (src/lib/server/demandesAnnulation.ts) au
+ * moment exact où annule_le passe de null à une date. Même correction que
+ * verserCashPrizeCloture ci-dessus : l'ancienne version (annulerTournoi dans
+ * mockTournaments.ts) ne remboursait que l'appareil ayant déclenché
+ * l'annulation, et seulement s'il se trouvait lui-même inscrit — un
+ * organisateur n'étant presque jamais inscrit à son propre tournoi, elle ne
+ * remboursait donc en pratique personne. Ici, chaque inscription réelle est
+ * remboursée sur le montant qu'elle a effectivement payé
+ * (montant_paye_xof), ou les frais unitaires actuels en repli pour une
+ * inscription antérieure à l'ajout de ce champ. */
+export async function rembourserInscritsAnnulation(tournoiId: string): Promise<ResultatRemboursement> {
+  const tournoi = await prisma.tournois.findUnique({ where: { id: tournoiId } });
+  if (!tournoi || tournoi.frais_xof <= 0) return { nbRembourses: 0, totalXof: 0 };
+
+  const inscriptions = await prisma.inscriptions.findMany({
+    where: { tournoi_id: tournoiId },
+    select: { profile_id: true, montant_paye_xof: true },
+  });
+  const aRembourser = inscriptions
+    .map((i) => ({ profileId: i.profile_id, montantXof: i.montant_paye_xof ?? tournoi.frais_xof }))
+    .filter((i) => i.montantXof > 0);
+  if (aRembourser.length === 0) return { nbRembourses: 0, totalXof: 0 };
+
+  await prisma.mouvements.createMany({
+    data: aRembourser.map((r) => ({
+      profile_id: r.profileId,
+      type: "remboursement" as const,
+      libelle: `Remboursement · ${tournoi.titre}`,
+      montant_xof: r.montantXof,
+      tournoi_id: tournoiId,
+    })),
+  });
+
+  return { nbRembourses: aRembourser.length, totalXof: aRembourser.reduce((s, r) => s + r.montantXof, 0) };
+}

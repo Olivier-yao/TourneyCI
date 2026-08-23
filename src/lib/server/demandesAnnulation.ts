@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { VALIDATION_AUTOMATIQUE_ACTIVE } from "@/lib/mockValidationAuto";
+import { rembourserInscritsAnnulation } from "@/lib/server/cloture";
+
+/** Marque le tournoi annulé de façon atomique (WHERE annule_le IS NULL) et
+ * rembourse chaque inscrit réel une seule fois — cf. rembourserInscritsAnnulation. */
+async function annulerEtRembourser(tournoiId: string): Promise<void> {
+  const { count } = await prisma.tournois.updateMany({ where: { id: tournoiId, annule_le: null }, data: { annule_le: new Date() } });
+  if (count > 0) await rembourserInscritsAnnulation(tournoiId);
+}
 
 export type StatutDemandeAnnulation = "en_attente" | "validee" | "refusee";
 
@@ -54,7 +62,7 @@ export async function creerDemande(tournoiId: string, organisateurId: string, mo
     },
   });
   if (VALIDATION_AUTOMATIQUE_ACTIVE) {
-    await prisma.tournois.updateMany({ where: { id: tournoiId, annule_le: null }, data: { annule_le: new Date() } });
+    await annulerEtRembourser(tournoiId);
   }
   return versDemandeAnnulationJSON(demande);
 }
@@ -84,11 +92,9 @@ export async function demandesEnAttente(): Promise<DemandeAnnulationAdminJSON[]>
 }
 
 /** Traite une demande (accepte/refuse) — l'acceptation annule réellement le
- * tournoi. Pas de notification ici : le mock n'en envoyait pas non plus pour
- * ce traitement (contrairement aux demandes organisateur). Pas de
- * remboursement automatique des inscrits non plus : le mock ne le faisait
- * déjà pas de façon fiable multi-compte (créditait uniquement l'appareil
- * courant s'il se trouvait inscrit) — écart connu, hors périmètre ici. */
+ * tournoi et rembourse chaque inscrit réel (cf. annulerEtRembourser). Pas de
+ * notification ici : le mock n'en envoyait pas non plus pour ce traitement
+ * (contrairement aux demandes organisateur). */
 export async function traiterDemande(id: string, statut: "validee" | "refusee", messageAdmin?: string): Promise<DemandeAnnulationJSON | undefined> {
   const existante = await prisma.demandes_annulation.findUnique({ where: { id } });
   if (!existante) return undefined;
@@ -98,7 +104,7 @@ export async function traiterDemande(id: string, statut: "validee" | "refusee", 
     data: { statut, message_admin: messageAdmin },
   });
   if (statut === "validee") {
-    await prisma.tournois.updateMany({ where: { id: demande.tournoi_id, annule_le: null }, data: { annule_le: new Date() } });
+    await annulerEtRembourser(demande.tournoi_id);
   }
   return versDemandeAnnulationJSON(demande);
 }

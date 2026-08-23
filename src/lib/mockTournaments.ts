@@ -20,7 +20,6 @@ import { classementFinalBR } from "./mockBattleRoyale";
 import { attribuerPoints } from "./mockProfil";
 import { crediter } from "./mockWallet";
 import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
-import { estInscrit } from "./mockInscriptions";
 import { notifierParticipants } from "./mockNotifications";
 import { compterAvis } from "./mockAvis";
 import { appelOuvertPourTournoi } from "./mockAppel";
@@ -423,19 +422,6 @@ export async function modifierTournoi(id: string, patch: ParametresModifiablesTo
   });
   const resultat = await reponseJson<Tournoi>(reponse);
   return resultat.ok;
-}
-
-/** Annule un tournoi et rembourse automatiquement les frais déjà payés par
- * l'inscrit de cet appareil (mock mono-utilisateur pour le remboursement :
- * pas de vrai registre multi-comptes, seul le participant local peut être
- * remboursé ici — cf. mockWallet, hors périmètre de cette étape). */
-export async function annulerTournoi(id: string): Promise<void> {
-  const tournoi = await tournoiParId(id);
-  const reponse = await fetch(`/api/tournois/${id}/annuler`, { method: "POST" });
-  if (!reponse.ok) return;
-  if (tournoi && tournoi.fraisXof > 0 && (await estInscrit(id))) {
-    await crediter(tournoi.fraisXof, `Remboursement · ${tournoi.titre}`, "remboursement", tournoi.id);
-  }
 }
 
 /** Pousse le nom d'organisateur courant (mockOrganisateur.ts, localStorage)
