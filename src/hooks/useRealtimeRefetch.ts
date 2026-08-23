@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { creerClientSupabaseNavigateur } from "@/lib/supabase/client";
 
 export type CanalRealtime = { table: string; filter?: string; event?: "INSERT" | "UPDATE" | "*" };
@@ -24,11 +24,20 @@ export function useRealtimeRefetch(canaux: CanalRealtime[], onChange: () => void
   });
 
   const cle = canaux.map((c) => `${c.table}:${c.filter ?? ""}`).join("|");
+  // Deux composants distincts peuvent s'abonner à la même table/filtre en
+  // même temps (ex. la fiche tournoi ET MaFicheInscrit, toutes deux sur
+  // "matches" pour le même tournoi) — sans identifiant propre à cette
+  // instance, ils partageraient le même nom de canal Supabase Realtime. Le
+  // second `channel.on()` après le `subscribe()` du premier fait alors
+  // planter tout le rendu ("cannot add postgres_changes callbacks... after
+  // subscribe()"), un throw synchrone non rattrapé qui a fait échouer le
+  // chargement de la fiche tournoi pour tout inscrit (bug rapporté).
+  const instanceId = useId();
 
   useEffect(() => {
     if (!actif || canaux.length === 0) return;
     const supabase = creerClientSupabaseNavigateur();
-    const channel = supabase.channel(`realtime-${cle}`);
+    const channel = supabase.channel(`realtime-${instanceId}-${cle}`);
     for (const c of canaux) {
       channel.on(
         "postgres_changes",
