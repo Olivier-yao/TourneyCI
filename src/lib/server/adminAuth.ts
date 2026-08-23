@@ -13,7 +13,7 @@ import { cookies } from "next/headers";
 
 const IDENTIFIANT_ADMIN = "olivier.admin";
 const MOT_DE_PASSE_ADMIN = "Tourney-Dev-2026!";
-const CODE_PIN_ADMIN = "739184";
+const CODE_PIN_ADMIN = "190306";
 const SECRET_SESSION = `tourney-admin-session::${MOT_DE_PASSE_ADMIN}::${CODE_PIN_ADMIN}`;
 
 const COOKIE_ETAPE1 = "tourney_admin_etape1";
