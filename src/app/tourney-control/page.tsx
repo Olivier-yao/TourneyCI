@@ -23,6 +23,9 @@ import {
   Search,
   AlertTriangle,
   IdCard,
+  CalendarClock,
+  Pencil,
+  X,
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import {
@@ -40,10 +43,13 @@ import {
   verificationsKycEnAttenteAdmin,
   traiterVerificationKycAdmin,
   litigesEnAttenteAdmin,
+  saisonAdmin,
+  definirNomSaisonSuivanteAdmin,
   type DemandeOrganisateurAdmin,
   type DemandeAnnulationAdmin,
   type OrganisateurModerationAdmin,
   type VerificationKycAdmin,
+  type SaisonAdmin,
 } from "@/lib/mockTourneyControl";
 import type { AnalyseDemandeOrganisateur } from "@/lib/mockAnalyseAutomatique";
 import { plaintesEnAttente, traiterPlainte, type Plainte } from "@/lib/mockPlaintes";
@@ -391,7 +397,7 @@ function EcranPin({ onValide, onRetour }: { onValide: () => void; onRetour: () =
   );
 }
 
-type Onglet = "organisateurs" | "moderation" | "identite" | "plaintes" | "litiges" | "annulations";
+type Onglet = "organisateurs" | "moderation" | "identite" | "plaintes" | "litiges" | "annulations" | "saisons";
 
 const ONGLET_META: Record<Onglet, { label: string; icon: LucideIcon }> = {
   organisateurs: { label: "Organisateurs", icon: UserCheck },
@@ -400,7 +406,10 @@ const ONGLET_META: Record<Onglet, { label: string; icon: LucideIcon }> = {
   plaintes: { label: "Plaintes", icon: Flag },
   litiges: { label: "Litiges", icon: Scale },
   annulations: { label: "Annulations", icon: XCircle },
+  saisons: { label: "Saisons", icon: CalendarClock },
 };
+
+const NOM_SAISON_MAX = 24;
 
 function formatDateHeure(ts: number): string {
   const d = new Date(ts);
@@ -424,6 +433,8 @@ function footMetaPour(onglet: Onglet, counts: Record<Onglet, number>): string {
       return `SUPERVISION · ${counts.litiges} EN ATTENTE D'ARBITRAGE`;
     case "annulations":
       return "REMBOURSEMENT AUTOMATIQUE SI ACCEPTÉ";
+    case "saisons":
+      return "BASCULE AUTOMATIQUE · SEUL LE NOM SE SAISIT ICI";
   }
 }
 
@@ -780,12 +791,18 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   const [rechercheModeration, setRechercheModeration] = useState("");
   const [resultatsModeration, setResultatsModeration] = useState<OrganisateurModerationAdmin[] | null>(null);
   const [verificationsKyc, setVerificationsKyc] = useState<VerificationKycAdmin[]>([]);
+  const [saison, setSaison] = useState<SaisonAdmin | undefined>(undefined);
+  const [nomSaisie, setNomSaisie] = useState("");
+  const [enregistrementNom, setEnregistrementNom] = useState(false);
 
   async function rafraichir() {
     setDemandesOrga(await demandesOrganisateurEnAttente());
     setPlaintes(await plaintesEnAttente());
     setLitiges(await litigesEnAttenteAdmin());
     setDemandesAnnul(await demandesAnnulationEnAttente());
+    const s = await saisonAdmin();
+    setSaison(s);
+    if (s) setNomSaisie(s.nomSuivant ?? "");
     setFileModeration(await organisateursModeration());
     setVerificationsKyc(await verificationsKycEnAttenteAdmin());
   }
@@ -809,11 +826,13 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
     plaintes: plaintes.length,
     litiges: litiges.filter((l) => l.statut === "en_attente").length,
     annulations: demandesAnnul.length,
+    saisons: 0,
   };
-  // Les litiges sont supervisés, pas traités ici — exclus du total affiché en en-tête.
+  // Les litiges et les saisons sont supervisés/paramétrés ici, pas "traités" —
+  // exclus du total affiché en en-tête.
   const totalEnAttente = counts.organisateurs + counts.moderation + counts.identite + counts.plaintes + counts.annulations;
 
-  const onglets: Onglet[] = ["organisateurs", "moderation", "identite", "plaintes", "litiges", "annulations"];
+  const onglets: Onglet[] = ["organisateurs", "moderation", "identite", "plaintes", "litiges", "annulations", "saisons"];
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
@@ -1034,6 +1053,128 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
                 />
               ))
             ))}
+
+          {onglet === "saisons" && saison && (() => {
+            const maintenant = Date.now();
+            const dureeTotaleJours = Math.max(1, Math.round((saison.finLe - saison.debutLe) / 86_400_000));
+            const joursEcoules = Math.min(dureeTotaleJours, Math.max(0, Math.round((maintenant - saison.debutLe) / 86_400_000)));
+            const joursRestants = Math.max(0, Math.ceil((saison.finLe - maintenant) / 86_400_000));
+            const nomEnregistre = (saison.nomSuivant ?? "").trim();
+            const brouillon = nomSaisie.trim();
+            const statut: "aucun" | "saisie" | "programme" = !brouillon ? "aucun" : brouillon === nomEnregistre ? "programme" : "saisie";
+
+            async function enregistrer() {
+              const valeur = nomSaisie.trim();
+              if (!valeur) return;
+              setEnregistrementNom(true);
+              const maj = await definirNomSaisonSuivanteAdmin(valeur);
+              setEnregistrementNom(false);
+              if (maj) setSaison(maj);
+            }
+
+            return (
+              <>
+                <div className="p-3.5 flex flex-col gap-1" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "var(--ds-shadow-sm)" }}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Saison en cours</div>
+                    <div className="px-2 py-0.5 text-[9px]" style={{ borderRadius: 999, border: "1px solid var(--ds-border)", color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>SAISON {saison.numero}</div>
+                  </div>
+                  <div className="mt-1 text-lg font-medium">Saison {saison.numero} : {saison.nom}</div>
+                  <div className="mt-2.5 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="flex-1" style={{ color: "var(--ds-muted)" }}>Début</div>
+                      <div style={{ fontFamily: "var(--ds-font-mono)" }}>{new Date(saison.debutLe).toLocaleDateString("fr-FR")}</div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="flex-1" style={{ color: "var(--ds-muted)" }}>Fin</div>
+                      <div style={{ fontFamily: "var(--ds-font-mono)" }}>{new Date(saison.finLe).toLocaleDateString("fr-FR")}</div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="flex-1" style={{ color: "var(--ds-muted)" }}>Bascule dans</div>
+                      <div style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{joursRestants} jour{joursRestants > 1 ? "s" : ""}</div>
+                    </div>
+                  </div>
+                  <div className="mt-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="text-[11px]" style={{ color: "var(--ds-muted)" }}>Jours écoulés</div>
+                      <div className="text-[10px]" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{joursEcoules} / {dureeTotaleJours}</div>
+                    </div>
+                    <div className="h-[3px] rounded-full overflow-hidden" style={{ background: "var(--ds-border)" }}>
+                      <div className="h-[3px] rounded-full" style={{ width: `${Math.min(100, (joursEcoules / dureeTotaleJours) * 100)}%`, background: "linear-gradient(90deg, var(--ds-accent-700), var(--ds-accent-400))" }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3.5 flex flex-col gap-1" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: statut === "saisie" ? "0 0 0 1px var(--ds-accent)" : "var(--ds-shadow-sm)" }}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Nom de la prochaine saison</div>
+                    <div
+                      className="flex items-center gap-1 px-2 py-0.5 text-[9px]"
+                      style={{
+                        borderRadius: 999,
+                        fontFamily: "var(--ds-font-mono)",
+                        background: statut === "programme" ? "var(--ds-accent-800)" : "transparent",
+                        border: statut === "saisie" ? "1px solid var(--ds-accent-700)" : statut === "aucun" ? "1px solid var(--ds-border)" : "none",
+                        color: statut === "programme" || statut === "saisie" ? "var(--ds-accent-300)" : "var(--ds-muted)",
+                      }}
+                    >
+                      {statut === "programme" ? <CheckCircle2 size={10} strokeWidth={2} /> : statut === "saisie" ? <Pencil size={10} strokeWidth={2} /> : <AlertCircle size={10} strokeWidth={2} />}
+                      {statut === "programme" ? "PROGRAMMÉ" : statut === "saisie" ? "NON ENREGISTRÉ" : "AUCUN NOM"}
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 flex items-center gap-2 px-3 h-11" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-bg)", border: `1px solid ${statut === "saisie" ? "var(--ds-accent)" : "var(--ds-border)"}` }}>
+                    <div className="text-[11px] whitespace-nowrap shrink-0" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>SAISON {saison.numero + 1} :</div>
+                    <input
+                      value={nomSaisie}
+                      onChange={(e) => setNomSaisie(e.target.value.slice(0, NOM_SAISON_MAX))}
+                      placeholder="Nom thématique…"
+                      className="flex-1 min-w-0 text-sm outline-none bg-transparent"
+                      style={{ color: "var(--ds-text)" }}
+                    />
+                    {nomSaisie && (
+                      <button type="button" onClick={() => setNomSaisie("")} aria-label="Effacer">
+                        <X size={13} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0 text-[11px] truncate" style={{ color: "var(--ds-muted)" }}>
+                      {statut === "aucun" ? "Un nom de secours sera utilisé automatiquement." : statut === "saisie" ? "Enregistre pour que le nom soit retenu." : "Modifiable jusqu'à la bascule."}
+                    </div>
+                    <div className="text-[10px] shrink-0" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-muted)" }}>{nomSaisie.length} / {NOM_SAISON_MAX}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!nomSaisie.trim() || enregistrementNom || statut === "programme"}
+                    onClick={enregistrer}
+                    className={`mt-2.5 h-11 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-40 ${PRESS}`}
+                    style={{ borderRadius: "var(--ds-radius-md)", border: `1px solid ${statut === "saisie" ? "var(--ds-accent)" : "var(--ds-border)"}`, color: statut === "saisie" ? "var(--ds-accent-300)" : "var(--ds-muted)" }}
+                  >
+                    <CheckCircle2 size={15} strokeWidth={2} />
+                    {statut === "programme" ? "Nom déjà enregistré" : enregistrementNom ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                </div>
+
+                <div className="p-3.5 flex flex-col gap-2" style={{ borderRadius: "var(--ds-radius-lg)", border: "1px solid var(--ds-border)" }}>
+                  <div className="text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>À la bascule automatique</div>
+                  <div className="flex items-start gap-2.5 text-xs" style={{ color: "var(--ds-text-muted)" }}>
+                    <span className="mt-0.5">↺</span>
+                    <span>Le classement des joueurs repart entièrement à zéro.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-xs" style={{ color: "var(--ds-text-muted)" }}>
+                    <CalendarClock size={13} strokeWidth={2} className="shrink-0 mt-0.5" />
+                    <span>La saison suivante démarre pour {dureeTotaleJours} jours, sans intervention.</span>
+                  </div>
+                  <div className="flex items-start gap-2.5 text-xs" style={{ color: nomEnregistre ? "var(--ds-accent-300)" : "var(--ds-muted)" }}>
+                    <Pencil size={13} strokeWidth={2} className="shrink-0 mt-0.5" />
+                    <span>{nomEnregistre ? `La saison prendra le nom « Saison ${saison.numero + 1} : ${nomEnregistre} ».` : "Aucun nom programmé : un nom de secours sera attribué automatiquement."}</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         <div className="pb-6 pt-2.5 flex items-center gap-2" style={{ borderTop: "1px solid var(--ds-border)" }}>

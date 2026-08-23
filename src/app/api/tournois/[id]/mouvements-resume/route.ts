@@ -20,12 +20,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!autorise) return NextResponse.json({ success: false, error: "Tournoi introuvable." }, { status: 404 });
 
   const mouvements = await prisma.mouvements.findMany({
-    where: { tournoi_id: id, type: { in: ["gain", "remboursement"] } },
+    where: { tournoi_id: id, type: { in: ["gain", "remboursement", "commission"] } },
     select: { type: true, montant_xof: true },
   });
 
   const gains = mouvements.filter((m) => m.type === "gain");
   const remboursements = mouvements.filter((m) => m.type === "remboursement");
+  const commission = mouvements.filter((m) => m.type === "commission");
 
   return NextResponse.json({
     success: true,
@@ -34,6 +35,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       gainsCount: gains.length,
       remboursementsXof: remboursements.reduce((s, m) => s + m.montant_xof, 0),
       remboursementsCount: remboursements.length,
+      commissionXof: commission.reduce((s, m) => s + m.montant_xof, 0),
     },
   });
 }

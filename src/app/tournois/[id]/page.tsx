@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { ArrowLeft, Wifi, Share2, Check, MessageCircle, Heart, HeartCrack, ChevronRight, Swords, Radio, XCircle } from "lucide-react";
 import { ImagePlaceholder } from "@/components/ds/ImagePlaceholder";
 import { ProgressBar } from "@/components/ds/ProgressBar";
@@ -332,6 +332,7 @@ function EnDirectBloc({ tournoi }: { tournoi: Tournoi }) {
 function DetailTournoiInterne() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const equipePreselectionneeId = searchParams.get("equipe") ?? undefined;
   const [pret, setPret] = useState(false);
   const [tournoi, setTournoi] = useState<Tournoi | undefined>(undefined);
@@ -385,6 +386,13 @@ function DetailTournoiInterne() {
       setTournoi(t);
       const monTournoi = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
       setEstMonTournoi(monTournoi);
+      // Porte d'entrée dédiée pour l'organisateur (et ses adjoints) sur son
+      // propre tournoi — plus la fiche publique avec juste un bouton
+      // différent (cf. fiche organisateur, /organisateur/[id]).
+      if (monTournoi) {
+        router.replace(`/organisateur/${params.id}`);
+        return;
+      }
       const inscrit = await estInscrit(params.id);
       setEstInscritTournoi(inscrit);
       setAccesChat(inscrit || monTournoi);
