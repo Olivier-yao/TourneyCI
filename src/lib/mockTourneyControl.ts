@@ -173,3 +173,27 @@ export async function litigesEnAttenteAdmin(): Promise<Litige[]> {
   const json = await reponse.json().catch(() => null);
   return json?.success ? json.data : [];
 }
+
+export type SaisonAdmin = { id: string; numero: number; nom: string; debutLe: number; finLe: number; nomSuivant?: string };
+
+/** Saison de classement en cours + nom déjà saisi pour la suivante (vide si
+ * pas encore renseigné, cf. definirNomSaisonSuivante côté serveur). */
+export async function saisonAdmin(): Promise<SaisonAdmin | undefined> {
+  const reponse = await fetch("/api/tourney-control/saisons");
+  if (!reponse.ok) return undefined;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : undefined;
+}
+
+/** N'affecte jamais la saison en cours — seulement celle qui sera créée
+ * automatiquement à la bascule. */
+export async function definirNomSaisonSuivanteAdmin(nom: string): Promise<SaisonAdmin | undefined> {
+  const reponse = await fetch("/api/tourney-control/saisons", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nom }),
+  });
+  if (!reponse.ok) return undefined;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : undefined;
+}

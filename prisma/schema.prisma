@@ -1192,6 +1192,7 @@ model saisons {
   debut_le          DateTime            @db.Timestamptz(6)
   fin_le            DateTime            @db.Timestamptz(6)
   created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  nom_suivant       String?
   points_classement points_classement[]
 
   @@schema("public")
