@@ -14,8 +14,11 @@ import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { presentsDuTournoi } from "@/lib/mockCheckin";
 import { messagesChatInscrits, envoyerMessageChatInscrits, type MessageChat } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-const RAFRAICHISSEMENT_MS = 8_000;
+// Filet de sécurité en complément du temps réel (Realtime), pas la source
+// principale de rafraîchissement — couvre une reconnexion manquée.
+const RAFRAICHISSEMENT_MS = 60_000;
 
 function heure(horodatage: number): string {
   return new Date(horodatage).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).toUpperCase();
@@ -75,6 +78,12 @@ export default function ChatInscritsMatchPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  useRealtimeRefetch(
+    [{ table: "messages_chat", filter: `match_id=eq.${params.id},salon=eq.inscrits` }],
+    () => { messagesChatInscrits(params.id).then(setMessages); },
+    pret && autorise,
+  );
 
   if (!connecte) return null;
 

@@ -8,8 +8,11 @@ import { spectateursDerives } from "@/lib/mockBracket";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estConnecte } from "@/lib/mockAuth";
 import { messagesChatSpectateursTournoi, envoyerMessageChatSpectateursTournoi, type MessageChat } from "@/lib/mockChat";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-const RAFRAICHISSEMENT_MS = 8_000;
+// Filet de sécurité en complément du temps réel (Realtime), pas la source
+// principale de rafraîchissement — couvre une reconnexion manquée.
+const RAFRAICHISSEMENT_MS = 60_000;
 const COOLDOWN_S = 10;
 const REPONSES_RAPIDES = ["🔥", "GG !", "Allez !"];
 
@@ -53,6 +56,12 @@ export default function ChatSpectateursTournoiPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
+
+  useRealtimeRefetch(
+    [{ table: "messages_chat", filter: `tournoi_id=eq.${params.id},salon=eq.tribune` }],
+    () => { messagesChatSpectateursTournoi(params.id).then(setMessages); },
+    pret,
+  );
 
   if (!pret) return null;
 

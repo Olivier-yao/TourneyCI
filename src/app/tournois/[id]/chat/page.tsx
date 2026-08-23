@@ -9,8 +9,11 @@ import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { messagesChatTournoi, envoyerMessageChatTournoi, type MessageChat } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-const RAFRAICHISSEMENT_MS = 15_000;
+// Filet de sécurité en complément du temps réel (Realtime), pas la source
+// principale de rafraîchissement — couvre une reconnexion manquée.
+const RAFRAICHISSEMENT_MS = 60_000;
 
 function heure(horodatage: number): string {
   return new Date(horodatage).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -42,6 +45,12 @@ export default function ChatTournoiPage() {
     const id = setInterval(async () => setMessages(await messagesChatTournoi(params.id)), RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
   }, [params.id]);
+
+  useRealtimeRefetch(
+    [{ table: "messages_chat", filter: `tournoi_id=eq.${params.id},salon=eq.general` }],
+    () => { messagesChatTournoi(params.id).then(setMessages); },
+    pret,
+  );
 
   if (!connecte) return null;
 

@@ -10,8 +10,11 @@ import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { equipeProfilParId, type EquipeProfil } from "@/lib/mockEquipesProfil";
 import { messagesChatEquipe, envoyerMessageChatEquipe, type MessageChatEquipe } from "@/lib/mockChatEquipe";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
-const RAFRAICHISSEMENT_MS = 8_000;
+// Filet de sécurité en complément du temps réel (Realtime), pas la source
+// principale de rafraîchissement — couvre une reconnexion manquée.
+const RAFRAICHISSEMENT_MS = 60_000;
 
 function heure(horodatage: number): string {
   return new Date(horodatage).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).toUpperCase();
@@ -46,6 +49,12 @@ export default function ChatEquipePage() {
     }, RAFRAICHISSEMENT_MS);
     return () => clearInterval(id);
   }, [params.id]);
+
+  useRealtimeRefetch(
+    [{ table: "messages_chat_equipe", filter: `equipe_id=eq.${params.id}` }],
+    () => { messagesChatEquipe(params.id).then(setMessages); },
+    pret,
+  );
 
   if (!connecte || !pret) return null;
 
