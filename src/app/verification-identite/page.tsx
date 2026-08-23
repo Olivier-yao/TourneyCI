@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, CheckCircle2, Camera, IdCard, UserCircle2, Loader2 } from "lucide-react";
+import { ShieldCheck, CheckCircle2, XCircle, Camera, IdCard, UserCircle2, Loader2, Clock } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Button, PRESS } from "@/components/ds/Button";
 import { COMMISSION_PCT } from "@/lib/mockTournaments";
-import { estCertifie, soumettreCertification, demandeCertification } from "@/lib/mockOrganisateur";
+import { maVerificationIdentite, soumettreVerificationIdentite, type VerificationIdentite } from "@/lib/mockOrganisateur";
 
 const TYPES_PIECE = [
   { id: "cni", label: "CNI" },
@@ -15,6 +15,38 @@ const TYPES_PIECE = [
 ] as const;
 
 type TypePiece = (typeof TYPES_PIECE)[number]["id"];
+
+const TAILLE_MAX_PX = 1000;
+
+/** Convertit un fichier image en data URL JPEG, redimensionnée si besoin —
+ * même principe que PhotoCropper.tsx (pas d'object storage dédié dans ce
+ * projet, cf. organisateur_profils.photo_url) mais sans recadrage
+ * interactif : un document d'identité ne doit pas être rogné. */
+function fichierVersDataUrl(fichier: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const lecteur = new FileReader();
+    lecteur.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    lecteur.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image invalide."));
+      img.onload = () => {
+        const echelle = Math.min(1, TAILLE_MAX_PX / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.naturalWidth * echelle);
+        canvas.height = Math.round(img.naturalHeight * echelle);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Encodage impossible."));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = lecteur.result as string;
+    };
+    lecteur.readAsDataURL(fichier);
+  });
+}
 
 function EmplacementFichier({
   label,
@@ -45,32 +77,28 @@ function EmplacementFichier({
   );
 }
 
+function dateLongue(ts: number): string {
+  return new Date(ts).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 export default function VerificationIdentitePage() {
   const router = useRouter();
-  const [certifie, setCertifie] = useState(false);
+  const [pret, setPret] = useState(false);
+  const [verification, setVerification] = useState<VerificationIdentite | null>(null);
   const [ageConfirme, setAgeConfirme] = useState(false);
   const [typePiece, setTypePiece] = useState<TypePiece>("cni");
   const [recto, setRecto] = useState<File | null>(null);
   const [verso, setVerso] = useState<File | null>(null);
   const [selfie, setSelfie] = useState<File | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [envoye, setEnvoye] = useState(false);
-  const [enCours, setEnCours] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCertifie(estCertifie());
+    maVerificationIdentite().then((v) => {
+      setVerification(v);
+      setPret(true);
+    });
   }, []);
-
-  useEffect(() => {
-    if (!enCours) return;
-    // Point 186 : tant qu'il n'y a pas de vrai backend (point 157), la
-    // vérification est déjà considérée comme validée dès la soumission —
-    // ce délai simule juste le temps de traitement avant de renvoyer vers
-    // l'accueil.
-    const id = setTimeout(() => router.replace("/accueil"), 3500);
-    return () => clearTimeout(id);
-  }, [enCours, router]);
 
   const conditions = [
     { label: "Pièce d'identité lisible et non expirée", ok: Boolean(recto && verso) },
@@ -78,7 +106,7 @@ export default function VerificationIdentitePage() {
     { label: "18 ans ou plus confirmé", ok: ageConfirme },
   ];
 
-  function soumettre() {
+  async function soumettre() {
     if (!ageConfirme) {
       setErreur("Tu dois confirmer avoir 18 ans ou plus.");
       return;
@@ -91,29 +119,51 @@ export default function VerificationIdentitePage() {
       setErreur("Ajoute un selfie de contrôle.");
       return;
     }
-    const label = TYPES_PIECE.find((t) => t.id === typePiece)?.label ?? "Pièce";
-    soumettreCertification(ageConfirme, `${label} · ${recto.name} / ${verso.name} + selfie`);
     setErreur(null);
-    setEnvoye(true);
-    setCertifie(true);
-    setEnCours(true);
+    setEnvoi(true);
+    try {
+      const [rectoUrl, versoUrl, selfieUrl] = await Promise.all([fichierVersDataUrl(recto), fichierVersDataUrl(verso), fichierVersDataUrl(selfie)]);
+      const resultat = await soumettreVerificationIdentite({ typePiece, rectoUrl, versoUrl, selfieUrl, ageConfirme });
+      if (!resultat.ok) {
+        setErreur(resultat.erreur ?? "Envoi impossible pour l'instant.");
+        setEnvoi(false);
+        return;
+      }
+      setVerification(resultat.data ?? null);
+    } catch {
+      setErreur("Un des fichiers n'a pas pu être traité — réessaie avec une autre photo.");
+      setEnvoi(false);
+    }
   }
 
-  const demande = demandeCertification();
+  if (!pret) return null;
 
-  if (enCours) {
+  if (envoi && verification?.statut !== "en_attente") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <Loader2 size={32} className="animate-spin" style={{ color: "var(--ds-accent-300)" }} />
-        <p className="text-base font-medium">Vérification en cours</p>
-        <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-          Tes documents sont en cours de traitement. Tu vas être redirigé vers l&apos;accueil.
-        </p>
+        <p className="text-base font-medium">Envoi en cours</p>
       </div>
     );
   }
 
-  if (certifie) {
+  if (verification?.statut === "en_attente") {
+    return (
+      <div className="min-h-screen flex flex-col px-6 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+        <AppBar retour titre="Vérification d'identité" onRetour={() => router.back()} />
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 text-center px-4">
+          <Clock size={40} style={{ color: "var(--ds-accent-300)" }} />
+          <p className="text-base font-medium">Vérification en attente</p>
+          <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
+            Tes documents ont été envoyés le {dateLongue(verification.horodatage)}. Un administrateur les examine — réponse
+            sous 48h, tu seras notifié.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (verification?.statut === "validee") {
     return (
       <div className="min-h-screen flex flex-col px-6 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <AppBar retour titre="Vérification d'identité" onRetour={() => router.back()} />
@@ -121,9 +171,8 @@ export default function VerificationIdentitePage() {
           <CheckCircle2 size={40} style={{ color: "var(--ds-accent-300)" }} />
           <p className="text-base font-medium">Identité vérifiée</p>
           <p className="text-sm max-w-xs" style={{ color: "var(--ds-text-muted)" }}>
-            {envoye
-              ? "Ta demande a été validée. Tu peux désormais retirer tes gains, et toucher ta commission si tu organises des tournois payants."
-              : `Vérifié le ${demande?.soumisLe ?? ""} — document : ${demande?.documentNom ?? ""}.`}
+            Vérifiée le {dateLongue(verification.horodatage)}. Tu peux désormais retirer tes gains, et toucher ta
+            commission si tu organises des tournois payants.
           </p>
         </div>
       </div>
@@ -136,6 +185,16 @@ export default function VerificationIdentitePage() {
       <p className="text-[10px] uppercase tracking-wide -mt-3" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
         Organisateur · étape 1 sur 2
       </p>
+
+      {verification?.statut === "refusee" && (
+        <div className="flex items-start gap-3 p-3.5" style={{ borderRadius: "var(--ds-radius-md)", background: "color-mix(in srgb, var(--ds-danger) 12%, var(--ds-surface))", boxShadow: "0 0 0 1px var(--ds-danger)" }}>
+          <XCircle size={17} strokeWidth={2} style={{ color: "var(--ds-danger)" }} className="shrink-0 mt-0.5" />
+          <p className="text-xs leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+            Ta précédente demande a été refusée — vérifie que tes documents sont lisibles et non expirés, puis renvoie une
+            nouvelle demande.
+          </p>
+        </div>
+      )}
 
       <div className="flex items-start gap-3 p-3.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}>
         <ShieldCheck size={17} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0 mt-0.5" />
@@ -221,8 +280,8 @@ export default function VerificationIdentitePage() {
       {erreur && <p className="text-sm" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
 
       <div className="mt-auto flex flex-col gap-2">
-        <Button variante="primary" bloc onClick={soumettre}>
-          Envoyer pour vérification
+        <Button variante="primary" bloc onClick={soumettre} disabled={envoi}>
+          {envoi ? "Envoi…" : "Envoyer pour vérification"}
         </Button>
         <p className="text-[10px] text-center" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
           RÉPONSE SOUS 48H · DOCUMENTS CHIFFRÉS, JAMAIS PUBLICS

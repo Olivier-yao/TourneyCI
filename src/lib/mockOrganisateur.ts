@@ -1,8 +1,10 @@
 /**
- * Certification organisateur (mock) : tant que l'organisateur n'a pas
- * complété la vérification d'âge + document officiel, il ne touche pas la
- * commission sur ses tournois payants (elle reste calculée pour information
- * mais n'est jamais créditée).
+ * Certification organisateur — vérification d'identité (KYC) réelle,
+ * server-side (cf. src/lib/server/kyc.ts et la table kyc_verifications,
+ * déjà en base mais jamais branchée avant ce chantier). Tant qu'elle n'est
+ * pas validée par un admin, l'organisateur ne touche pas la commission sur
+ * ses tournois payants (calculée pour information mais jamais créditée,
+ * vérifié côté serveur à la clôture — cf. src/lib/server/cloture.ts).
  */
 
 import { reputationOrganisateur } from "./mockAvis";
@@ -11,48 +13,54 @@ import { estOrganisateurApprouve } from "./mockDemandesOrganisateur";
 import { peutModifierMensuel } from "./limiteMensuelle";
 import { cleCompte } from "./mockAuth";
 
-export type DemandeCertification = {
+export type StatutKyc = "en_attente" | "validee" | "refusee";
+
+export type VerificationIdentite = {
+  id: string;
+  typePiece: string;
   ageConfirme: boolean;
-  documentNom: string;
-  soumisLe: string;
+  statut: StatutKyc;
+  horodatage: number;
 };
 
-const CLE_CERTIFICATION = "tourney-organisateur-certifie";
-const CLE_DEMANDE = "tourney-organisateur-demande";
-
-export function estCertifie(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(cleCompte(CLE_CERTIFICATION)) === "1";
+/** Ma dernière vérification d'identité soumise, quel que soit son statut —
+ * null si jamais soumise. */
+export async function maVerificationIdentite(): Promise<VerificationIdentite | null> {
+  const reponse = await fetch("/api/verification-identite");
+  if (!reponse.ok) return null;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : null;
 }
 
-export function demandeCertification(): DemandeCertification | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const brut = localStorage.getItem(cleCompte(CLE_DEMANDE));
-    return brut ? (JSON.parse(brut) as DemandeCertification) : null;
-  } catch {
-    return null;
-  }
+export async function estCertifie(): Promise<boolean> {
+  const v = await maVerificationIdentite();
+  return v?.statut === "validee";
 }
 
-/** Soumission mock : dès qu'un document est fourni et l'âge confirmé, on
- * considère la vérification instantanément validée (pas de vrai back-office
- * de modération dans ce mock — chantier à part, cf. kyc_verifications déjà
- * en base). La vérification en liste noire par NOM de document a été
- * retirée d'ici : elle ne correspondait de toute façon à rien de réel (la
- * vraie liste noire, server-side, indexe par hash du document, cf.
- * src/lib/server/moderation.ts) — l'application réelle reste
- * peutCreerTournoiPayant() côté serveur à la création d'un tournoi payant. */
-export function soumettreCertification(ageConfirme: boolean, documentNom: string): boolean {
-  if (typeof window === "undefined" || !ageConfirme || !documentNom.trim()) return false;
-  const demande: DemandeCertification = {
-    ageConfirme,
-    documentNom: documentNom.trim(),
-    soumisLe: new Date().toLocaleDateString("fr-FR"),
-  };
-  localStorage.setItem(cleCompte(CLE_DEMANDE), JSON.stringify(demande));
-  localStorage.setItem(cleCompte(CLE_CERTIFICATION), "1");
-  return true;
+export type SoumissionVerificationIdentite = {
+  typePiece: string;
+  /** Data URL (comme la photo/bannière de profil, cf. PhotoCropper) — pas
+   * d'object storage dédié dans ce projet. */
+  rectoUrl: string;
+  versoUrl: string;
+  selfieUrl: string;
+  ageConfirme: boolean;
+};
+
+export type ResultatSoumissionKyc = { ok: boolean; erreur?: string; data?: VerificationIdentite };
+
+/** Envoie les documents pour vérification — reste "en_attente" jusqu'à ce
+ * qu'un admin la traite depuis /tourney-control (onglet Modération),
+ * jamais instantanément validée côté client. */
+export async function soumettreVerificationIdentite(s: SoumissionVerificationIdentite): Promise<ResultatSoumissionKyc> {
+  const reponse = await fetch("/api/verification-identite", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(s),
+  });
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true, data: json.data };
 }
 
 /**
@@ -193,7 +201,7 @@ export function onboardingOrganisateurComplet(): boolean {
 /** Un organisateur standard ne peut créer que des tournois gratuits à
  * l'inscription (points 117, 167) — la certification reste requise pour les
  * tournois payants et la commission qui va avec. */
-export function peutCreerTournoiPayantSelonCertification(): boolean {
+export async function peutCreerTournoiPayantSelonCertification(): Promise<boolean> {
   return estCertifie();
 }
 
@@ -206,7 +214,7 @@ export function peutCreerTournoiPayantSelonCertification(): boolean {
  * et la commission associée exigent le statut certifié complet.
  */
 export async function estOrganisateurCertifie(): Promise<boolean> {
-  return estCertifie() && (await estOrganisateurApprouve());
+  return (await estCertifie()) && (await estOrganisateurApprouve());
 }
 
 /** Point 159 : règlement spécifique aux organisateurs certifiés, distinct du

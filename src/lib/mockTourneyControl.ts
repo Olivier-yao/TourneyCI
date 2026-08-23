@@ -133,3 +133,33 @@ export async function leverSuspensionAdmin(profileId: string): Promise<void> {
     body: JSON.stringify({ action: "lever_suspension" }),
   });
 }
+
+export type StatutKycAdmin = "en_attente" | "validee" | "refusee";
+
+export type VerificationKycAdmin = {
+  id: string;
+  profileId: string;
+  nomOrganisateur: string;
+  typePiece: string;
+  rectoUrl: string;
+  versoUrl: string;
+  selfieUrl: string;
+  ageConfirme: boolean;
+  statut: StatutKycAdmin;
+  horodatage: number;
+};
+
+export async function verificationsKycEnAttenteAdmin(): Promise<VerificationKycAdmin[]> {
+  const reponse = await fetch("/api/tourney-control/kyc");
+  if (!reponse.ok) return [];
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : [];
+}
+
+export async function traiterVerificationKycAdmin(id: string, statut: "validee" | "refusee"): Promise<void> {
+  await fetch(`/api/tourney-control/kyc/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ statut }),
+  });
+}

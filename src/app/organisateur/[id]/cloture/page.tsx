@@ -46,6 +46,7 @@ export default function ClotureTournoiPage() {
   const [classement, setClassement] = useState<string[]>([]);
   const [matchsBracket, setMatchsBracket] = useState<MatchTournoi[]>([]);
   const [manchesJouees, setManchesJouees] = useState(0);
+  const [jeSuisCertifie, setJeSuisCertifie] = useState(false);
 
   async function rafraichirTournoi() {
     setTournoi(await tournoiParId(params.id));
@@ -57,6 +58,7 @@ export default function ClotureTournoiPage() {
       setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
       setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
       setDemandeEnAttente(await demandeAnnulationPourTournoi(params.id));
+      setJeSuisCertifie(await estCertifie());
       setPret(true);
     });
   }, [params.id]);
@@ -138,7 +140,7 @@ export default function ClotureTournoiPage() {
     ? [
         { label: "Points attribués", valeur: resultat ? `${resultat.pointsAttribues} pts` : "Attribués" },
         ...(gainSequestreXof ? [{ label: "Ton gain (en séquestre)", valeur: formatXof(gainSequestreXof) }] : []),
-        ...(estProprietaire && tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()
+        ...(estProprietaire && tournoi.fraisXof > 0 && tournoi.commissionActivee && jeSuisCertifie
           ? [{ label: "Commission organisateur", valeur: formatXof(commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites)) }]
           : []),
         { label: "Scores", valeur: "Verrouillés définitivement" },

@@ -18,6 +18,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { estCertifie } from "@/lib/server/kyc";
 
 const COMMISSION_PCT = 0.2;
 const BAREME_PLACEMENT_BR = [10, 6, 5, 4, 3, 2, 1, 1];
@@ -112,19 +113,45 @@ async function profileIdsPourNom(tournoiId: string, nom: string, estEquipe: bool
 }
 
 export type GagnantCredite = { nom: string; profileIds: string[]; montantXof: number };
-export type ResultatCloture = { gagnantsCredites: GagnantCredite[]; cashPrizeTotalXof: number };
+export type ResultatCloture = { gagnantsCredites: GagnantCredite[]; cashPrizeTotalXof: number; commissionXof: number };
+
+/** Commission organisateur — créditée seulement si le tournoi était payant,
+ * la commission activée par l'organisateur, ET son identité réellement
+ * vérifiée (kyc_verifications validée, jamais un flag client — cf.
+ * src/lib/server/kyc.ts). Auparavant créditée depuis le navigateur via
+ * crediter() dans mockTournaments.ts : n'importe quel compte connecté
+ * pouvait appeler /api/wallet/mouvements directement avec type "commission"
+ * et un montant arbitraire, sans que ce chemin serveur n'existe pour le
+ * vérifier. */
+async function crediterCommissionCloture(tournoi: { id: string; titre: string; frais_xof: number; commission_activee: boolean; organisateur_id: string }, placesInscrites: number): Promise<number> {
+  if (tournoi.frais_xof <= 0 || !tournoi.commission_activee) return 0;
+  if (!(await estCertifie(tournoi.organisateur_id))) return 0;
+
+  const commissionXof = Math.round(tournoi.frais_xof * placesInscrites * COMMISSION_PCT);
+  if (commissionXof <= 0) return 0;
+
+  await prisma.mouvements.create({
+    data: { profile_id: tournoi.organisateur_id, type: "commission", libelle: `Commission · ${tournoi.titre}`, montant_xof: commissionXof, tournoi_id: tournoi.id },
+  });
+  return commissionXof;
+}
 
 /** Calcule le classement final et crédite directement le(s) compte(s)
- * gagnant(s) (mouvement `gain`, jamais un séquestre local) — appelée une
- * seule fois par POST /api/tournois/[id]/terminer, avant que termine_le ne
- * soit marqué de façon à pouvoir encore lire les matches/manches réels. */
+ * gagnant(s) (mouvement `gain`, jamais un séquestre local) + la commission
+ * organisateur si applicable — appelée une seule fois par
+ * POST /api/tournois/[id]/terminer, avant que termine_le ne soit marqué de
+ * façon à pouvoir encore lire les matches/manches réels. */
 export async function verserCashPrizeCloture(tournoiId: string): Promise<ResultatCloture> {
   const tournoi = await prisma.tournois.findUnique({
     where: { id: tournoiId },
     include: { _count: { select: { inscriptions: true } }, repartition_cash_prize: { orderBy: { rang: "asc" } } },
   });
-  if (!tournoi || tournoi.repartition_cash_prize.length === 0) {
-    return { gagnantsCredites: [], cashPrizeTotalXof: 0 };
+  if (!tournoi) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof: 0 };
+
+  const commissionXof = await crediterCommissionCloture(tournoi, tournoi._count.inscriptions);
+
+  if (tournoi.repartition_cash_prize.length === 0) {
+    return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof };
   }
 
   const estEquipe = tournoi.type === "equipes" || (tournoi.type === "battle_royale" && tournoi.br_sous_type !== null && tournoi.br_sous_type !== "solo");
@@ -137,10 +164,10 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
     const matches = await prisma.matches.findMany({ where: { tournoi_id: tournoiId } });
     classement = classementFinalBracketServeur(matches);
   }
-  if (classement.length === 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0 };
+  if (classement.length === 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof };
 
   const cashPrizeTotalXof = cashPrizeVersable(tournoi, tournoi._count.inscriptions);
-  if (cashPrizeTotalXof <= 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0 };
+  if (cashPrizeTotalXof <= 0) return { gagnantsCredites: [], cashPrizeTotalXof: 0, commissionXof };
 
   const repartition = repartitionAutomatique(cashPrizeTotalXof, tournoi.repartition_cash_prize.length);
   const gagnantsCredites: GagnantCredite[] = [];
@@ -166,7 +193,7 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
     gagnantsCredites.push({ nom, profileIds, montantXof });
   }
 
-  return { gagnantsCredites, cashPrizeTotalXof };
+  return { gagnantsCredites, cashPrizeTotalXof, commissionXof };
 }
 
 export type ResultatRemboursement = { nbRembourses: number; totalXof: number };

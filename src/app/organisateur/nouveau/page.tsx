@@ -188,7 +188,7 @@ export default function NouveauTournoiPage() {
       // les tournois gratuits (avec cash prize auto-financé possible) sont permis.
       const autorise = estCert && (await peutCreerTournoiPayant());
       setCertifie(estCert);
-      setIdentiteVerifiee(estCertifie());
+      setIdentiteVerifiee(await estCertifie());
       setPayantAutorise(autorise);
       if (!autorise) setPayant(false);
       setOnboardingOk(true);

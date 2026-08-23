@@ -61,7 +61,7 @@ export default function ProfilPage() {
       const [equipesProfilChef, equipesBR] = await Promise.all([equipesProfilDontChef(), equipesDuJoueur()]);
       setCompteurs({ historique, inscriptions: inscriptions.length, favoris: (await mesFavoris()).length, equipes: equipesProfilChef.length + equipesBR.length });
       const tournoisOrganises = await mesTournoisOrganises();
-      setOrganisateur({ estOrganisateur: tournoisOrganises.length > 0, certifie: estCertifie() });
+      setOrganisateur({ estOrganisateur: tournoisOrganises.length > 0, certifie: await estCertifie() });
       setRole(rolePrefere());
 
       const onboardingOk = onboardingOrganisateurComplet();

@@ -19,7 +19,7 @@ import { classementFinalBracket } from "./mockBracket";
 import { classementFinalBR } from "./mockBattleRoyale";
 import { attribuerPoints } from "./mockProfil";
 import { crediter } from "./mockWallet";
-import { estCertifie, nomOrganisateurActuel } from "./mockOrganisateur";
+import { nomOrganisateurActuel } from "./mockOrganisateur";
 import { notifierParticipants } from "./mockNotifications";
 import { compterAvis } from "./mockAvis";
 import { appelOuvertPourTournoi } from "./mockAppel";
@@ -529,14 +529,16 @@ export async function reevaluerPaiementsEnAttente(): Promise<void> {
 /**
  * Clôture un tournoi : distribue les points de classement de façon
  * automatique et équilibrée selon la place finale (bracket ou battle royale).
- * Le versement du cash prize est désormais entièrement géré côté serveur
- * (cf. verserCashPrizeCloture dans src/lib/server/cloture.ts, appelée par
- * POST /api/tournois/[id]/terminer) : il crédite directement le(s) vrai(s)
- * gagnant(s), quel que soit l'appareil qui déclenche cette fonction — avant
- * cette correction, seul le compte de l'appareil appelant était crédité
- * (jamais le vainqueur réel s'il s'agissait d'un autre compte). La
- * commission de l'organisateur n'est créditée que s'il est certifié (cf.
- * mockOrganisateur) et reste gérée ici, encore côté client.
+ * Le versement du cash prize ET la commission organisateur sont désormais
+ * entièrement gérés côté serveur (cf. verserCashPrizeCloture dans
+ * src/lib/server/cloture.ts, appelée par POST /api/tournois/[id]/terminer) :
+ * ils créditent directement le(s) vrai(s) compte(s) concernés, quel que soit
+ * l'appareil qui déclenche cette fonction — avant cette correction, seul le
+ * compte de l'appareil appelant était crédité pour le cash prize (jamais le
+ * vainqueur réel s'il s'agissait d'un autre compte), et la commission
+ * passait par un crediter() client directement exploitable depuis la
+ * console du navigateur (n'importe quel compte pouvait s'auto-créditer une
+ * "commission" arbitraire).
  */
 export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttribues: number; gainCredite: number }> {
   const tournoi = await tournoiParId(tournoiId);
@@ -559,11 +561,6 @@ export async function terminerTournoi(tournoiId: string): Promise<{ pointsAttrib
     attribuerPoints(tournoi.jeuId, nom, points, tournoi.ville);
     pointsAttribues += points;
   });
-
-  if (tournoi.fraisXof > 0 && tournoi.commissionActivee && estCertifie()) {
-    const commission = commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites);
-    if (commission > 0) await crediter(commission, `Commission · ${tournoi.titre}`, "commission", tournoi.id);
-  }
 
   await notifierParticipants(tournoiId, tournoi.titre, "le tournoi est terminé, découvre les résultats !");
   supprimerEquipesDuTournoi(tournoiId);

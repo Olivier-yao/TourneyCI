@@ -308,7 +308,7 @@ function OrganisateurPageInterne() {
     async function charger() {
       // État dépendant du localStorage : liste vide au premier rendu serveur,
       // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
-      const estCert = estCertifie();
+      const estCert = await estCertifie();
       const nom = nomOrganisateur();
       // Point 178 : le règlement général doit être lu avant même le choix du
       // nom d'organisateur, la toute première fois.

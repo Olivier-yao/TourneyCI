@@ -27,6 +27,7 @@ const NOTES_DEMO: Record<string, number> = {
  * "floppés" (annulés ou clôturés à 0 inscrit). */
 export async function classementOrganisateurs(): Promise<OrganisateurClasse[]> {
   const profil = lireProfil();
+  const jeSuisCertifie = await estCertifie();
   const parOrganisateur = new Map<string, { participants: number; total: number; floppes: number }>();
 
   for (const t of await tousLesTournois()) {
@@ -43,7 +44,7 @@ export async function classementOrganisateurs(): Promise<OrganisateurClasse[]> {
     tournoisOrganises: s.total,
     tournoisFloppes: s.floppes,
     note: NOTES_DEMO[nom] ?? 4.3,
-    certifie: nom === profil.pseudo ? estCertifie() : true,
+    certifie: nom === profil.pseudo ? jeSuisCertifie : true,
     moi: nom === profil.pseudo,
   }));
 
