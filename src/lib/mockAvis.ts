@@ -25,7 +25,11 @@ async function reponseJson<T>(reponse: Response): Promise<{ ok: true; data: T } 
 
 type AvisTournoiApiJSON = { coeurs: number; coeursBrises: number; mon: AvisTournoi | null };
 
-async function chargerAvisTournoi(tournoiId: string): Promise<AvisTournoiApiJSON> {
+/** Un seul appel réseau pour les cœurs/cœurs brisés ET l'avis du compte
+ * connecté sur ce tournoi — évite d'appeler deux fois le même endpoint
+ * (pattern en cascade repéré sur la fiche tournoi, cf. compterAvisPlusieurs
+ * ci-dessus pour l'équivalent multi-tournois). */
+export async function chargerAvisTournoi(tournoiId: string): Promise<AvisTournoiApiJSON> {
   const reponse = await fetch(`/api/tournois/${tournoiId}/avis`);
   const resultat = await reponseJson<AvisTournoiApiJSON>(reponse);
   return resultat.ok ? resultat.data : { coeurs: 0, coeursBrises: 0, mon: null };

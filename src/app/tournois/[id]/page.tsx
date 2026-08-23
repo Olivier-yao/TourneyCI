@@ -26,7 +26,7 @@ import { participantsBR, classementCumuleBR, manchesBR } from "@/lib/mockBattleR
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
 import { estInscrit } from "@/lib/mockInscriptions";
-import { monAvisPourTournoi, compterAvis } from "@/lib/mockAvis";
+import { chargerAvisTournoi, compterAvis } from "@/lib/mockAvis";
 import { monAppelPourTournoi, type Appel } from "@/lib/mockAppel";
 import { AvisCoeur } from "@/components/ds/AvisCoeur";
 import { AppelResultats } from "@/components/ds/AppelResultats";
@@ -389,7 +389,11 @@ function DetailTournoiInterne() {
     // d'hydratation — le titre, la bannière, etc. peuvent différer si
     // l'organisateur a modifié le tournoi depuis un autre appareil).
     async function charger() {
-      const t = await tournoiParId(params.id);
+      // tournoiParId et estInscrit sont indépendants (ni l'un ni l'autre ne
+      // dépend du résultat de l'autre) — lancés en parallèle plutôt qu'en
+      // cascade pour ne pas payer deux allers-retours réseau l'un après
+      // l'autre à chaque ouverture de fiche tournoi.
+      const [t, inscrit] = await Promise.all([tournoiParId(params.id), estInscrit(params.id)]);
       setTournoi(t);
       const monTournoi = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
       setEstMonTournoi(monTournoi);
@@ -400,20 +404,23 @@ function DetailTournoiInterne() {
         router.replace(`/organisateur/${params.id}`);
         return;
       }
-      const inscrit = await estInscrit(params.id);
       setEstInscritTournoi(inscrit);
       setAccesChat(inscrit || monTournoi);
       if (t) setFermeInscriptions(inscriptionsFermees(t));
+      // Un seul appel pour les cœurs/cœurs brisés ET l'avis du compte
+      // connecté (chargerAvisTournoi) — évite d'interroger deux fois le même
+      // endpoint /avis à chaque ouverture de fiche.
+      const avis = await chargerAvisTournoi(params.id);
       // Le retour "comment s'est passé ce tournoi" n'est proposé qu'une fois le
       // tournoi terminé (point 62/67, clarifie le point 51) — jamais à
       // l'inscription ni pendant le déroulement, et jamais à l'organisateur.
-      setDemanderAvis(!monTournoi && Boolean(t?.termine) && !(await monAvisPourTournoi(params.id)));
-      setAvisCompte(await compterAvis(params.id));
+      setDemanderAvis(!monTournoi && Boolean(t?.termine) && !avis.mon);
+      setAvisCompte({ coeurs: avis.coeurs, coeursBrises: avis.coeursBrises });
       if (t?.termine) {
-        await reevaluerPaiementsEnAttente();
+        const [, appel] = await Promise.all([reevaluerPaiementsEnAttente(), monAppelPourTournoi(params.id)]);
         setEnSequestre(cashPrizeEnSequestre(params.id));
-        setPeutContester(await estInscrit(params.id));
-        setMonAppel(await monAppelPourTournoi(params.id));
+        setPeutContester(inscrit);
+        setMonAppel(appel);
       }
       setPret(true);
     }
