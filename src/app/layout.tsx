@@ -57,6 +57,12 @@ const bricolageGrotesque = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "Tourney",
   description: "Gestion de tournoi gaming IRL",
+  // Vérification de propriété du domaine (Google Search Console), requise
+  // par la validation du formulaire "Branding" de l'écran de consentement
+  // OAuth — jamais retirer, même une fois la validation effectuée.
+  verification: {
+    google: "_HrUsciJOMK3UuRZZKOJ_fZeaYBpapVoBspTCE7ErCg",
+  },
 };
 
 export default function RootLayout({
