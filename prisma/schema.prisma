@@ -510,6 +510,7 @@ model appels {
   tournois   tournois @relation(fields: [tournoi_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([tournoi_id, auteur_id])
+  @@index([auteur_id])
   @@schema("public")
 }
 
@@ -523,6 +524,7 @@ model avis_organisateur {
   profiles_avis_organisateur_organisateur_idToprofiles profiles  @relation("avis_organisateur_organisateur_idToprofiles", fields: [organisateur_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([auteur_id, organisateur_id])
+  @@index([organisateur_id])
   @@schema("public")
 }
 
@@ -538,6 +540,7 @@ model avis_tournoi {
   tournois   tournois  @relation(fields: [tournoi_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([tournoi_id, auteur_id])
+  @@index([auteur_id])
   @@schema("public")
 }
 
@@ -664,6 +667,7 @@ model favoris {
   tournois   tournois @relation(fields: [tournoi_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([profile_id, tournoi_id])
+  @@index([tournoi_id])
   @@schema("public")
 }
 
@@ -684,6 +688,7 @@ model inscriptions {
   tournois         tournois    @relation(fields: [tournoi_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([tournoi_id, profile_id])
+  @@index([profile_id])
   @@schema("public")
 }
 
@@ -752,6 +757,7 @@ model litiges {
   profiles    profiles @relation(fields: [auteur_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   matches     matches  @relation(fields: [match_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([match_id])
   @@schema("public")
 }
 
@@ -852,6 +858,8 @@ model mouvements {
   profiles           profiles       @relation(fields: [profile_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tournois           tournois?      @relation(fields: [tournoi_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([profile_id])
+  @@index([tournoi_id])
   @@schema("public")
 }
 
@@ -867,6 +875,7 @@ model notifications {
   tournois        tournois? @relation(fields: [tournoi_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([destinataire_id, created_at(sort: Desc)])
+  @@index([tournoi_id])
   @@schema("public")
 }
 
@@ -878,6 +887,7 @@ model notifs_tournoi_suivis {
   tournois   tournois @relation(fields: [tournoi_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([profile_id, tournoi_id])
+  @@index([tournoi_id])
   @@schema("public")
 }
 
@@ -1135,6 +1145,7 @@ model tournois {
   profiles                    profiles                      @relation(fields: [organisateur_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   villes                      villes?                       @relation(fields: [ville_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([organisateur_id])
   @@schema("public")
 }
 
@@ -1165,6 +1176,7 @@ model points_classement {
   saisons    saisons  @relation(fields: [saison_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([profile_id, jeu_id, saison_id])
+  @@index([saison_id])
   @@schema("public")
 }
 

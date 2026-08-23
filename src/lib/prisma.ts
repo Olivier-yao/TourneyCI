@@ -33,8 +33,19 @@ function connexionSansVerificationTls(url: string | undefined): string | undefin
   return u.toString();
 }
 
+// max par instance serverless — le défaut de pg.Pool (10) est pensé pour un
+// serveur long-vivant avec une poignée d'instances. Ici, Vercel peut faire
+// tourner des dizaines d'instances en parallèle sous charge, chacune avec
+// son propre pool : à 10 connexions/instance, une dizaine d'instances
+// suffit déjà à saturer le plafond Postgres du plan gratuit Supabase
+// (max_connections=60, partagé via le pooler) — confirmé par un test de
+// charge (autocannon) où le P50 passe de ~250ms à plusieurs secondes dès
+// 100 requêtes concurrentes, avec des timeouts au-delà. Un max plus bas par
+// instance laisse de la marge pour davantage d'instances concurrentes avant
+// de saturer le pooler, au prix d'un débit par instance légèrement réduit.
 const adapter = new PrismaPg({
   connectionString: connexionSansVerificationTls(process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL),
+  max: 3,
 });
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });

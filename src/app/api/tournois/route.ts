@@ -11,10 +11,29 @@ import {
 import { peutCreerTournoiPayant } from "@/lib/server/moderation";
 import { televerserImagePublique } from "@/lib/server/storage";
 
+// Cache mémoire très court (par instance serverless, pas partagé entre
+// instances — pas de Redis sur ce projet) pour la liste NON filtrée
+// uniquement : c'est le cas le plus lourd (tous les tournois, 4 relations
+// jointes) et le moins personnalisé (identique pour tout visiteur), appelée
+// par les trois écrans de liste (accueil/en-direct/tournois) qui font
+// ensuite leur propre filtrage côté client. Un test de charge a montré
+// cette route saturer le pool de connexions Postgres au-delà de ~100
+// requêtes concurrentes — quelques secondes de fraîcheur en moins changent
+// peu ici (le rafraîchissement temps réel côté client reste la source de
+// vérité pour les changements de statut), mais évitent qu'un pic de trafic
+// ne déclenche autant de requêtes DB que de visiteurs simultanés.
+const DUREE_CACHE_LISTE_MS = 5_000;
+let cacheListeNonFiltree: { expireA: number; donnees: unknown[] } | null = null;
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const organisateurMoi = searchParams.get("organisateur") === "me";
   const enDirect = searchParams.get("enDirect") === "1";
+  const nonFiltree = !organisateurMoi && !enDirect;
+
+  if (nonFiltree && cacheListeNonFiltree && cacheListeNonFiltree.expireA > Date.now()) {
+    return NextResponse.json({ success: true, data: cacheListeNonFiltree.donnees });
+  }
 
   let organisateurId: string | undefined;
   if (organisateurMoi) {
@@ -37,7 +56,10 @@ export async function GET(request: Request) {
     orderBy: { created_at: "desc" },
   });
 
-  return NextResponse.json({ success: true, data: tournois.map(versTournoiJSON) });
+  const donnees = tournois.map(versTournoiJSON);
+  if (nonFiltree) cacheListeNonFiltree = { expireA: Date.now() + DUREE_CACHE_LISTE_MS, donnees };
+
+  return NextResponse.json({ success: true, data: donnees });
 }
 
 export async function POST(request: Request) {
@@ -140,6 +162,10 @@ export async function POST(request: Request) {
     },
     include: INCLUDE_TOURNOI_LISTE,
   });
+
+  // Évite qu'un tournoi fraîchement créé mette jusqu'à 5s (DUREE_CACHE_LISTE_MS)
+  // à apparaître dans les listes pour son propre créateur.
+  cacheListeNonFiltree = null;
 
   return NextResponse.json({ success: true, data: versTournoiJSON(tournoi) });
 }
