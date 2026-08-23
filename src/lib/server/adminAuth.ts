@@ -9,12 +9,25 @@ import { cookies } from "next/headers";
  * contournement volontaire (pas de vrai compte admin Supabase avec 2FA
  * serveur) — cf. le commentaire d'origine, phase 8 pour une vraie refonte.
  * La session est un jeton signé (HMAC) dans un cookie httpOnly, sans état
- * stocké côté serveur (pas de table dédiée pour ça). */
+ * stocké côté serveur (pas de table dédiée pour ça).
+ *
+ * Identifiant/mot de passe/PIN lus depuis les variables d'environnement
+ * (jamais commités) — ce dépôt est public sur GitHub, les avoir codés en
+ * dur ici les exposait à quiconque consulte le code source. Si l'une des
+ * trois variables manque, l'accès admin est intégralement bloqué (échoue
+ * fermé) plutôt que de retomber sur une valeur par défaut. */
 
-const IDENTIFIANT_ADMIN = "olivier.admin";
-const MOT_DE_PASSE_ADMIN = "Tourney-Dev-2026!";
-const CODE_PIN_ADMIN = "190306";
-const SECRET_SESSION = `tourney-admin-session::${MOT_DE_PASSE_ADMIN}::${CODE_PIN_ADMIN}`;
+const IDENTIFIANT_ADMIN = process.env.TOURNEY_ADMIN_IDENTIFIANT;
+const MOT_DE_PASSE_ADMIN = process.env.TOURNEY_ADMIN_MOT_DE_PASSE;
+const CODE_PIN_ADMIN = process.env.TOURNEY_ADMIN_PIN;
+const SECRET_SESSION = `tourney-admin-session::${MOT_DE_PASSE_ADMIN ?? ""}::${CODE_PIN_ADMIN ?? ""}`;
+
+function comparaisonConstante(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 const COOKIE_ETAPE1 = "tourney_admin_etape1";
 const COOKIE_SESSION = "tourney_admin_session";
@@ -51,11 +64,13 @@ function expiration_valide(expirationStr: string): boolean {
 const OPTIONS_COOKIE = { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/" };
 
 export function identifiantsValides(identifiant: string, motDePasse: string): boolean {
-  return identifiant === IDENTIFIANT_ADMIN && motDePasse === MOT_DE_PASSE_ADMIN;
+  if (!IDENTIFIANT_ADMIN || !MOT_DE_PASSE_ADMIN) return false;
+  return comparaisonConstante(identifiant, IDENTIFIANT_ADMIN) && comparaisonConstante(motDePasse, MOT_DE_PASSE_ADMIN);
 }
 
 export function pinValide(pin: string): boolean {
-  return pin === CODE_PIN_ADMIN;
+  if (!CODE_PIN_ADMIN) return false;
+  return comparaisonConstante(pin, CODE_PIN_ADMIN);
 }
 
 export async function definirEtape1(): Promise<void> {
