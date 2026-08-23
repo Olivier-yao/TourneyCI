@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Share2,
-  CalendarClock,
   Clock,
   Radio,
   Flag,
@@ -22,7 +21,7 @@ import {
   Receipt,
   Info,
   Lock,
-  ChevronRight,
+  Copy,
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { formatXof } from "@/lib/formatXof";
@@ -154,6 +153,7 @@ export default function GestionTournoiPage() {
   const [classementFinal, setClassementFinal] = useState<string[]>([]);
   const [resume, setResume] = useState<ResumeMouvementsTournoi | undefined>(undefined);
   const [demande, setDemande] = useState<DemandeAnnulation | undefined>(undefined);
+  const [codeCopie, setCodeCopie] = useState(false);
 
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
@@ -613,13 +613,20 @@ export default function GestionTournoiPage() {
             </div>
           </>
         ) : (
-          <>
-            <CalendarClock size={13} strokeWidth={2} style={{ color: "var(--ds-neutral-600)" }} className="shrink-0" />
-            <div className="flex-1 min-w-0 text-[9px] tracking-wide truncate" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
-              CODE {tournoi.code} · PARTAGE-LE AVEC TES INSCRITS
+          <button
+            type="button"
+            onClick={async () => {
+              await navigator.clipboard.writeText(tournoi.code);
+              setCodeCopie(true);
+              setTimeout(() => setCodeCopie(false), 1800);
+            }}
+            className={`flex items-center gap-2 w-full ${PRESS}`}
+          >
+            <Copy size={13} strokeWidth={2} style={{ color: codeCopie ? "var(--ds-accent-300)" : "var(--ds-neutral-600)" }} className="shrink-0" />
+            <div className="flex-1 min-w-0 text-left text-[9px] tracking-wide truncate" style={{ color: codeCopie ? "var(--ds-accent-300)" : "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+              {codeCopie ? "CODE COPIÉ" : `CODE ${tournoi.code} · PARTAGE-LE AVEC TES INSCRITS`}
             </div>
-            <ChevronRight size={13} strokeWidth={2} style={{ color: "var(--ds-neutral-700)" }} className="shrink-0" />
-          </>
+          </button>
         )}
       </div>
     </div>

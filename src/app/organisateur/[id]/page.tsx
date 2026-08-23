@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MoreHorizontal, Crown, Clock, Scale, FlagTriangleRight, Lock, CheckCircle2, Users, SlidersHorizontal, MessageSquareText, ListOrdered } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Crown, Clock, Scale, FlagTriangleRight, Lock, CheckCircle2, Copy, Check, Users, SlidersHorizontal, MessageSquareText, ListOrdered, DoorOpen } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { formatXof } from "@/lib/formatXof";
-import { tournoiParId, cashPrizeAffiche, cashPrizeEstEstime, commissionEstimee, COMMISSION_PCT, type Tournoi } from "@/lib/mockTournaments";
+import { tournoiParId, inscriptionsFermees, cashPrizeAffiche, cashPrizeEstEstime, commissionEstimee, COMMISSION_PCT, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, classementFinalBracket, type MatchTournoi } from "@/lib/mockBracket";
 import { manchesBR, classementFinalBR, LABEL_UNITE_BR } from "@/lib/mockBattleRoyale";
 import { resumeMouvementsTournoi, type ResumeMouvementsTournoi } from "@/lib/mockWallet";
@@ -75,6 +75,7 @@ export default function FicheOrganisateurPage() {
   const [resume, setResume] = useState<ResumeMouvementsTournoi | undefined>(undefined);
   const [litigesOuverts, setLitigesOuverts] = useState(0);
   const [nbMessages, setNbMessages] = useState(0);
+  const [codeCopie, setCodeCopie] = useState(false);
 
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
@@ -264,6 +265,15 @@ export default function FicheOrganisateurPage() {
           <LienAcces icon={SlidersHorizontal} label="Réglages du tournoi" href={`/organisateur/${tournoi.id}/parametres`} niveau={tournoi.termine || tournoi.annule ? "off" : "on"} etat={tournoi.termine || tournoi.annule ? "VERROUILLÉS" : tournoi.enDirect ? "FRAIS VERROUILLÉS EN DIRECT" : "FORMAT · FRAIS · STREAM"} />
           <LienAcces icon={MessageSquareText} label="Chat du tournoi" href={`/tournois/${tournoi.id}/chat`} niveau={tournoi.annule ? "off" : "on"} etat={tournoi.annule ? "FERMÉ" : `${nbMessages} MESSAGE${nbMessages > 1 ? "S" : ""}`} />
           <LienAcces icon={Scale} label="Litiges" href={estBR ? `/tournois/${tournoi.id}/battle-royale` : `/tournois/${tournoi.id}/bracket`} niveau={litigesOuverts > 0 ? "hot" : "off"} etat={litigesOuverts > 0 ? `${litigesOuverts} OUVERT${litigesOuverts > 1 ? "S" : ""}` : "AUCUN"} badge={litigesOuverts > 0 ? litigesOuverts : undefined} />
+          {!tournoi.annule && !tournoi.termine && (
+            <LienAcces
+              icon={DoorOpen}
+              label="Infos de room"
+              href={`/organisateur/${tournoi.id}/room`}
+              niveau={inscriptionsFermees(tournoi) ? "on" : "off"}
+              etat={inscriptionsFermees(tournoi) ? "LIEN + MOT DE PASSE" : "APRÈS LA CLÔTURE DES INSCRIPTIONS"}
+            />
+          )}
         </div>
       </div>
 
@@ -276,12 +286,29 @@ export default function FicheOrganisateurPage() {
           <SlidersHorizontal size={18} strokeWidth={2} />
           {tournoi.termine ? "Régie · lecture seule" : "Régie du tournoi"}
         </Link>
-        <div className="mt-2.5 flex items-center gap-2">
-          <CheckCircle2 size={13} strokeWidth={2} style={{ color: "var(--ds-neutral-600)" }} className="shrink-0" />
-          <div className="flex-1 min-w-0 text-[9px] tracking-wide truncate" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
-            {tournoi.annule ? "TOURNOI ANNULÉ" : tournoi.termine ? "COMMISSION CRÉDITÉE SUR TON SOLDE" : `CODE ${tournoi.code}`}
+        {tournoi.annule || tournoi.termine ? (
+          <div className="mt-2.5 flex items-center gap-2">
+            <CheckCircle2 size={13} strokeWidth={2} style={{ color: "var(--ds-neutral-600)" }} className="shrink-0" />
+            <div className="flex-1 min-w-0 text-[9px] tracking-wide truncate" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+              {tournoi.annule ? "TOURNOI ANNULÉ" : "COMMISSION CRÉDITÉE SUR TON SOLDE"}
+            </div>
           </div>
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={async () => {
+              await navigator.clipboard.writeText(tournoi.code);
+              setCodeCopie(true);
+              setTimeout(() => setCodeCopie(false), 1800);
+            }}
+            className={`mt-2.5 flex items-center gap-2 w-full ${PRESS}`}
+          >
+            {codeCopie ? <Check size={13} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" /> : <Copy size={13} strokeWidth={2} style={{ color: "var(--ds-neutral-600)" }} className="shrink-0" />}
+            <div className="flex-1 min-w-0 text-left text-[9px] tracking-wide truncate" style={{ color: codeCopie ? "var(--ds-accent-300)" : "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+              {codeCopie ? "CODE COPIÉ" : `CODE ${tournoi.code} · PARTAGE-LE AVEC TES INSCRITS`}
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );
