@@ -77,7 +77,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const gagnant = score1 > score2 ? match.joueur1 : match.joueur2;
 
     await prisma.$transaction(async (tx) => {
-      await tx.matches.update({ where: { id }, data: { score1, score2, statut: "termine" } });
+      await tx.matches.update({ where: { id }, data: { score1, score2, statut: "termine", termine_le: new Date() } });
       const agrege = await tx.matches.aggregate({ where: { tournoi_id: match.tournoi_id }, _max: { round: true } });
       const totalRounds = agrege._max.round ?? match.round;
       if (match.round < totalRounds) {

@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { versMatchesJSON } from "@/lib/server/matches";
+import { essaierClotureAutomatique } from "@/lib/server/cloture";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Clôture automatique (point 218) : vérifiée à chaque lecture des matchs
+  // plutôt que via une tâche planifiée, cf. essaierClotureAutomatique.
+  await essaierClotureAutomatique(id);
   const matches = await prisma.matches.findMany({ where: { tournoi_id: id }, orderBy: [{ round: "asc" }, { position: "asc" }] });
   return NextResponse.json({ success: true, data: await versMatchesJSON(matches) });
 }

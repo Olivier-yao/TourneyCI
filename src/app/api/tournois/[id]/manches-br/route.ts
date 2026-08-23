@@ -4,11 +4,15 @@ import { Prisma } from "@/generated/prisma/client";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
 import { estAdjointAccepteDe } from "@/lib/server/adjoints";
 import { versMancheBRJSON } from "@/lib/server/battleRoyale";
+import { essaierClotureAutomatique } from "@/lib/server/cloture";
 
 /** Public : manches déjà closes + aperçu en direct (point 205) de la manche
  * en cours de saisie, visible des spectateurs sans attendre la clôture. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // Clôture automatique (point 218) : vérifiée à chaque lecture des manches
+  // plutôt que via une tâche planifiée, cf. essaierClotureAutomatique.
+  await essaierClotureAutomatique(id);
   const [manches, brouillon] = await Promise.all([
     prisma.manches_br.findMany({ where: { tournoi_id: id }, include: { manches_br_resultats: true }, orderBy: { numero: "asc" } }),
     prisma.manche_br_en_cours.findUnique({ where: { tournoi_id: id } }),

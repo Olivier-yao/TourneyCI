@@ -818,6 +818,7 @@ model matches {
   score1           Int?
   score2           Int?
   statut           statut_match       @default(a_venir)
+  termine_le       DateTime?          @db.Timestamptz(6)
   litiges          litiges[]
   match_evenements match_evenements[]
   tournois         tournois           @relation(fields: [tournoi_id], references: [id], onDelete: Cascade, onUpdate: NoAction)

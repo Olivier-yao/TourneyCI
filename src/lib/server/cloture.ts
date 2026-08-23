@@ -336,6 +336,55 @@ export async function verserCashPrizeCloture(tournoiId: string): Promise<Resulta
   return { gagnantsCredites, cashPrizeTotalXof, commissionXof, pointsAttribuesTotal };
 }
 
+/** Délai avant clôture automatique une fois le tournoi prêt (finale décidée
+ * pour un bracket, nombre de manches attendu atteint pour un Battle
+ * Royale) — laisse une petite marge si un score doit être corrigé juste
+ * après (point 218, demandé explicitement : plus besoin de cliquer sur
+ * "Clôturer", 1 à 2 minutes après avoir un vainqueur). */
+const DELAI_CLOTURE_AUTO_MS = 2 * 60_000;
+
+/** Vérifie si un tournoi est prêt à se clôturer tout seul et, si oui, le
+ * fait — même logique "paresseuse" que la bascule de saison (saisons.ts) :
+ * pas de tâche planifiée, appelée à la lecture depuis les routes GET les
+ * plus consultées (fiche tournoi, matchs, manches BR). Réutilise le même
+ * verrou atomique que la clôture manuelle (WHERE termine_le IS NULL) : si
+ * cette fonction est appelée en parallèle par plusieurs requêtes (plusieurs
+ * spectateurs qui rechargent au même instant), une seule verse le cash
+ * prize. Ne fait rien pour un tournoi déjà terminé/annulé, ou dont la
+ * finale n'est pas encore décidée depuis assez longtemps. */
+export async function essaierClotureAutomatique(tournoiId: string): Promise<void> {
+  const tournoi = await prisma.tournois.findUnique({ where: { id: tournoiId } });
+  if (!tournoi || tournoi.termine_le || tournoi.annule_le) return;
+
+  let pretDepuis: Date | undefined;
+
+  if (tournoi.type === "battle_royale") {
+    const derniere = await prisma.manches_br.findFirst({ where: { tournoi_id: tournoiId }, orderBy: { numero: "desc" } });
+    const cible = tournoi.manches_prevues ?? 1;
+    if (derniere && derniere.numero >= cible) pretDepuis = derniere.created_at;
+  } else {
+    const agrege = await prisma.matches.aggregate({ where: { tournoi_id: tournoiId }, _max: { round: true } });
+    const totalRounds = agrege._max.round;
+    if (totalRounds) {
+      const finale = await prisma.matches.findUnique({
+        where: { tournoi_id_round_position: { tournoi_id: tournoiId, round: totalRounds, position: 0 } },
+      });
+      if (finale?.statut === "termine" && finale.termine_le) pretDepuis = finale.termine_le;
+    }
+  }
+
+  if (!pretDepuis || Date.now() - pretDepuis.getTime() < DELAI_CLOTURE_AUTO_MS) return;
+
+  // Même verrou atomique que POST /api/tournois/[id]/terminer (clôture
+  // manuelle, conservée pour un cas où l'organisateur voudrait clôturer
+  // avant la fin du délai) : une seule requête gagne la course.
+  const premiereCloture = await prisma.tournois.updateMany({
+    where: { id: tournoiId, termine_le: null },
+    data: { termine_le: new Date() },
+  });
+  if (premiereCloture.count > 0) await verserCashPrizeCloture(tournoiId);
+}
+
 export type ResultatRemboursement = { nbRembourses: number; totalXof: number };
 
 /** Rembourse chaque inscrit réel d'un tournoi annulé — appelée par
