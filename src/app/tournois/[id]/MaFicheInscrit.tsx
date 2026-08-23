@@ -227,7 +227,14 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       const [inscription] = await Promise.all([inscriptionDe(tournoi.id), attendreProfil()]);
       if (annule) return;
       const profil = lireProfil();
-      setMonNom(inscription?.equipe ?? inscription?.tag ?? profil.pseudo);
+      // Le bracket (tournoi.inscrits, matchsDuTournoi) identifie chaque
+      // joueur par son pseudo (ou le nom d'équipe) — jamais par le TAG
+      // saisi à l'inscription, qui est le pseudo IN-GAME communiqué à
+      // l'organisateur, pas l'identité utilisée pour apparier les matchs.
+      // Le prendre en compte ici empêchait de retrouver son propre match
+      // dès que le TAG différait du pseudo (cas courant), affichant à tort
+      // "Tu es qualifié" en boucle.
+      setMonNom(inscription?.equipe ?? profil.pseudo);
       setMaPhoto(!inscription?.equipe ? profil.photoUrl : undefined);
       setNotifs(await notifsActivees(tournoi.id));
       const liste = await matchsDuTournoi(tournoi.id);

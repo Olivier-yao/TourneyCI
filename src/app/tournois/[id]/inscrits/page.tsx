@@ -31,7 +31,11 @@ export default function InscritsPage() {
   useEffect(() => {
     async function charger() {
       const [t, profil, inscription] = await Promise.all([tournoiParId(params.id), Promise.resolve(lireProfil()), inscriptionDe(params.id)]);
-      const nomAffiche = inscription?.equipe ?? inscription?.tag ?? profil.pseudo;
+      // Comme dans MaFicheInscrit.tsx : la liste (tournoi.inscrits) identifie
+      // chaque joueur par son pseudo (ou nom d'équipe), jamais par le TAG
+      // in-game saisi à l'inscription — sinon on ne se reconnaît jamais dans
+      // sa propre liste dès que le TAG diffère du pseudo.
+      const nomAffiche = inscription?.equipe ?? profil.pseudo;
       setTournoi(t);
       setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
       setEstMonTournoi(t?.organisateur === nomOrganisateurActuel());
