@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
-import { demandeEnAttentePour, creerDemande } from "@/lib/server/demandesAnnulation";
+import { demandeEnAttentePour, derniereDemandePour, creerDemande } from "@/lib/server/demandesAnnulation";
 
 function interdit() {
   return NextResponse.json({ success: false, error: "Réservé à l'organisateur de ce tournoi." }, { status: 403 });
@@ -9,7 +9,7 @@ function interdit() {
 
 /** Réservé à l'organisateur (jamais un adjoint — même frontière que les
  * réglages, cf. mockAdjointsOrganisateur.ts). */
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await utilisateurConnecte();
   if (!user) return nonAuthentifie();
 
@@ -18,7 +18,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!tournoi) return NextResponse.json({ success: false, error: "Tournoi introuvable." }, { status: 404 });
   if (tournoi.organisateur_id !== user.id) return interdit();
 
-  return NextResponse.json({ success: true, data: (await demandeEnAttentePour(id)) ?? null });
+  // ?derniere=1 : la demande la plus récente quel que soit son statut (écran
+  // Régie, pour afficher le motif d'un tournoi déjà annulé) — par défaut,
+  // uniquement celle en attente (vérification de double-demande).
+  const derniere = new URL(request.url).searchParams.get("derniere") === "1";
+  const demande = derniere ? await derniereDemandePour(id) : await demandeEnAttentePour(id);
+  return NextResponse.json({ success: true, data: demande ?? null });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

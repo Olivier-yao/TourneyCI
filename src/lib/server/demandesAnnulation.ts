@@ -44,6 +44,15 @@ export async function demandeEnAttentePour(tournoiId: string): Promise<DemandeAn
   return demande ? versDemandeAnnulationJSON(demande) : undefined;
 }
 
+/** La demande la plus récente pour ce tournoi, quel que soit son statut —
+ * contrairement à demandeEnAttentePour() (qui ne sert qu'à empêcher une
+ * double demande), utilisée par l'écran Régie pour afficher le motif réel
+ * d'un tournoi déjà annulé (la demande est alors "validee", pas "en_attente"). */
+export async function derniereDemandePour(tournoiId: string): Promise<DemandeAnnulationJSON | undefined> {
+  const demande = await prisma.demandes_annulation.findFirst({ where: { tournoi_id: tournoiId }, orderBy: { created_at: "desc" } });
+  return demande ? versDemandeAnnulationJSON(demande) : undefined;
+}
+
 /** Idempotent : une demande déjà en attente pour ce tournoi n'en recrée pas
  * une nouvelle (même comportement que le mock). Auto-validée immédiatement
  * (et le tournoi annulé dans la foulée) tant que VALIDATION_AUTOMATIQUE_ACTIVE

@@ -106,7 +106,11 @@ export type Tournoi = {
    * d'une icône du référentiel SYMBOLES_TOURNOI, pas une image libre. */
   symboleId?: string;
   termine?: boolean;
+  /** Horodatage (ms) de clôture — présent seulement si termine est vrai. */
+  termineLe?: number;
   annule?: boolean;
+  /** Horodatage (ms) d'annulation — présent seulement si annule est vrai. */
+  annuleLe?: number;
   /** Horodatage (ms) de début du tournoi. */
   debutTournoiTs?: number;
   /** Horodatages (ms) optionnels renseignés par l'organisateur pour la fenêtre

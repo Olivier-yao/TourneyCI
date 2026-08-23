@@ -24,6 +24,15 @@ export async function demandeAnnulationPourTournoi(tournoiId: string): Promise<D
   return json?.success ? (json.data ?? undefined) : undefined;
 }
 
+/** La demande la plus récente quel que soit son statut — pour afficher le
+ * motif réel d'un tournoi déjà annulé (écran Régie). */
+export async function derniereDemandeAnnulation(tournoiId: string): Promise<DemandeAnnulation | undefined> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/demande-annulation?derniere=1`);
+  if (!reponse.ok) return undefined;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? (json.data ?? undefined) : undefined;
+}
+
 export async function creerDemandeAnnulation(tournoiId: string, motif: string): Promise<DemandeAnnulation | null> {
   if (!motif.trim()) return null;
   const reponse = await fetch(`/api/tournois/${tournoiId}/demande-annulation`, {

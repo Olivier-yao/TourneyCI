@@ -373,7 +373,7 @@ export function CtaInscription({
         </Link>
         <Link href={`/organisateur/${tournoiId}/gestion`} className="flex-1 relative">
           <Button variante="primary" bloc>
-            Gérer le tournoi
+            Régie du tournoi
           </Button>
           {enDirect && (
             <span

@@ -51,6 +51,17 @@ export async function mesMouvements(): Promise<Mouvement[]> {
   return resultat.ok ? resultat.data.mouvements : [];
 }
 
+export type ResumeMouvementsTournoi = { gainsXof: number; gainsCount: number; remboursementsXof: number; remboursementsCount: number };
+
+/** Résumé financier réel d'un tournoi (cash prize versé, total remboursé) —
+ * réservé à l'organisateur/ses adjoints, cf. /api/tournois/[id]/mouvements-resume. */
+export async function resumeMouvementsTournoi(tournoiId: string): Promise<ResumeMouvementsTournoi> {
+  const vide = { gainsXof: 0, gainsCount: 0, remboursementsXof: 0, remboursementsCount: 0 };
+  const reponse = await fetch(`/api/tournois/${tournoiId}/mouvements-resume`);
+  const resultat = await reponseJson<ResumeMouvementsTournoi>(reponse);
+  return resultat.ok ? resultat.data : vide;
+}
+
 /** Pure : dérive le solde d'une liste de mouvements déjà chargée (évite un
  * second appel réseau quand on a déjà mesMouvements()). */
 export function soldeDepuisMouvements(mouvements: Mouvement[]): number {
