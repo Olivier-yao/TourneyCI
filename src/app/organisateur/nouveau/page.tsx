@@ -186,7 +186,7 @@ export default function NouveauTournoiPage() {
       // et le statut organisateur certifié complet (identité vérifiée +
       // demande validée + règlement accepté, points 158-159) — sans ça, seuls
       // les tournois gratuits (avec cash prize auto-financé possible) sont permis.
-      const autorise = estCert && (await peutCreerTournoiPayant(nomOrganisateurActuel()));
+      const autorise = estCert && (await peutCreerTournoiPayant());
       setCertifie(estCert);
       setIdentiteVerifiee(estCertifie());
       setPayantAutorise(autorise);

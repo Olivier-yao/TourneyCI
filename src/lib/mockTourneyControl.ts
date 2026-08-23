@@ -93,3 +93,43 @@ export async function traiterDemandeAnnulation(id: string, statut: "validee" | "
     body: JSON.stringify({ statut, messageAdmin }),
   });
 }
+
+export type StatutModerationOrganisateur = "actif" | "suspendu" | "banni";
+
+export type OrganisateurModerationAdmin = {
+  profileId: string;
+  nom: string;
+  coeurs: number;
+  coeursBrises: number;
+  statut: StatutModerationOrganisateur;
+  motif?: string;
+  moderationLe?: number;
+};
+
+/** Sans argument : file des organisateurs suspendus en attente d'une
+ * décision (lever ou bannir). Avec une recherche : n'importe quel
+ * organisateur par nom d'organisateur ou pseudo joueur, quel que soit son
+ * statut — pour un bannissement direct sans attendre le seuil automatique. */
+export async function organisateursModeration(recherche?: string): Promise<OrganisateurModerationAdmin[]> {
+  const url = recherche?.trim() ? `/api/tourney-control/moderation?q=${encodeURIComponent(recherche.trim())}` : "/api/tourney-control/moderation";
+  const reponse = await fetch(url);
+  if (!reponse.ok) return [];
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : [];
+}
+
+export async function bannirOrganisateurAdmin(profileId: string, motif: string): Promise<void> {
+  await fetch(`/api/tourney-control/moderation/${profileId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "bannir", motif }),
+  });
+}
+
+export async function leverSuspensionAdmin(profileId: string): Promise<void> {
+  await fetch(`/api/tourney-control/moderation/${profileId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "lever_suspension" }),
+  });
+}

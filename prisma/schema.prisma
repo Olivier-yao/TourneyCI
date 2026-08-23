@@ -893,6 +893,8 @@ model organisateur_profils {
   suivi_masque                  Boolean   @default(false)
   tag                           String?
   photo_modifiee_le             DateTime? @db.Timestamptz(6)
+  moderation_motif              String?
+  moderation_le                 DateTime? @db.Timestamptz(6)
   profiles                      profiles  @relation(fields: [profile_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@schema("public")

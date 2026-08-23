@@ -37,7 +37,12 @@ export function demandeCertification(): DemandeCertification | null {
 
 /** Soumission mock : dès qu'un document est fourni et l'âge confirmé, on
  * considère la vérification instantanément validée (pas de vrai back-office
- * de modération dans ce mock). */
+ * de modération dans ce mock — chantier à part, cf. kyc_verifications déjà
+ * en base). La vérification en liste noire par NOM de document a été
+ * retirée d'ici : elle ne correspondait de toute façon à rien de réel (la
+ * vraie liste noire, server-side, indexe par hash du document, cf.
+ * src/lib/server/moderation.ts) — l'application réelle reste
+ * peutCreerTournoiPayant() côté serveur à la création d'un tournoi payant. */
 export function soumettreCertification(ageConfirme: boolean, documentNom: string): boolean {
   if (typeof window === "undefined" || !ageConfirme || !documentNom.trim()) return false;
   const demande: DemandeCertification = {
@@ -45,7 +50,6 @@ export function soumettreCertification(ageConfirme: boolean, documentNom: string
     documentNom: documentNom.trim(),
     soumisLe: new Date().toLocaleDateString("fr-FR"),
   };
-  if (documentEnListeNoire(documentNom)) return false;
   localStorage.setItem(cleCompte(CLE_DEMANDE), JSON.stringify(demande));
   localStorage.setItem(cleCompte(CLE_CERTIFICATION), "1");
   return true;
@@ -308,15 +312,15 @@ export async function retirerReseauSocial(plateforme: PlateformeSociale): Promis
 }
 
 /**
- * Réputation & modération anti-triche (mock) — basée sur les avis
- * cœur/cœur brisé laissés en fin de tournoi (cf. mockAvis). Un organisateur
- * qui accumule trop de cœurs brisés voit sa capacité à créer des tournois
- * payants suspendue le temps d'une vérification. En cas de triche confirmée,
- * le compte est banni et sa pièce d'identité mise en liste noire pour
- * empêcher une nouvelle certification (la vérification faciale n'est pas
- * encore implémentée, mais la structure de données est prête pour l'accueillir).
+ * Réputation & modération anti-triche — basée sur les avis cœur/cœur brisé
+ * laissés en fin de tournoi (cf. mockAvis). Un organisateur qui accumule
+ * trop de cœurs brisés voit sa capacité à créer des tournois payants
+ * suspendue le temps d'une vérification admin (bannissement + liste noire
+ * du document d'identité en cas de triche confirmée). Entièrement
+ * server-side désormais (src/lib/server/moderation.ts) — bannir/suspendre/
+ * lister en liste noire depuis cet appareil n'a plus de sens côté client :
+ * ce sont des actions admin réelles, gérées depuis /tourney-control.
  */
-export const SEUIL_COEURS_BRISES_SUSPENSION = 3;
 
 /** Réputation globale : cumule les avis laissés sur chacun de ses tournois
  * (point 19/51) et les avis laissés directement sur son profil (point 51). */
@@ -326,75 +330,19 @@ export async function statistiquesReputation(organisateur: string): Promise<{ co
 
 export type StatutModeration = "actif" | "suspendu" | "banni";
 
-// Pas de cleCompte() sur ces 3 clés : décisions de modération admin
-// consultées par NOM d'organisateur depuis /admin/moderation, potentiellement
-// sur un compte différent de celui de l'admin connecté — doivent rester un
-// registre partagé, comme CLE_LISTE_NOIRE juste en dessous.
-const CLE_SUSPENDU = "tourney-organisateur-suspendu-leve";
-const CLE_BANNI = "tourney-organisateur-banni";
-const CLE_LISTE_NOIRE = "tourney-liste-noire";
-
-export type EntreeListeNoire = {
-  documentNom: string;
-  /** Réservé à la vérification faciale future (non implémentée). */
-  visageHash?: string;
-  motif: string;
-  horodatage: number;
-};
-
-/** Statut de modération de l'organisateur de cet appareil (mock mono-compte). */
-export async function statutModeration(organisateur: string): Promise<StatutModeration> {
-  if (typeof window === "undefined") return "actif";
-  if (localStorage.getItem(CLE_BANNI) === "1") return "banni";
-  const leve = localStorage.getItem(CLE_SUSPENDU) === "1";
-  if (!leve && (await statistiquesReputation(organisateur)).coeursBrises >= SEUIL_COEURS_BRISES_SUSPENSION) return "suspendu";
-  return "actif";
+/** Le compte connecté peut-il créer/gérer un tournoi impliquant de l'argent
+ * réel maintenant ? Vérifié à nouveau côté serveur à la création elle-même
+ * (POST /api/tournois) — cet appel ne sert qu'à l'affichage anticipé. */
+export async function peutCreerTournoiPayant(): Promise<boolean> {
+  const reponse = await fetch("/api/organisateur/statut-moderation");
+  if (!reponse.ok) return false;
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? Boolean(json.data.peutCreerPayant) : false;
 }
 
-export async function peutCreerTournoiPayant(organisateur: string): Promise<boolean> {
-  return (await statutModeration(organisateur)) === "actif";
-}
-
-function lireListeNoire(): EntreeListeNoire[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_LISTE_NOIRE);
-    return brut ? (JSON.parse(brut) as EntreeListeNoire[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function listeNoire(): EntreeListeNoire[] {
-  return lireListeNoire();
-}
-
-export function documentEnListeNoire(documentNom: string): boolean {
-  const cible = documentNom.trim().toLowerCase();
-  return lireListeNoire().some((e) => e.documentNom.trim().toLowerCase() === cible);
-}
-
-function ajouterListeNoire(documentNom: string, motif: string) {
-  if (typeof window === "undefined" || !documentNom.trim()) return;
-  localStorage.setItem(
-    CLE_LISTE_NOIRE,
-    JSON.stringify([...lireListeNoire(), { documentNom: documentNom.trim(), motif, horodatage: Date.now() }]),
-  );
-}
-
-/** Action admin : triche confirmée après vérification → bannissement +
- * liste noire de la pièce d'identité fournie à la certification. */
-export function confirmerTricheEtBannir(organisateur: string) {
-  if (typeof window === "undefined") return;
-  const demande = demandeCertification();
-  localStorage.setItem(CLE_BANNI, "1");
-  if (demande?.documentNom) {
-    ajouterListeNoire(demande.documentNom, `Triche confirmée sur les tournois de ${organisateur}`);
-  }
-}
-
-/** Action admin : vérification terminée, rien à reprocher → suspension levée. */
-export function leverSuspension() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_SUSPENDU, "1");
+export async function monStatutModeration(): Promise<StatutModeration> {
+  const reponse = await fetch("/api/organisateur/statut-moderation");
+  if (!reponse.ok) return "actif";
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? (json.data.statut as StatutModeration) : "actif";
 }

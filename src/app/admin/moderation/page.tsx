@@ -1,19 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Ban, CheckCircle2, Lock } from "lucide-react";
+import { Info, Lock } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
-import { Button } from "@/components/ds/Button";
 import { formatXof } from "@/lib/formatXof";
-import {
-  statistiquesReputation,
-  statutModeration,
-  confirmerTricheEtBannir,
-  leverSuspension,
-  listeNoire,
-  nomOrganisateurActuel,
-  type StatutModeration,
-} from "@/lib/mockOrganisateur";
 import {
   paiementsEnAttente,
   libererSequestreCashPrize,
@@ -24,10 +14,14 @@ import { tousLesAppelsOuverts, traiterAppel, type Appel } from "@/lib/mockAppel"
 import { AdminGate } from "@/components/ds/AdminGate";
 
 /**
- * Outil d'administration (mock) : pas de rôle admin séparé dans l'app, donc
- * cet écran agit sur l'organisateur de cet appareil. Accessible uniquement
- * par URL directe (non lié dans la navigation), à remplacer par un vrai
- * back-office en phase 8.
+ * Outil d'administration (mock) : pas de rôle admin séparé dans l'app pour
+ * l'appel des résultats et la libération du séquestre ci-dessous — accès
+ * uniquement par URL directe (non lié dans la navigation), à remplacer par
+ * un vrai back-office. Le bannissement/la suspension des organisateurs, qui
+ * vivait ici, a été déplacé vers /tourney-control (vrai admin, session
+ * server-side, cf. src/lib/server/moderation.ts) : cet écran-ci n'a jamais
+ * pu agir que sur "l'organisateur de cet appareil" (aucun moyen de cibler un
+ * autre compte), donc ne bannissait jamais personne d'autre que soi-même.
  */
 export default function ModerationAdminPage() {
   return (
@@ -38,19 +32,10 @@ export default function ModerationAdminPage() {
 }
 
 function ModerationAdminContenu() {
-  const [organisateur, setOrganisateur] = useState("");
-  const [stats, setStats] = useState({ coeurs: 0, coeursBrises: 0 });
-  const [statut, setStatut] = useState<StatutModeration>("actif");
-  const [liste, setListe] = useState<ReturnType<typeof listeNoire>>([]);
   const [sequestres, setSequestres] = useState<PaiementEnAttente[]>([]);
   const [appelsOuverts, setAppelsOuverts] = useState<Appel[]>([]);
 
   async function rafraichir() {
-    const nom = nomOrganisateurActuel();
-    setOrganisateur(nom);
-    setStats(await statistiquesReputation(nom));
-    setStatut(await statutModeration(nom));
-    setListe(listeNoire());
     setSequestres(paiementsEnAttente());
     setAppelsOuverts(await tousLesAppelsOuverts());
   }
@@ -63,54 +48,13 @@ function ModerationAdminContenu() {
     <div className="min-h-screen flex flex-col px-5 py-4 gap-4" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
       <AppBar titre="Modération anti-triche" />
 
-      <div className="p-3.5 flex flex-col gap-2" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
-        <div className="text-sm font-semibold">{organisateur}</div>
-        <div className="flex gap-4 text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-          <span>{stats.coeurs} cœurs</span>
-          <span>{stats.coeursBrises} cœurs brisés</span>
-        </div>
-        <div
-          className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 text-[11px]"
-          style={{
-            borderRadius: "var(--ds-radius-pill)",
-            background: statut === "actif" ? "var(--ds-accent-900)" : "color-mix(in srgb, var(--ds-danger) 15%, transparent)",
-            color: statut === "actif" ? "var(--ds-accent-300)" : "var(--ds-danger)",
-          }}
-        >
-          {statut === "actif" ? <CheckCircle2 size={12} strokeWidth={2} /> : <AlertTriangle size={12} strokeWidth={2} />}
-          {statut === "actif" ? "Actif" : statut === "suspendu" ? "Suspendu (vérification en cours)" : "Banni"}
+      <div className="flex items-start gap-2.5 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
+        <Info size={15} style={{ color: "var(--ds-accent-300)" }} className="shrink-0 mt-0.5" />
+        <div className="text-xs leading-snug" style={{ color: "var(--ds-text-muted)" }}>
+          Le bannissement/la suspension des organisateurs se gère désormais depuis /tourney-control (onglet
+          Modération), avec une vraie recherche par compte.
         </div>
       </div>
-
-      {statut === "suspendu" && (
-        <div className="flex flex-col gap-2">
-          <Button
-            variante="primary"
-            bloc
-            onClick={() => {
-              leverSuspension();
-              rafraichir();
-            }}
-          >
-            <CheckCircle2 size={16} strokeWidth={2} />
-            Vérification OK · lever la suspension
-          </Button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Confirmer la triche et bannir ce compte ? Sa pièce d'identité sera mise en liste noire.")) {
-                confirmerTricheEtBannir(organisateur);
-                rafraichir();
-              }
-            }}
-            className="h-11 text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
-            style={{ borderRadius: "var(--ds-radius-btn)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}
-          >
-            <Ban size={16} strokeWidth={2} />
-            Triche confirmée · bannir
-          </button>
-        </div>
-      )}
 
       <div className="flex flex-col gap-2">
         <div className="text-sm font-medium">Appels des résultats en cours</div>
@@ -184,19 +128,6 @@ function ModerationAdminContenu() {
         )}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="text-sm font-medium">Liste noire (pièces d&apos;identité)</div>
-        {liste.length === 0 ? (
-          <p className="text-xs" style={{ color: "var(--ds-muted)" }}>Aucune entrée.</p>
-        ) : (
-          liste.map((e) => (
-            <div key={e.documentNom + e.horodatage} className="p-2.5 text-xs" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
-              <div className="font-medium">{e.documentNom}</div>
-              <div style={{ color: "var(--ds-muted)" }}>{e.motif}</div>
-            </div>
-          ))
-        )}
-      </div>
     </div>
   );
 }

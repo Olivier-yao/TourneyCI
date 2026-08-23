@@ -18,6 +18,10 @@ import {
   Scale,
   XCircle,
   CheckCircle2,
+  ShieldAlert,
+  Ban,
+  Search,
+  AlertTriangle,
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import {
@@ -29,8 +33,12 @@ import {
   traiterDemandeOrganisateur,
   demandesAnnulationEnAttente,
   traiterDemandeAnnulation,
+  organisateursModeration,
+  bannirOrganisateurAdmin,
+  leverSuspensionAdmin,
   type DemandeOrganisateurAdmin,
   type DemandeAnnulationAdmin,
+  type OrganisateurModerationAdmin,
 } from "@/lib/mockTourneyControl";
 import type { AnalyseDemandeOrganisateur } from "@/lib/mockAnalyseAutomatique";
 import { plaintesEnAttente, traiterPlainte, type Plainte } from "@/lib/mockPlaintes";
@@ -378,10 +386,11 @@ function EcranPin({ onValide, onRetour }: { onValide: () => void; onRetour: () =
   );
 }
 
-type Onglet = "organisateurs" | "plaintes" | "litiges" | "annulations";
+type Onglet = "organisateurs" | "moderation" | "plaintes" | "litiges" | "annulations";
 
 const ONGLET_META: Record<Onglet, { label: string; icon: LucideIcon }> = {
   organisateurs: { label: "Organisateurs", icon: UserCheck },
+  moderation: { label: "Modération", icon: ShieldAlert },
   plaintes: { label: "Plaintes", icon: Flag },
   litiges: { label: "Litiges", icon: Scale },
   annulations: { label: "Annulations", icon: XCircle },
@@ -399,6 +408,8 @@ function footMetaPour(onglet: Onglet, counts: Record<Onglet, number>): string {
   switch (onglet) {
     case "organisateurs":
       return `TRIÉ PAR ANCIENNETÉ · ${counts.organisateurs} EN ATTENTE`;
+    case "moderation":
+      return `${counts.moderation} SUSPENDU${counts.moderation > 1 ? "S" : ""} EN ATTENTE DE DÉCISION`;
     case "plaintes":
       return `TRIÉ PAR ANCIENNETÉ · ${counts.plaintes} EN ATTENTE`;
     case "litiges":
@@ -600,18 +611,119 @@ function CarteLitige({ litige }: { litige: Litige }) {
   );
 }
 
+const STATUT_MODERATION_STYLE: Record<OrganisateurModerationAdmin["statut"], { label: string; bg: string; border: string; color: string }> = {
+  actif: { label: "ACTIF", bg: "transparent", border: "var(--ds-border)", color: "var(--ds-muted)" },
+  suspendu: { label: "SUSPENDU", bg: "var(--ds-accent-900)", border: "var(--ds-accent)", color: "var(--ds-accent-300)" },
+  banni: { label: "BANNI", bg: "color-mix(in srgb, var(--ds-danger) 15%, transparent)", border: "var(--ds-danger)", color: "var(--ds-danger)" },
+};
+
+function CarteOrganisateurModeration({ organisateur, onAction }: { organisateur: OrganisateurModerationAdmin; onAction: () => void }) {
+  const [motif, setMotif] = useState("");
+  const [enCours, setEnCours] = useState(false);
+  const skin = STATUT_MODERATION_STYLE[organisateur.statut];
+
+  async function bannir() {
+    if (!motif.trim()) return;
+    if (!window.confirm(`Confirmer la triche et bannir ${organisateur.nom} ? Son document d'identité (si vérifié) sera mis en liste noire.`)) return;
+    setEnCours(true);
+    await bannirOrganisateurAdmin(organisateur.profileId, motif.trim());
+    setEnCours(false);
+    onAction();
+  }
+
+  async function lever() {
+    setEnCours(true);
+    await leverSuspensionAdmin(organisateur.profileId);
+    setEnCours(false);
+    onAction();
+  }
+
+  return (
+    <div className="flex flex-col gap-2.5 p-3.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: `1px solid ${organisateur.statut === "suspendu" ? "var(--ds-accent)" : "var(--ds-border)"}` }}>
+      <div className="flex items-start gap-2.5">
+        <div className="w-8 h-8 flex items-center justify-center shrink-0" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface-2)", color: skin.color }}>
+          <ShieldAlert size={15} strokeWidth={2} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium leading-tight">{organisateur.nom}</div>
+          <div className="mt-1 text-[9px] tracking-[.06em]" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-muted)" }}>
+            {organisateur.coeurs} CŒURS · {organisateur.coeursBrises} CŒURS BRISÉS
+            {organisateur.moderationLe ? ` · ${formatDateHeure(organisateur.moderationLe)}` : ""}
+          </div>
+        </div>
+        <div className="shrink-0 px-2.5 py-1 text-[9px]" style={{ borderRadius: 999, background: skin.bg, border: `1px solid ${skin.border}`, color: skin.color, fontFamily: "var(--ds-font-mono)" }}>
+          {skin.label}
+        </div>
+      </div>
+
+      {organisateur.motif && (
+        <p className="text-xs leading-relaxed p-2.5" style={{ borderRadius: "var(--ds-radius-sm)", background: "var(--ds-surface-2)", color: "var(--ds-text-muted)" }}>
+          {organisateur.motif}
+        </p>
+      )}
+
+      {organisateur.statut !== "banni" && (
+        <>
+          <textarea
+            value={motif}
+            onChange={(e) => setMotif(e.target.value)}
+            rows={2}
+            placeholder={`Motif du bannissement de ${organisateur.nom}…`}
+            className="px-3 py-2 text-xs outline-none resize-none"
+            style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", color: "var(--ds-text)" }}
+          />
+          <div className="flex gap-2">
+            {organisateur.statut === "suspendu" && (
+              <button
+                type="button"
+                onClick={lever}
+                disabled={enCours}
+                className={`flex-1 h-[38px] text-xs font-medium disabled:opacity-50 ${PRESS}`}
+                style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+              >
+                <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={13} strokeWidth={2} />Vérification OK · lever</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={bannir}
+              disabled={enCours || !motif.trim()}
+              className={`flex-1 h-[38px] text-xs font-medium disabled:opacity-40 ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}
+            >
+              <span className="inline-flex items-center gap-1.5"><Ban size={13} strokeWidth={2} />Triche confirmée · bannir</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   const [onglet, setOnglet] = useState<Onglet>("organisateurs");
   const [demandesOrga, setDemandesOrga] = useState<DemandeOrganisateurAdmin[]>([]);
   const [plaintes, setPlaintes] = useState<Plainte[]>([]);
   const [litiges, setLitiges] = useState<Litige[]>([]);
   const [demandesAnnul, setDemandesAnnul] = useState<DemandeAnnulationAdmin[]>([]);
+  const [fileModeration, setFileModeration] = useState<OrganisateurModerationAdmin[]>([]);
+  const [rechercheModeration, setRechercheModeration] = useState("");
+  const [resultatsModeration, setResultatsModeration] = useState<OrganisateurModerationAdmin[] | null>(null);
 
   async function rafraichir() {
     setDemandesOrga(await demandesOrganisateurEnAttente());
     setPlaintes(plaintesEnAttente());
     setLitiges(mesLitiges());
     setDemandesAnnul(await demandesAnnulationEnAttente());
+    setFileModeration(await organisateursModeration());
+  }
+
+  async function rechercherModeration() {
+    if (!rechercheModeration.trim()) {
+      setResultatsModeration(null);
+      return;
+    }
+    setResultatsModeration(await organisateursModeration(rechercheModeration));
   }
 
   useEffect(() => {
@@ -620,14 +732,15 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
 
   const counts: Record<Onglet, number> = {
     organisateurs: demandesOrga.length,
+    moderation: fileModeration.length,
     plaintes: plaintes.length,
     litiges: litiges.filter((l) => l.statut === "en_attente").length,
     annulations: demandesAnnul.length,
   };
   // Les litiges sont supervisés, pas traités ici — exclus du total affiché en en-tête.
-  const totalEnAttente = counts.organisateurs + counts.plaintes + counts.annulations;
+  const totalEnAttente = counts.organisateurs + counts.moderation + counts.plaintes + counts.annulations;
 
-  const onglets: Onglet[] = ["organisateurs", "plaintes", "litiges", "annulations"];
+  const onglets: Onglet[] = ["organisateurs", "moderation", "plaintes", "litiges", "annulations"];
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
@@ -734,6 +847,54 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
                 />
               ))
             ))}
+
+          {onglet === "moderation" && (
+            <>
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2 h-10 px-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}>
+                  <Search size={14} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0" />
+                  <input
+                    value={rechercheModeration}
+                    onChange={(e) => setRechercheModeration(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && rechercherModeration()}
+                    placeholder="Nom d'organisateur ou pseudo…"
+                    className="flex-1 min-w-0 bg-transparent outline-none text-xs"
+                    style={{ color: "var(--ds-text)" }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={rechercherModeration}
+                  className={`px-3.5 text-xs font-medium ${PRESS}`}
+                  style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+                >
+                  Chercher
+                </button>
+              </div>
+
+              {resultatsModeration !== null ? (
+                resultatsModeration.length === 0 ? (
+                  <EtatVide texte="Aucun organisateur trouvé." />
+                ) : (
+                  resultatsModeration.map((o) => (
+                    <CarteOrganisateurModeration key={o.profileId} organisateur={o} onAction={async () => { await rechercherModeration(); await rafraichir(); }} />
+                  ))
+                )
+              ) : fileModeration.length === 0 ? (
+                <div className="flex gap-2.5 items-start p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
+                  <AlertTriangle size={15} style={{ color: "var(--ds-accent-300)" }} className="shrink-0 mt-0.5" />
+                  <div className="text-xs leading-snug" style={{ color: "var(--ds-text-muted)" }}>
+                    Aucun organisateur suspendu en attente. La recherche ci-dessus permet un bannissement direct sur
+                    n&apos;importe quel compte.
+                  </div>
+                </div>
+              ) : (
+                fileModeration.map((o) => (
+                  <CarteOrganisateurModeration key={o.profileId} organisateur={o} onAction={rafraichir} />
+                ))
+              )}
+            </>
+          )}
 
           {onglet === "plaintes" &&
             (plaintes.length === 0 ? (

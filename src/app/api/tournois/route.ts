@@ -8,6 +8,7 @@ import {
   synchroniserNomOrganisateur,
   INCLUDE_TOURNOI_LISTE,
 } from "@/lib/server/tournois";
+import { peutCreerTournoiPayant } from "@/lib/server/moderation";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -80,6 +81,17 @@ export async function POST(request: Request) {
 
   const organisateurNom = typeof body.organisateurNom === "string" ? body.organisateurNom : "";
   if (organisateurNom) await synchroniserNomOrganisateur(user.id, organisateurNom);
+
+  // Vérification serveur (pas seulement l'écran de création côté client,
+  // contournable en appelant cette route directement) : un organisateur
+  // suspendu ou banni ne peut pas créer de tournoi où de l'argent réel
+  // circule — inscriptions payantes, ou cash prize financé de sa poche.
+  const fraisXof = Number(body.fraisXof) || 0;
+  const cashPrizeXof = Number(body.cashPrizeXof) || 0;
+  const impliqueArgent = fraisXof > 0 || (body.financementCashPrize === "organisateur" && cashPrizeXof > 0);
+  if (impliqueArgent && !(await peutCreerTournoiPayant(user.id))) {
+    return NextResponse.json({ success: false, error: "Ton compte organisateur est suspendu ou banni : impossible de créer un tournoi impliquant de l'argent réel." }, { status: 403 });
+  }
 
   const repartitionCashPrize: unknown = body.repartitionCashPrize;
   const repartitionValide = Array.isArray(repartitionCashPrize)
