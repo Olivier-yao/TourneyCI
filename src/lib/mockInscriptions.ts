@@ -26,6 +26,17 @@ export async function inscriptionDe(tournoiId: string): Promise<Inscription | un
   return liste.find((i) => i.tournoiId === tournoiId);
 }
 
+export type InscritTournoi = { tournoiId: string; pseudo: string; tag?: string; equipe?: string };
+
+/** Toutes les inscriptions d'UN tournoi (pas seulement les miennes) — pour
+ * afficher le vrai TAG saisi par chaque joueur dans la liste des inscrits,
+ * au lieu d'un tag synthétique dérivé du pseudo/nom d'équipe affiché. */
+export async function inscriptionsDuTournoi(tournoiId: string): Promise<InscritTournoi[]> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/inscriptions`);
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? (json.data as InscritTournoi[]) : [];
+}
+
 export type ResultatInscription = { ok: boolean; erreur?: string };
 
 export async function enregistrerInscription(tournoiId: string, tag?: string, equipe?: string, montant?: number): Promise<ResultatInscription> {

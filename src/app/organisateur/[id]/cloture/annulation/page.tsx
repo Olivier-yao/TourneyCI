@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
+import { Modal } from "@/components/ds/Modal";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { creerDemandeAnnulation, demandeAnnulationPourTournoi } from "@/lib/mockDemandesAnnulation";
@@ -44,6 +45,7 @@ export default function AnnulationTournoiPage() {
   const [dejaDemande, setDejaDemande] = useState(false);
   const [motifId, setMotifId] = useState<string | null>(null);
   const [motif, setMotif] = useState("");
+  const [confirmationOuverte, setConfirmationOuverte] = useState(false);
 
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
@@ -77,6 +79,11 @@ export default function AnnulationTournoiPage() {
     if (!motif.trim() || !tournoi) return;
     await creerDemandeAnnulation(params.id, motif.trim());
     router.push(`/organisateur/${params.id}/cloture`);
+  }
+
+  function demanderConfirmation() {
+    if (!motif.trim() || !tournoi) return;
+    setConfirmationOuverte(true);
   }
 
   return (
@@ -173,13 +180,40 @@ export default function AnnulationTournoiPage() {
         <button
           type="button"
           disabled={!motif.trim()}
-          onClick={envoyer}
+          onClick={demanderConfirmation}
           className={`flex-[2] h-[46px] text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-danger)", color: "var(--ds-danger)" }}
         >
           Envoyer la demande
         </button>
       </div>
+
+      <Modal ouvert={confirmationOuverte} titre="Confirmer l'annulation" onFermer={() => setConfirmationOuverte(false)}>
+        <div className="flex flex-col gap-4 not-italic" style={{ whiteSpace: "normal" }}>
+          <p>
+            Cette demande part immédiatement à l&apos;administration et est <strong>définitive</strong> : elle compte contre ta
+            réputation d&apos;organisateur et, si des inscrits ont payé, déclenche leur remboursement automatique.
+          </p>
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={() => setConfirmationOuverte(false)}
+              className={`flex-1 h-[46px] text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}
+            >
+              Retour
+            </button>
+            <button
+              type="button"
+              onClick={envoyer}
+              className={`flex-[2] h-[46px] text-sm font-medium ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-danger)", color: "#fff" }}
+            >
+              Confirmer l&apos;annulation
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

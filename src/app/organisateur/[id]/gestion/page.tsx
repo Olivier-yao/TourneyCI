@@ -32,7 +32,8 @@ import {
   cashPrizeEstEstime,
   type Tournoi,
 } from "@/lib/mockTournaments";
-import { matchsDuTournoi, classementFinalBracket, libelleRound, codeRound, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
+import { matchsDuTournoi, classementFinalBracket, libelleRound, codeRound, type MatchTournoi } from "@/lib/mockBracket";
+import { spectateursReels } from "@/lib/mockChat";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import {
   manchesBR,
@@ -151,6 +152,7 @@ export default function GestionTournoiPage() {
   const [unites, setUnites] = useState<UniteBR[]>([]);
   const [presents, setPresents] = useState<string[]>([]);
   const [room, setRoom] = useState<InfosRoom | undefined>(undefined);
+  const [spectateurs, setSpectateurs] = useState(0);
   const [classementFinal, setClassementFinal] = useState<string[]>([]);
   const [resume, setResume] = useState<ResumeMouvementsTournoi | undefined>(undefined);
   const [demande, setDemande] = useState<DemandeAnnulation | undefined>(undefined);
@@ -213,6 +215,25 @@ export default function GestionTournoiPage() {
       manchesBR(tournoi.id).then(setManches);
     },
   );
+  // Infos de room : rien de sensible (lien/mot de passe) — vraie mise à jour
+  // temps réel, contrairement au check-in ci-dessous (inscriptions porte
+  // aussi le montant payé, jamais diffusé en direct).
+  useRealtimeRefetch(
+    tournoi && inscriptionsFermees(tournoi) ? [{ table: "room_infos", filter: `tournoi_id=eq.${params.id}`, event: "*" }] : [],
+    () => { infosRoomDuTournoi(params.id).then(setRoom); },
+  );
+  useEffect(() => {
+    if (!tournoi || tournoi.checkinTs === undefined || Date.now() < tournoi.checkinTs) return;
+    const id = setInterval(() => {
+      presentsDuTournoi(params.id).then(setPresents);
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [tournoi, params.id]);
+
+  useEffect(() => {
+    if (!tournoi) return;
+    spectateursReels(tournoi.id).then(setSpectateurs);
+  }, [tournoi]);
 
   if (!pret) return null;
 
@@ -242,7 +263,6 @@ export default function GestionTournoiPage() {
   const matchsEnAttente = matches.filter((m) => m.statut !== "termine" && m.joueur1 && m.joueur2);
   const cashPrize = cashPrizeAffiche(tournoi);
   const estime = cashPrizeEstEstime(tournoi);
-  const spectateurs = spectateursDerives(tournoi.id);
   const checkinOuvert = tournoi.checkinTs !== undefined && maintenant >= tournoi.checkinTs;
 
   // ---------- en-tête ----------

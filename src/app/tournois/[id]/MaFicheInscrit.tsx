@@ -37,6 +37,11 @@ import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
 const RAFRAICHISSEMENT_MS = 60_000;
+// Check-in : pas de temps réel (la table inscriptions porte aussi le montant
+// payé par chaque inscrit, qu'on ne veut pas diffuser à tous via Postgres
+// Realtime) — un polling plus rapproché suffit pour un check-in "à peu près
+// en direct" pour tout le monde.
+const RAFRAICHISSEMENT_PRESENCE_MS = 30_000;
 
 function initiales(nom: string): string {
   return nom.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase();
@@ -290,11 +295,23 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       }
     }
     charger();
+    const id = setInterval(() => {
+      presentsDuTournoi(tournoi.id).then((p) => { if (!annule) setPresents(p); });
+    }, RAFRAICHISSEMENT_PRESENCE_MS);
     return () => {
       annule = true;
+      clearInterval(id);
     };
-     
+
   }, [tournoi.id, etat]);
+
+  // Infos de room : rien de sensible (lien/mot de passe) — vraie mise à jour
+  // temps réel dès que l'organisateur les enregistre, contrairement au
+  // check-in ci-dessus.
+  useRealtimeRefetch(
+    [{ table: "room_infos", filter: `tournoi_id=eq.${tournoi.id}`, event: "*" }],
+    () => { infosRoomDuTournoi(tournoi.id).then(setRoom); },
+  );
 
   if (!pret) return null;
 

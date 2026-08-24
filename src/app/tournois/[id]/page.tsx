@@ -487,7 +487,10 @@ function DetailTournoiInterne() {
   // standard ne montre pas — remplace la fiche standard dès l'inscription,
   // pas seulement une fois le tournoi en direct (avant/pendant le check-in
   // aussi). Même périmètre que ci-dessus : formats à bracket uniquement.
-  if (tournoi.type !== "battle_royale" && !estMonTournoi && estInscritTournoi) {
+  // Annulé : jamais la fiche inscrit (room/check-in n'ont plus de sens) —
+  // retombe sur la fiche standard ci-dessous, qui affiche déjà le bandeau
+  // "Tournoi annulé" (et l'a toujours fait), même pour un participant.
+  if (tournoi.type !== "battle_royale" && !estMonTournoi && estInscritTournoi && !tournoi.annule) {
     return <MaFicheInscrit tournoi={tournoi} />;
   }
 

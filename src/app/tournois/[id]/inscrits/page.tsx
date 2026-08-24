@@ -9,13 +9,19 @@ import { EmptyState } from "@/components/ds/EmptyState";
 import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { lireProfil, estActif } from "@/lib/mockProfil";
-import { inscriptionDe, estInscrit } from "@/lib/mockInscriptions";
+import { inscriptionDe, estInscrit, inscriptionsDuTournoi } from "@/lib/mockInscriptions";
 import { estPresent, definirPresence, presentsDuTournoi } from "@/lib/mockCheckin";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 
 function tagDe(nom: string): string {
   return `#${nom.replace(/\s+/g, "").slice(0, 6).toUpperCase()}`;
 }
+
+// Check-in : pas de temps réel (inscriptions porte aussi le montant payé par
+// chaque inscrit, à ne pas diffuser à tous via Postgres Realtime) — un
+// polling suffit pour que le statut de présence reste à peu près à jour pour
+// tout le monde, pas seulement l'organisateur.
+const RAFRAICHISSEMENT_PRESENCE_MS = 30_000;
 
 export default function InscritsPage() {
   const params = useParams<{ id: string }>();
@@ -27,10 +33,16 @@ export default function InscritsPage() {
   const [estMonTournoi, setEstMonTournoi] = useState(false);
   const [inscrit, setInscrit] = useState(false);
   const [presents, setPresents] = useState<string[]>([]);
+  const [tagsParNom, setTagsParNom] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function charger() {
-      const [t, profil, inscription] = await Promise.all([tournoiParId(params.id), Promise.resolve(lireProfil()), inscriptionDe(params.id)]);
+      const [t, profil, inscription, inscriptions] = await Promise.all([
+        tournoiParId(params.id),
+        Promise.resolve(lireProfil()),
+        inscriptionDe(params.id),
+        inscriptionsDuTournoi(params.id),
+      ]);
       // Comme dans MaFicheInscrit.tsx : la liste (tournoi.inscrits) identifie
       // chaque joueur par son pseudo (ou nom d'équipe), jamais par le TAG
       // in-game saisi à l'inscription — sinon on ne se reconnaît jamais dans
@@ -38,6 +50,12 @@ export default function InscritsPage() {
       const nomAffiche = inscription?.equipe ?? profil.pseudo;
       setTournoi(t);
       setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
+      // Vrai TAG saisi à l'inscription, affiché sous chaque nom (point 220) —
+      // clé sur le même nom affiché (équipe ou pseudo) que tournoi.inscrits,
+      // jamais utilisé pour l'identité/le matching (reste pseudo/équipe).
+      setTagsParNom(
+        Object.fromEntries(inscriptions.filter((i) => i.tag).map((i) => [i.equipe ?? i.pseudo, i.tag as string])),
+      );
       setEstMonTournoi(t?.organisateur === (await nomOrganisateurActuel()));
       // Point 180 : un participant a accès à la liste des inscrits dès qu'il
       // s'est lui-même inscrit, sans attendre la clôture des inscriptions.
@@ -46,15 +64,21 @@ export default function InscritsPage() {
       setPret(true);
     }
     charger();
-     
+  }, [params.id]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      presentsDuTournoi(params.id).then(setPresents);
+    }, RAFRAICHISSEMENT_PRESENCE_MS);
+    return () => clearInterval(id);
   }, [params.id]);
 
   const inscrits = useMemo(() => {
     const noms = tournoi?.inscrits ?? [];
     return noms
-      .map((nom) => ({ nom, tag: tagDe(nom), checkin: estPresent(presents, nom) }))
+      .map((nom) => ({ nom, tag: tagsParNom[nom] ? `#${tagsParNom[nom]}` : tagDe(nom), checkin: estPresent(presents, nom) }))
       .filter((p) => !requete || p.nom.toLowerCase().includes(requete.toLowerCase()) || p.tag.toLowerCase().includes(requete.toLowerCase()));
-  }, [tournoi, requete, presents]);
+  }, [tournoi, requete, presents, tagsParNom]);
 
   async function basculerPresence(nom: string, present: boolean) {
     setPresents(await definirPresence(params.id, nom, !present));
