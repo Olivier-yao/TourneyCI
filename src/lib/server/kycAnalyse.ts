@@ -18,6 +18,24 @@ import "@tensorflow/tfjs-backend-cpu";
 import * as blazeface from "@tensorflow-models/blazeface";
 import { createWorker, OEM, type Worker } from "tesseract.js";
 
+// Sur Vercel (serverless, aucune instance persistante entre les appels), le
+// premier appel de chaque fonction froide re-télécharge le modèle blazeface
+// et réinitialise le worker tesseract — ça peut prendre bien plus longtemps
+// qu'une exécution normale, jusqu'à dépasser le budget de la requête entière
+// (maxDuration, cf. /api/verification-identite/route.ts) et faire échouer
+// toute la soumission (recto/verso/selfie compris) pour un simple pré-filtre
+// heuristique. Un délai plafond, avec le même repli "laisser passer vers la
+// revue manuelle" que les blocs catch ci-dessous, évite qu'un modèle lent à
+// charger ne bloque une soumission par ailleurs valide.
+const DELAI_MAX_ANALYSE_MS = 12_000;
+
+function avecDelaiMax<T>(promesse: Promise<T>, repli: T): Promise<T> {
+  return Promise.race([
+    promesse,
+    new Promise<T>((resolve) => setTimeout(() => resolve(repli), DELAI_MAX_ANALYSE_MS)),
+  ]);
+}
+
 let backendPret: Promise<void> | null = null;
 function assurerBackendCpu(): Promise<void> {
   if (!backendPret) {
@@ -52,7 +70,11 @@ export type ResultatAnalyseDocument = { ok: boolean; raison?: string };
 /** Un vrai document d'identité contient toujours du texte (nom, numéro,
  * dates...) ; une photo quelconque envoyée par erreur (ou volontairement
  * pour contourner le contrôle) n'en contient généralement pas assez. */
-export async function analyserDocument(dataUrl: string): Promise<ResultatAnalyseDocument> {
+export function analyserDocument(dataUrl: string): Promise<ResultatAnalyseDocument> {
+  return avecDelaiMax(analyserDocumentInterne(dataUrl), { ok: true });
+}
+
+async function analyserDocumentInterne(dataUrl: string): Promise<ResultatAnalyseDocument> {
   try {
     const worker = await chargerOcrWorker();
     const { data } = await worker.recognize(dataUrl);
@@ -70,7 +92,11 @@ export async function analyserDocument(dataUrl: string): Promise<ResultatAnalyse
 export type ResultatAnalyseSelfie = { ok: boolean; raison?: string };
 
 /** Vérifie qu'un seul visage net est présent sur le selfie. */
-export async function analyserSelfie(dataUrl: string): Promise<ResultatAnalyseSelfie> {
+export function analyserSelfie(dataUrl: string): Promise<ResultatAnalyseSelfie> {
+  return avecDelaiMax(analyserSelfieInterne(dataUrl), { ok: true });
+}
+
+async function analyserSelfieInterne(dataUrl: string): Promise<ResultatAnalyseSelfie> {
   let tenseur: tf.Tensor3D | null = null;
   try {
     const virgule = dataUrl.indexOf(",");
