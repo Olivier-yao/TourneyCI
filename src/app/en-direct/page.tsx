@@ -11,6 +11,7 @@ import { tousLesTournois, cashPrizeAffiche, type Tournoi } from "@/lib/mockTourn
 import { matchsDePlusieursTournois, type MatchTournoi } from "@/lib/mockBracket";
 import { nbManchesBRDePlusieursTournois } from "@/lib/mockBattleRoyale";
 import { compterAvisPlusieurs } from "@/lib/mockAvis";
+import { spectateursReelsPlusieurs } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
@@ -29,14 +30,6 @@ function nomRonde(round: number, totalRounds: number): string {
   if (round === totalRounds - 1) return "Demies";
   if (round === totalRounds - 2) return "Quarts";
   return `Tour ${round}`;
-}
-
-/** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
- * dans ce mock) — stable entre le rendu serveur et client. */
-function spectateurs(tournoi: Tournoi): number {
-  let h = 0;
-  for (let i = 0; i < tournoi.id.length; i++) h = (h * 31 + tournoi.id.charCodeAt(i)) >>> 0;
-  return 80 + (h % 400) + tournoi.placesInscrites * 6;
 }
 
 function infosDirect(tournoi: Tournoi, matches: MatchTournoi[], nbManchesBR: number): { score: string; phase: string } {
@@ -66,6 +59,7 @@ export default function EnDirectPage() {
   const [matchsParTournoi, setMatchsParTournoi] = useState<Record<string, MatchTournoi[]>>({});
   const [coeursParTournoi, setCoeursParTournoi] = useState<Record<string, number>>({});
   const [manchesBRParTournoi, setManchesBRParTournoi] = useState<Record<string, number>>({});
+  const [spectateursParTournoi, setSpectateursParTournoi] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // État dépendant du localStorage : liste vide au premier rendu serveur,
@@ -110,6 +104,11 @@ export default function EnDirectPage() {
       setManchesBRParTournoi(await nbManchesBRDePlusieursTournois(ids));
     }
     charger();
+  }, [tousLesTournoisState]);
+
+  useEffect(() => {
+    const ids = tousLesTournoisState.filter((t) => t.enDirect).map((t) => t.id);
+    spectateursReelsPlusieurs(ids).then(setSpectateursParTournoi);
   }, [tousLesTournoisState]);
 
   const enDirect = useMemo(() => {
@@ -187,7 +186,7 @@ export default function EnDirectPage() {
                         <span>·</span>
                         <span className="flex items-center gap-1">
                           <Users size={11} strokeWidth={2} />
-                          {spectateurs(t)}
+                          {spectateursParTournoi[t.id] ?? 0}
                         </span>
                         {(coeursParTournoi[t.id] ?? 0) > 0 && (
                           <span className="flex items-center gap-1">

@@ -49,3 +49,28 @@ export async function messagesTribuneJSON(tournoiId: string, organisateurId: str
 export function envoyerMessageTribune(tournoiId: string, auteurId: string, texte: string): Promise<messages_chat> {
   return prisma.messages_chat.create({ data: { tournoi_id: tournoiId, auteur_id: auteurId, texte, salon: "tribune" } });
 }
+
+/** Fenêtre glissante utilisée pour compter des "spectateurs actifs" : compte
+ * de comptes distincts ayant écrit dans la tribune récemment — remplace un
+ * ancien nombre simulé (hash déterministe de l'id, aucune donnée réelle
+ * derrière). Ce n'est qu'une mesure d'activité de chat, pas une vraie
+ * présence temps réel (personne ne "compte" les lecteurs silencieux, cf.
+ * absence de Realtime Presence dans ce projet) — assumé comme suffisant pour
+ * "le nombre de spectateurs qui discutent". */
+const FENETRE_SPECTATEURS_MS = 15 * 60_000;
+
+export async function compteSpectateursTribunePlusieurs(tournoiIds: string[]): Promise<Record<string, number>> {
+  const resultat: Record<string, number> = {};
+  for (const id of tournoiIds) resultat[id] = 0;
+  if (tournoiIds.length === 0) return resultat;
+
+  const depuis = new Date(Date.now() - FENETRE_SPECTATEURS_MS);
+  const lignes = await prisma.$queryRaw<{ tournoi_id: string; n: bigint }[]>`
+    SELECT tournoi_id, count(DISTINCT auteur_id) AS n
+    FROM messages_chat
+    WHERE tournoi_id = ANY(${tournoiIds}::uuid[]) AND salon = 'tribune' AND created_at >= ${depuis}
+    GROUP BY tournoi_id
+  `;
+  for (const ligne of lignes) resultat[ligne.tournoi_id] = Number(ligne.n);
+  return resultat;
+}

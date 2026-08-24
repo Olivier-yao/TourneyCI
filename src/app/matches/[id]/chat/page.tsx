@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowDown, Eye, Hourglass } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
-import { matchParId, spectateursDerives, type MatchTournoi } from "@/lib/mockBracket";
+import { matchParId, type MatchTournoi } from "@/lib/mockBracket";
 import { estConnecte } from "@/lib/mockAuth";
-import { messagesChatTribune, envoyerMessageChatTribune, type MessageChat } from "@/lib/mockChat";
+import { messagesChatTribune, envoyerMessageChatTribune, spectateursReels, type MessageChat } from "@/lib/mockChat";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
 // Filet de sécurité en complément du temps réel (Realtime), pas la source
@@ -32,33 +32,42 @@ export default function ChatSpectateursMatchPage() {
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
   const [secondesRestantes, setSecondesRestantes] = useState(0);
+  const [spectateurs, setSpectateurs] = useState(0);
   const minuteurRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
     async function charger() {
       const m = await matchParId(params.id);
-       
+
       setMatch(m);
       if (!m) {
         setPret(true);
         return;
       }
-      setMessages(await messagesChatTribune(params.id));
+      const [msgs, specs] = await Promise.all([messagesChatTribune(params.id), spectateursReels(m.tournoiId)]);
+      setMessages(msgs);
+      setSpectateurs(specs);
       setPret(true);
-      intervalId = setInterval(async () => setMessages(await messagesChatTribune(params.id)), RAFRAICHISSEMENT_MS);
+      intervalId = setInterval(async () => {
+        setMessages(await messagesChatTribune(params.id));
+        setSpectateurs(await spectateursReels(m.tournoiId));
+      }, RAFRAICHISSEMENT_MS);
     }
     charger();
     return () => {
       if (intervalId) clearInterval(intervalId);
       if (minuteurRef.current) clearInterval(minuteurRef.current);
     };
-     
+
   }, [params.id]);
 
   useRealtimeRefetch(
     match ? [{ table: "messages_chat", filter: `tournoi_id=eq.${match.tournoiId},salon=eq.tribune` }] : [],
-    () => { messagesChatTribune(params.id).then(setMessages); },
+    () => {
+      messagesChatTribune(params.id).then(setMessages);
+      if (match) spectateursReels(match.tournoiId).then(setSpectateurs);
+    },
     pret,
   );
 
@@ -71,8 +80,6 @@ export default function ChatSpectateursMatchPage() {
       </div>
     );
   }
-
-  const spectateurs = spectateursDerives(match.id);
 
   async function envoyer(contenu: string) {
     const message = contenu.trim();

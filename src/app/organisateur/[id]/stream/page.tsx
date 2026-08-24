@@ -9,14 +9,7 @@ import { PRESS } from "@/components/ds/Button";
 import { tournoiParId, modifierTournoi, type Tournoi } from "@/lib/mockTournaments";
 import { nomOrganisateurActuel } from "@/lib/mockOrganisateur";
 import { peutSuperviser } from "@/lib/mockAdjointsOrganisateur";
-
-/** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
- * dans ce mock) — stable entre le rendu serveur et client. */
-function spectateurs(tournoiId: string): number {
-  let h = 0;
-  for (let i = 0; i < tournoiId.length; i++) h = (h * 31 + tournoiId.charCodeAt(i)) >>> 0;
-  return 120 + (h % 400);
-}
+import { spectateursReels } from "@/lib/mockChat";
 
 function formatDuree(secondes: number): string {
   const m = Math.floor(secondes / 60);
@@ -39,6 +32,7 @@ export default function StreamTournoiPage() {
   const [streamActif, setStreamActif] = useState(false);
   const [pcConnecte, setPcConnecte] = useState(false);
   const [dureeSec, setDureeSec] = useState(0);
+  const [spectateurs, setSpectateurs] = useState(0);
 
   useEffect(() => {
     async function charger() {
@@ -49,6 +43,7 @@ export default function StreamTournoiPage() {
       setPret(true);
     }
     charger();
+    spectateursReels(params.id).then(setSpectateurs);
   }, [params.id]);
 
   useEffect(() => {
@@ -184,7 +179,7 @@ export default function StreamTournoiPage() {
           {streamActif && (
             <div className="mt-3 grid grid-cols-3 gap-2">
               {[
-                { v: spectateurs(params.id).toLocaleString("fr-FR"), l: "spectateurs" },
+                { v: spectateurs.toLocaleString("fr-FR"), l: "spectateurs" },
                 { v: "1080p", l: "qualité" },
                 { v: formatDuree(dureeSec), l: "à l'antenne" },
               ].map((s) => (

@@ -68,3 +68,20 @@ export function messagesChatInscrits(matchId: string): Promise<MessageChat[]> {
 export function envoyerMessageChatInscrits(matchId: string, texte: string): Promise<void> {
   return envoyerMessage(`/api/matches/${matchId}/chat-inscrits`, texte);
 }
+
+/** Nombre réel de spectateurs actifs (comptes distincts ayant écrit dans la
+ * tribune récemment) — remplace un ancien nombre simulé (hash déterministe
+ * de l'id, sans donnée réelle derrière). */
+export async function spectateursReelsPlusieurs(tournoiIds: string[]): Promise<Record<string, number>> {
+  const uniques = Array.from(new Set(tournoiIds));
+  const vide = Object.fromEntries(uniques.map((id) => [id, 0]));
+  if (uniques.length === 0) return vide;
+  const reponse = await fetch(`/api/tournois/spectateurs-comptes?ids=${uniques.map(encodeURIComponent).join(",")}`);
+  const json = await reponse.json().catch(() => null);
+  return json?.success ? json.data : vide;
+}
+
+export async function spectateursReels(tournoiId: string): Promise<number> {
+  const comptes = await spectateursReelsPlusieurs([tournoiId]);
+  return comptes[tournoiId] ?? 0;
+}

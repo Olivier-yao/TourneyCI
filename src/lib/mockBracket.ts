@@ -12,15 +12,6 @@
 
 export type StatutMatch = "a_venir" | "en_cours" | "termine";
 
-/** Nombre de spectateurs affiché, dérivé de façon déterministe de l'id du
- * match (pas de vrai compteur temps réel). Partagé entre la vue spectateur
- * et le chat spectateurs pour rester cohérent. */
-export function spectateursDerives(matchId: string): number {
-  let h = 0;
-  for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
-  return 40 + (h % 260);
-}
-
 /** Libellé de stade de bracket (finale/demies/quart) à partir du round et du
  * nombre total de rounds — même logique que BracketV2.tsx, partagée ici pour
  * les écrans Match en direct qui n'ont pas accès à l'arbre complet. */

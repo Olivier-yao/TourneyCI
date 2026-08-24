@@ -18,20 +18,13 @@ import { formatXof } from "@/lib/formatXof";
 import { mesFavoris, basculerFavori } from "@/lib/mockFavoris";
 import { tousLesTournois, genreDuJeu, modeDuTournoi, cashPrizeAffiche, type GenreJeu, type Tournoi } from "@/lib/mockTournaments";
 import { matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
+import { spectateursReels } from "@/lib/mockChat";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { mesNotifications, nombreNonLues, marquerLue, type NotificationApp } from "@/lib/mockNotifications";
 import { CubeTransition } from "@/components/ds/CubeTransition";
 import { FiltresTournois, FILTRES_VIDES, compterFiltresActifs, type FiltresValeur } from "@/components/ds/FiltresTournois";
 import { Modal } from "@/components/ds/Modal";
-
-/** Nombre de spectateurs simulé, déterministe (pas de vrai suivi d'audience
- * dans ce mock) — stable entre le rendu serveur et client. */
-function spectateurs(tournoi: Tournoi): number {
-  let h = 0;
-  for (let i = 0; i < tournoi.id.length; i++) h = (h * 31 + tournoi.id.charCodeAt(i)) >>> 0;
-  return 80 + (h % 400) + tournoi.placesInscrites * 6;
-}
 
 const ICONE_GENRE: Record<GenreJeu, typeof Gamepad2> = {
   FPS: Crosshair,
@@ -68,6 +61,7 @@ export default function AccueilV2Page() {
   const [favoris, setFavoris] = useState<Set<string>>(new Set());
   const [pageDirect, setPageDirect] = useState(0);
   const [matchEnCoursStream, setMatchEnCoursStream] = useState<MatchTournoi | null>(null);
+  const [spectateursStream, setSpectateursStream] = useState(0);
 
   useEffect(() => {
     if (!streamOuvert) {
@@ -79,6 +73,7 @@ export default function AccueilV2Page() {
       setMatchEnCoursStream(matches.find((m) => m.statut === "en_cours") ?? null);
     }
     charger();
+    spectateursReels(streamOuvert.id).then(setSpectateursStream);
   }, [streamOuvert]);
 
   useEffect(() => {
@@ -563,7 +558,7 @@ export default function AccueilV2Page() {
                 </div>
                 <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 px-2.5 py-1" style={{ borderRadius: "var(--ds-radius-pill)", background: "rgba(22,24,38,.82)" }}>
                   <Eye size={11} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
-                  <span className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{spectateurs(streamOuvert)}</span>
+                  <span className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{spectateursStream}</span>
                 </div>
                 {matchEnCoursStream && (
                   <div className="absolute left-2.5 right-2.5 bottom-2.5 flex items-center gap-2 px-2.5 py-2" style={{ borderRadius: "var(--ds-radius-sm)", background: "rgba(22,24,38,.82)" }}>

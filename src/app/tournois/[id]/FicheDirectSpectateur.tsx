@@ -21,7 +21,6 @@ import { cashPrizeAffiche, type Tournoi } from "@/lib/mockTournaments";
 import {
   matchsDuTournoi,
   evenementsDuMatch,
-  spectateursDerives,
   libelleRound,
   codeRound,
   type MatchTournoi,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/mockBracket";
 import { estFavori, basculerFavori } from "@/lib/mockFavoris";
 import { notifsActivees, basculerNotifsTournoi } from "@/lib/mockNotifications";
+import { spectateursReels } from "@/lib/mockChat";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 import { CarteOrganisateur } from "./CarteOrganisateur";
 
@@ -268,6 +268,11 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
   const [favori, setFavori] = useState(false);
   const [notifs, setNotifs] = useState(false);
   const [copie, setCopie] = useState(false);
+  const [spectateurs, setSpectateurs] = useState(0);
+
+  useEffect(() => {
+    spectateursReels(tournoi.id).then(setSpectateurs);
+  }, [tournoi.id]);
 
   useEffect(() => {
     estFavori(tournoi.id).then(setFavori);
@@ -341,7 +346,6 @@ export function FicheDirectSpectateur({ tournoi }: { tournoi: Tournoi }) {
     : rondesPasEncoreTerminees.length > 0
       ? codeRound(Math.min(...rondesPasEncoreTerminees), totalRounds)
       : "–";
-  const spectateurs = matchVedette ? spectateursDerives(matchVedette.id) : spectateursDerives(tournoi.id);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>

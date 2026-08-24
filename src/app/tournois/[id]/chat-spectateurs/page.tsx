@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowDown, Eye, Hourglass } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
-import { spectateursDerives } from "@/lib/mockBracket";
 import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
 import { estConnecte } from "@/lib/mockAuth";
-import { messagesChatSpectateursTournoi, envoyerMessageChatSpectateursTournoi, type MessageChat } from "@/lib/mockChat";
+import { messagesChatSpectateursTournoi, envoyerMessageChatSpectateursTournoi, spectateursReels, type MessageChat } from "@/lib/mockChat";
 import { useRealtimeRefetch } from "@/hooks/useRealtimeRefetch";
 
 // Filet de sécurité en complément du temps réel (Realtime), pas la source
@@ -33,33 +32,42 @@ export default function ChatSpectateursTournoiPage() {
   const [messages, setMessages] = useState<MessageChat[]>([]);
   const [texte, setTexte] = useState("");
   const [secondesRestantes, setSecondesRestantes] = useState(0);
+  const [spectateurs, setSpectateurs] = useState(0);
   const minuteurRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval> | undefined;
     async function charger() {
       const t = await tournoiParId(params.id);
-       
+
       setTournoi(t);
       if (!t) {
         setPret(true);
         return;
       }
-      setMessages(await messagesChatSpectateursTournoi(params.id));
+      const [msgs, specs] = await Promise.all([messagesChatSpectateursTournoi(params.id), spectateursReels(params.id)]);
+      setMessages(msgs);
+      setSpectateurs(specs);
       setPret(true);
-      intervalId = setInterval(async () => setMessages(await messagesChatSpectateursTournoi(params.id)), RAFRAICHISSEMENT_MS);
+      intervalId = setInterval(async () => {
+        setMessages(await messagesChatSpectateursTournoi(params.id));
+        setSpectateurs(await spectateursReels(params.id));
+      }, RAFRAICHISSEMENT_MS);
     }
     charger();
     return () => {
       if (intervalId) clearInterval(intervalId);
       if (minuteurRef.current) clearInterval(minuteurRef.current);
     };
-     
+
   }, [params.id]);
 
   useRealtimeRefetch(
     [{ table: "messages_chat", filter: `tournoi_id=eq.${params.id},salon=eq.tribune` }],
-    () => { messagesChatSpectateursTournoi(params.id).then(setMessages); },
+    () => {
+      messagesChatSpectateursTournoi(params.id).then(setMessages);
+      spectateursReels(params.id).then(setSpectateurs);
+    },
     pret,
   );
 
@@ -72,8 +80,6 @@ export default function ChatSpectateursTournoiPage() {
       </div>
     );
   }
-
-  const spectateurs = spectateursDerives(tournoi.id);
 
   async function envoyer(contenu: string) {
     const message = contenu.trim();

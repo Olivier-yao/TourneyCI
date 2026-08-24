@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Share2, MessagesSquare } from "lucide-react";
 import { LiveBadge } from "@/components/ds/LiveBadge";
 import { PRESS } from "@/components/ds/Button";
-import { matchsDuTournoi, libelleRound, spectateursDerives, evenementsDuMatch, type MatchTournoi, type EvenementMatch } from "@/lib/mockBracket";
+import { matchsDuTournoi, libelleRound, evenementsDuMatch, type MatchTournoi, type EvenementMatch } from "@/lib/mockBracket";
+import { spectateursReels } from "@/lib/mockChat";
 
 function initiales(nom: string): string {
   return nom
@@ -59,9 +60,13 @@ export function VueSpectateurMatch({
   tournoiTitre: string;
 }) {
   const router = useRouter();
-  const spectateurs = spectateursDerives(match.id);
+  const [spectateurs, setSpectateurs] = useState(0);
   const [roundLabel, setRoundLabel] = useState<string>("");
   const [evenements, setEvenements] = useState<EvenementMatch[]>([]);
+
+  useEffect(() => {
+    spectateursReels(tournoiId).then(setSpectateurs);
+  }, [tournoiId]);
 
   useEffect(() => {
     async function charger() {
