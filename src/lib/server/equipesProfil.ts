@@ -112,14 +112,29 @@ export async function renommerEquipeProfil(id: string, nom: string): Promise<{ o
 }
 
 export async function ajouterMembreEquipeProfil(equipeId: string, membreId: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
-  const nb = await prisma.equipes_profil_membres.count({ where: { equipe_id: equipeId } });
-  if (nb >= MAX_MEMBRES_EQUIPE_PROFIL) return { ok: false, erreur: `Équipe complète (max ${MAX_MEMBRES_EQUIPE_PROFIL} membres).` };
-  await prisma.equipes_profil_membres.upsert({
-    where: { equipe_id_profile_id: { equipe_id: equipeId, profile_id: membreId } },
-    create: { equipe_id: equipeId, profile_id: membreId },
-    update: {},
-  });
-  return { ok: true };
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Verrou sur la ligne de l'équipe le temps de la transaction : sans
+      // lui, deux invitations acceptées en même temps sur une équipe à 1
+      // place restante peuvent toutes les deux passer le contrôle avant que
+      // l'une des deux n'ait inséré son adhésion (même classe de course que
+      // l'équipe Battle Royale, cf. rejoindreEquipeAleatoire).
+      await tx.$queryRaw`SELECT id FROM equipes_profil WHERE id = ${equipeId}::uuid FOR UPDATE`;
+      const nb = await tx.equipes_profil_membres.count({ where: { equipe_id: equipeId } });
+      if (nb >= MAX_MEMBRES_EQUIPE_PROFIL) throw new Error("COMPLETE");
+      await tx.equipes_profil_membres.upsert({
+        where: { equipe_id_profile_id: { equipe_id: equipeId, profile_id: membreId } },
+        create: { equipe_id: equipeId, profile_id: membreId },
+        update: {},
+      });
+    });
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof Error && err.message === "COMPLETE") {
+      return { ok: false, erreur: `Équipe complète (max ${MAX_MEMBRES_EQUIPE_PROFIL} membres).` };
+    }
+    throw err;
+  }
 }
 
 export async function retirerMembreEquipeProfil(equipeId: string, membreId: string): Promise<void> {

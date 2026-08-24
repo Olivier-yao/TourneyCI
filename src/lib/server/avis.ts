@@ -58,3 +58,44 @@ export async function compteReputationOrganisateur(profileId: string): Promise<{
   ]);
   return { coeurs: tCoeurs + gCoeurs, coeursBrises: tBrises + gBrises };
 }
+
+/** Version groupée de compteReputationOrganisateur() : un seul aller-retour
+ * base pour plusieurs organisateurs (pattern en cascade repéré sur
+ * /coup-de-coeur — un appel HTTP par organisateur affiché). avis_tournoi n'a
+ * pas de organisateur_id direct (jointure via tournois), d'où le SQL brut
+ * pour ce seul groupBy ; avis_organisateur reste un groupBy Prisma normal. */
+export async function compteReputationOrganisateurPlusieurs(
+  profileIds: string[],
+): Promise<Record<string, { coeurs: number; coeursBrises: number }>> {
+  const resultat: Record<string, { coeurs: number; coeursBrises: number }> = {};
+  for (const id of profileIds) resultat[id] = { coeurs: 0, coeursBrises: 0 };
+  if (profileIds.length === 0) return resultat;
+
+  const [tournoiLignes, directLignes] = await Promise.all([
+    prisma.$queryRaw<{ organisateur_id: string; type: type_avis; n: bigint }[]>`
+      SELECT t.organisateur_id, a.type, count(*) AS n
+      FROM avis_tournoi a
+      JOIN tournois t ON t.id = a.tournoi_id
+      WHERE t.organisateur_id = ANY(${profileIds}::uuid[])
+      GROUP BY t.organisateur_id, a.type
+    `,
+    prisma.avis_organisateur.groupBy({
+      by: ["organisateur_id", "type"],
+      where: { organisateur_id: { in: profileIds } },
+      _count: { _all: true },
+    }),
+  ]);
+  for (const ligne of tournoiLignes) {
+    const cible = resultat[ligne.organisateur_id];
+    if (!cible) continue;
+    if (ligne.type === "coeur") cible.coeurs += Number(ligne.n);
+    else cible.coeursBrises += Number(ligne.n);
+  }
+  for (const ligne of directLignes) {
+    const cible = resultat[ligne.organisateur_id];
+    if (!cible) continue;
+    if (ligne.type === "coeur") cible.coeurs += ligne._count._all;
+    else cible.coeursBrises += ligne._count._all;
+  }
+  return resultat;
+}

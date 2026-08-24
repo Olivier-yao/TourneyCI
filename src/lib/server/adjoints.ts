@@ -12,6 +12,25 @@ export async function profileIdDepuisNomOrganisateur(nom: string): Promise<strin
   return ligne?.profile_id;
 }
 
+/** Version groupée : résout plusieurs noms d'organisateur vers leur
+ * profile_id en un seul aller-retour base (pattern en cascade repéré sur
+ * /coup-de-coeur). Insensible à la casse comme la version unitaire —
+ * comparaison faite côté application, la liste d'organisateurs distincts
+ * reste petite (jamais un N proportionnel au trafic). */
+export async function profileIdsDepuisNomsOrganisateur(noms: string[]): Promise<Map<string, string>> {
+  const resultat = new Map<string, string>();
+  if (noms.length === 0) return resultat;
+  const lignes = await prisma.organisateur_profils.findMany({ select: { nom_organisateur: true, profile_id: true } });
+  const parNomMinuscule = new Map(
+    lignes.filter((l) => l.nom_organisateur).map((l) => [l.nom_organisateur!.trim().toLowerCase(), l.profile_id]),
+  );
+  for (const nom of noms) {
+    const profileId = parNomMinuscule.get(nom.trim().toLowerCase());
+    if (profileId) resultat.set(nom, profileId);
+  }
+  return resultat;
+}
+
 /** Traduit un lot de lignes adjoints_organisateur (profile_id) vers le
  * format nom (AdjointJSON) attendu côté UI — une seule requête de
  * résolution des noms plutôt qu'une par ligne. */

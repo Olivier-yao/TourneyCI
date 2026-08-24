@@ -44,7 +44,14 @@ export async function GET(request: Request) {
   const curseur = curseurBrut ? new Date(Number(curseurBrut)) : undefined;
   const limiteBrute = Number(searchParams.get("limite"));
   const limite = Number.isFinite(limiteBrute) && limiteBrute > 0 ? Math.min(limiteBrute, LIMITE_TOURNOIS) : LIMITE_TOURNOIS;
-  const nonFiltree = !organisateurMoi && !enDirect && !curseur;
+  // Plusieurs tournois précis en un seul appel (`?ids=a,b,c`) — remplace un
+  // fetch par tournoi affiché sur les écrans qui en listent plusieurs par id
+  // (ex. mes-equipes, un tournoi par équipe BR du joueur).
+  const idsBrut = searchParams.get("ids");
+  const ids = idsBrut
+    ? idsBrut.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
+  const nonFiltree = !organisateurMoi && !enDirect && !curseur && !ids;
 
   if (nonFiltree && cacheListeNonFiltree && cacheListeNonFiltree.expireA > Date.now()) {
     return NextResponse.json({ success: true, data: cacheListeNonFiltree.donnees });
@@ -67,6 +74,7 @@ export async function GET(request: Request) {
         ? { OR: [{ en_direct: true }, { termine_le: null, annule_le: null, debut_tournoi_le: { lte: new Date() } }] }
         : {}),
       ...(curseur ? { created_at: { lt: curseur } } : {}),
+      ...(ids ? { id: { in: ids } } : {}),
     },
     include: INCLUDE_TOURNOI_LISTE,
     orderBy: { created_at: "desc" },

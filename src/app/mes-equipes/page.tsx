@@ -13,7 +13,7 @@ import { Field } from "@/components/ds/Input";
 import { Modal } from "@/components/ds/Modal";
 import { lireProfil, attendreProfil } from "@/lib/mockProfil";
 import { equipesDuJoueur, demandesEnAttente, TAILLE_EQUIPE_BR, type EquipeBR } from "@/lib/mockEquipesBR";
-import { tournoiParId, type Tournoi } from "@/lib/mockTournaments";
+import { tournoisParIds, type Tournoi } from "@/lib/mockTournaments";
 import {
   equipesProfilDontChef,
   equipesProfilDontMembreNonChef,
@@ -65,9 +65,10 @@ export default function MesEquipesPage() {
       await rafraichirEquipesProfil();
       await rafraichirInvitations();
       const equipes = await equipesDuJoueur();
+      const tournoisParId = await tournoisParIds(equipes.map((e) => e.tournoiId));
       const brut = await Promise.all(
         equipes.map(async (equipe) => {
-          const tournoi = await tournoiParId(equipe.tournoiId);
+          const tournoi = tournoisParId.get(equipe.tournoiId);
           if (!tournoi || tournoi.termine) return undefined;
           const pending = equipe.chef === moi ? (await demandesEnAttente(equipe.id)).length : 0;
           return { equipe, tournoi, pending };

@@ -22,7 +22,7 @@ import {
 } from "@/lib/mockEquipesProfil";
 import { propositionsEnAttentePourEquipe, traiterPropositionEquipe, type PropositionEquipe } from "@/lib/mockPropositionsEquipe";
 import { creerEquipeBR, ajouterMembresDirect } from "@/lib/mockEquipesBR";
-import { tournoiParId } from "@/lib/mockTournaments";
+import { tournoisParIds } from "@/lib/mockTournaments";
 import { messagesChatEquipe } from "@/lib/mockChatEquipe";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
@@ -57,9 +57,8 @@ export default function EquipeProfilPage() {
       const props = await propositionsEnAttentePourEquipe(e.id);
       setPropositions(props);
       setNbMessages((await messagesChatEquipe(e.id)).length);
-      const entrees = await Promise.all(
-        props.map(async (p) => [p.tournoiId, (await tournoiParId(p.tournoiId))?.titre] as const),
-      );
+      const tournoisParId = await tournoisParIds(props.map((p) => p.tournoiId));
+      const entrees = props.map((p) => [p.tournoiId, tournoisParId.get(p.tournoiId)?.titre] as const);
       setTitresTournois(
         Object.fromEntries(entrees.filter((e2): e2 is [string, string] => e2[1] !== undefined)),
       );

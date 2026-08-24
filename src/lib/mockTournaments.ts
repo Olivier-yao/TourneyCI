@@ -365,6 +365,18 @@ export async function tournoiParId(id: string): Promise<Tournoi | undefined> {
   return resultat.ok ? resultat.data : undefined;
 }
 
+/** Version groupée de tournoiParId() : un seul appel réseau pour plusieurs
+ * tournois précis au lieu d'un par tournoi affiché (pattern en cascade
+ * repéré sur mes-equipes — un tournoi par équipe BR du joueur). */
+export async function tournoisParIds(ids: string[]): Promise<Map<string, Tournoi>> {
+  const uniques = Array.from(new Set(ids));
+  if (uniques.length === 0) return new Map();
+  const reponse = await fetch(`/api/tournois?ids=${uniques.map(encodeURIComponent).join(",")}`);
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return new Map();
+  return new Map((json.data as Tournoi[]).map((t) => [t.id, t]));
+}
+
 export async function tournoiParCode(code: string): Promise<Tournoi | undefined> {
   const normalise = code.trim().toUpperCase();
   if (!normalise) return undefined;

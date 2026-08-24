@@ -804,15 +804,26 @@ function InterfaceAdmin({ onDeconnecter }: { onDeconnecter: () => void }) {
   }, []);
 
   async function rafraichir() {
-    setDemandesOrga(await demandesOrganisateurEnAttente());
-    setPlaintes(await plaintesEnAttente());
-    setLitiges(await litigesEnAttenteAdmin());
-    setDemandesAnnul(await demandesAnnulationEnAttente());
-    const s = await saisonAdmin();
-    setSaison(s);
-    if (s) setNomSaisie(s.nomSuivant ?? "");
-    setFileModeration(await organisateursModeration());
-    setVerificationsKyc(await verificationsKycEnAttenteAdmin());
+    // 7 lectures indépendantes (seule saisonAdmin() alimente un state local
+    // en plus de son propre setter, rien d'autre n'en dépend) — en parallèle
+    // plutôt qu'en cascade à chaque ouverture/rafraîchissement du panneau.
+    const [demandesOrga, plaintes, litiges, demandesAnnul, saison, moderation, kyc] = await Promise.all([
+      demandesOrganisateurEnAttente(),
+      plaintesEnAttente(),
+      litigesEnAttenteAdmin(),
+      demandesAnnulationEnAttente(),
+      saisonAdmin(),
+      organisateursModeration(),
+      verificationsKycEnAttenteAdmin(),
+    ]);
+    setDemandesOrga(demandesOrga);
+    setPlaintes(plaintes);
+    setLitiges(litiges);
+    setDemandesAnnul(demandesAnnul);
+    setSaison(saison);
+    if (saison) setNomSaisie(saison.nomSuivant ?? "");
+    setFileModeration(moderation);
+    setVerificationsKyc(kyc);
   }
 
   async function rechercherModeration() {

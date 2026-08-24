@@ -89,6 +89,18 @@ export async function monAvisPourOrganisateur(nom: string): Promise<TypeAvis | n
   return (await chargerReputationOrganisateur(nom)).mon;
 }
 
+/** Version groupée de reputationOrganisateur() : un seul appel réseau pour
+ * plusieurs organisateurs au lieu d'un par organisateur affiché (pattern en
+ * cascade repéré sur /coup-de-coeur). */
+export async function reputationOrganisateurPlusieurs(
+  noms: string[],
+): Promise<Record<string, { coeurs: number; coeursBrises: number }>> {
+  if (noms.length === 0) return {};
+  const reponse = await fetch(`/api/organisateur/avis-comptes?noms=${noms.map(encodeURIComponent).join(",")}`);
+  const resultat = await reponseJson<Record<string, { coeurs: number; coeursBrises: number }>>(reponse);
+  return resultat.ok ? resultat.data : {};
+}
+
 /** Pose l'avis direct sur ce profil, en remplaçant l'avis précédent s'il en
  * existait un (point 112/113 : toggle direct sur l'icône, avec bascule d'un
  * type à l'autre) — l'unicité du point 51 reste garantie (un seul avis actif

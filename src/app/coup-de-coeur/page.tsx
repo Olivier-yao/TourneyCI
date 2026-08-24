@@ -6,7 +6,7 @@ import { ArrowLeft, Heart, ChevronRight } from "lucide-react";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { tousLesTournois, type Tournoi } from "@/lib/mockTournaments";
-import { statistiquesReputation } from "@/lib/mockOrganisateur";
+import { reputationOrganisateurPlusieurs } from "@/lib/mockAvis";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 
 type LigneOrganisateur = { nom: string; coeurs: number; coeursBrises: number; tournois: Tournoi[] };
@@ -24,14 +24,13 @@ export default function CoupDeCoeurPage() {
         liste.push(t);
         parOrganisateur.set(t.organisateur, liste);
       }
-      const lignes = (
-        await Promise.all(
-          Array.from(parOrganisateur.entries()).map(async ([nom, tournoisOrg]) => {
-            const stats = await statistiquesReputation(nom);
-            return { nom, coeurs: stats.coeurs, coeursBrises: stats.coeursBrises, tournois: tournoisOrg };
-          }),
-        )
-      )
+      const noms = Array.from(parOrganisateur.keys());
+      const statsParNom = await reputationOrganisateurPlusieurs(noms);
+      const lignes = noms
+        .map((nom) => {
+          const stats = statsParNom[nom] ?? { coeurs: 0, coeursBrises: 0 };
+          return { nom, coeurs: stats.coeurs, coeursBrises: stats.coeursBrises, tournois: parOrganisateur.get(nom)! };
+        })
         .filter((l) => l.coeurs > 0)
         .sort((a, b) => b.coeurs - a.coeurs);
       setOrganisateurs(lignes);

@@ -137,17 +137,28 @@ export function CtaInscription({
     // Lu depuis le localStorage/l'API : état neutre au premier rendu serveur,
     // synchronisé côté client une fois monté (cf. LanceurApp.tsx).
     async function charger() {
-      setFavori(await estFavori(tournoiId));
-      setNotifs(await notifsActivees(tournoiId));
-      setSoutien(await monSoutienPourOrganisateur(organisateur));
-      await attendreProfil();
-      const profil = lireProfil();
+      // Les 4 lectures ci-dessous sont indépendantes entre elles (aucune ne
+      // dépend du résultat d'une autre) — lancées en parallèle plutôt qu'en
+      // cascade, même raisonnement que le fix cascade de la fiche tournoi.
+      const [, , , profil] = await Promise.all([
+        estFavori(tournoiId).then(setFavori),
+        notifsActivees(tournoiId).then(setNotifs),
+        monSoutienPourOrganisateur(organisateur).then(setSoutien),
+        attendreProfil().then(lireProfil),
+      ]);
       setMonPseudo(profil.pseudo);
-      setEquipesProfilChef(await equipesProfilDontChef());
-      setEquipesProfilMembre(await equipesProfilDontMembreNonChef());
 
-      const equipeConfirmee = estBREquipes ? await equipeDeJoueur(tournoiId) : undefined;
-      const dejaInscrit = await estInscrit(tournoiId);
+      // Là aussi : indépendantes les unes des autres, seul ce qui suit
+      // (l'inscription auto d'équipe BR) a besoin des deux dernières.
+      const [equipesChef, equipesMembre, equipeConfirmee, dejaInscrit] = await Promise.all([
+        equipesProfilDontChef(),
+        equipesProfilDontMembreNonChef(),
+        estBREquipes ? equipeDeJoueur(tournoiId) : Promise.resolve(undefined),
+        estInscrit(tournoiId),
+      ]);
+      setEquipesProfilChef(equipesChef);
+      setEquipesProfilMembre(equipesMembre);
+
       if (!dejaInscrit && equipeConfirmee) {
         if (fraisXof === 0 || equipeConfirmee.paiementCouvert) {
           await enregistrerInscription(tournoiId, undefined, equipeConfirmee.nom);
@@ -155,8 +166,11 @@ export function CtaInscription({
           setEquipeEnAttentePaiement(equipeConfirmee);
         }
       }
-      setInscrit(await estInscrit(tournoiId));
-      setEquipeInscrite((await inscriptionDe(tournoiId))?.equipe);
+      // Relues après l'inscription auto potentielle ci-dessus (peut avoir
+      // changé l'état) — les deux appels sont indépendants entre eux.
+      const [inscritMaintenant, inscription] = await Promise.all([estInscrit(tournoiId), inscriptionDe(tournoiId)]);
+      setInscrit(inscritMaintenant);
+      setEquipeInscrite(inscription?.equipe);
       setMonEquipeChef(equipeConfirmee && equipeConfirmee.chef === profil.pseudo ? equipeConfirmee : undefined);
 
       if (estBREquipes && equipePreselectionneeId && !dejaInscrit && !equipeConfirmee) {
