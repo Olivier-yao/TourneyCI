@@ -77,11 +77,12 @@ ne pas mélanger les deux systèmes. Composants dans src/components/ds/.
 4. Paiement Mobile Money (mock) + inscription — TERMINÉE
 5. Bracket + Match live (Realtime simulé) — TERMINÉE
 6. Profil + Classement — TERMINÉE, à confirmer
-7. Espace Organisateur
+7. Espace Organisateur (tableau de bord agrégé + détail des commissions
+   sur le hub `/organisateur`) — TERMINÉE
 8. Bascule sur Supabase réel (nouveau modèle de données, RLS, webhooks)
 
-Les phases 2-8 ne sont pas commencées : à traiter une par une, confirmées
-avant de passer à la suivante, comme pour le plan V1. Le site V1 actuel
+La phase 8 n'est pas commencée : à traiter à son tour, confirmée avant
+d'être lancée, comme pour le reste du plan V1/V2. Le site V1 actuel
 (accueil, inscription, dashboard admin, bracket live) continue de
 fonctionner en parallèle sans être affecté par ce chantier tant que la
 bascule (phase 8) n'est pas décidée.
