@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { utilisateurConnecte, nonAuthentifie, versTournoiJSON, INCLUDE_TOURNOI_DETAIL } from "@/lib/server/tournois";
 import { estAdjointAccepteDe } from "@/lib/server/adjoints";
 import { essaierClotureAutomatique } from "@/lib/server/cloture";
+import { cacheCourt } from "@/lib/server/cacheCourt";
 
 /** Réglages réservés au seul propriétaire (jamais un adjoint) — tout le
  * reste (aujourd'hui : streamActif) relève de la gestion en direct, cf.
@@ -22,20 +23,29 @@ async function trouverTournoi(id: string) {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let tournoi = await trouverTournoi(id);
-  if (!tournoi) {
+  // Cache de 3s : la fiche tournoi est la ressource la plus lue quand un
+  // match devient viral (nombreux spectateurs qui ouvrent le même tournoi
+  // en même temps) — sans ça, chaque visiteur simultané ouvre sa propre
+  // connexion Postgres (cf. cacheCourt.ts).
+  const data = await cacheCourt(`tournoi:${id.toLowerCase()}`, 3_000, async () => {
+    let tournoi = await trouverTournoi(id);
+    if (!tournoi) return null;
+
+    // Clôture automatique (point 218) : vérifiée à chaque lecture de la fiche
+    // plutôt que via une tâche planifiée, cf. essaierClotureAutomatique.
+    if (!tournoi.termine_le && !tournoi.annule_le) {
+      await essaierClotureAutomatique(tournoi.id);
+      const relu = await trouverTournoi(id);
+      if (relu) tournoi = relu;
+    }
+
+    return versTournoiJSON(tournoi);
+  });
+
+  if (!data) {
     return NextResponse.json({ success: false, error: "Tournoi introuvable." }, { status: 404 });
   }
-
-  // Clôture automatique (point 218) : vérifiée à chaque lecture de la fiche
-  // plutôt que via une tâche planifiée, cf. essaierClotureAutomatique.
-  if (!tournoi.termine_le && !tournoi.annule_le) {
-    await essaierClotureAutomatique(tournoi.id);
-    const relu = await trouverTournoi(id);
-    if (relu) tournoi = relu;
-  }
-
-  return NextResponse.json({ success: true, data: versTournoiJSON(tournoi) });
+  return NextResponse.json({ success: true, data });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

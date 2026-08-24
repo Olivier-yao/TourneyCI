@@ -2,14 +2,18 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
 import { versAvisTournoiJSON, compteAvisTournoi } from "@/lib/server/avis";
+import { cacheCourt } from "@/lib/server/cacheCourt";
 
 /** Public : compteur cœurs/cœurs brisés du tournoi, visible de tous. "mon"
  * (l'avis du visiteur connecté, s'il en a laissé un) n'est renseigné que
- * pour un visiteur authentifié. */
+ * pour un visiteur authentifié — jamais mis en cache, propre à chaque
+ * requête, contrairement au compte partagé (cf. cacheCourt.ts). */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const compte = await compteAvisTournoi(id);
-  const user = await utilisateurConnecte();
+  const [compte, user] = await Promise.all([
+    cacheCourt(`avis-compte:${id}`, 3_000, () => compteAvisTournoi(id)),
+    utilisateurConnecte(),
+  ]);
   const mon = user
     ? await prisma.avis_tournoi.findUnique({ where: { tournoi_id_auteur_id: { tournoi_id: id, auteur_id: user.id } } })
     : null;
