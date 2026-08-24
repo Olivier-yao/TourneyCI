@@ -433,13 +433,13 @@ function OrganisateurPageInterne() {
 
       {tdb && (
         <div className="grid grid-cols-2 gap-2.5">
-          <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+          <Link href="/organisateur/commissions" className={`p-3 ${PRESS}`} style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
               <Wallet size={13} strokeWidth={2} />
               Commission
             </div>
             <div className="mt-1.5 text-lg" style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(tdb.commissionTotaleXof)}</div>
-          </div>
+          </Link>
           <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
               <Heart size={13} strokeWidth={2} />
