@@ -69,6 +69,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!estProprietaire && CHAMPS_RESERVES_PROPRIETAIRE.some((champ) => body[champ] !== undefined)) {
     return NextResponse.json({ success: false, error: "Réservé à l'organisateur." }, { status: 403 });
   }
+  // Un tournoi clôturé ou annulé devient un historique, pas une config
+  // vivante — rien n'empêchait jusqu'ici de modifier titre/règlement/heure
+  // de check-in après coup (aucune vérification ici, seulement une mention
+  // "verrouillé" ailleurs pour les scores). Même seuil que "Les scores sont
+  // verrouillés" côté Régie (cf. gestion/page.tsx) : termine_le/annule_le,
+  // pas en_direct — un tournoi en cours reste modifiable normalement.
+  if (existant.termine_le || existant.annule_le) {
+    return NextResponse.json({ success: false, error: "Tournoi clôturé : les réglages ne peuvent plus être modifiés." }, { status: 409 });
+  }
 
   let villeId: number | undefined;
   if (typeof body.ville === "string" && body.ville.trim()) {

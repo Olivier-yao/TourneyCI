@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { Lock } from "lucide-react";
 import { AppBar } from "@/components/ds/AppBar";
 import { Field } from "@/components/ds/Input";
 import { Button } from "@/components/ds/Button";
@@ -58,6 +59,26 @@ export default function ParametresTournoiPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
         <p>Cette page est réservée aux organisateurs.</p>
         <Link href={`/tournois/${params.id}`} style={{ color: "var(--ds-accent-300)" }}>Retour au tournoi</Link>
+      </div>
+    );
+  }
+
+  // Un tournoi clôturé ou annulé devient un historique, pas une config
+  // vivante — même seuil que "Les scores sont verrouillés" côté Régie
+  // (gestion/page.tsx). Le serveur refuse déjà la modification (PATCH
+  // /api/tournois/[id]) ; ceci évite de laisser un formulaire éditable qui
+  // échouerait silencieusement à l'enregistrement.
+  if (tournoi.termine || tournoi.annule) {
+    return (
+      <div className="min-h-screen flex flex-col px-5 py-4 gap-5" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
+        <AppBar retour titre="Infos du tournoi" onRetour={() => router.back()} />
+        <div className="flex flex-col items-center justify-center gap-3 flex-1 text-center px-6">
+          <Lock size={22} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            {tournoi.annule ? "Tournoi annulé : les réglages ne sont plus modifiables." : "Tournoi clôturé : les réglages ne sont plus modifiables."}
+          </p>
+          <Link href={`/tournois/${params.id}`} style={{ color: "var(--ds-accent-300)" }}>Retour au tournoi</Link>
+        </div>
       </div>
     );
   }
