@@ -72,6 +72,7 @@ export default function QualificationTournoiPage() {
           tournoiId={params.id}
           tournoiTitre={tournoi.titre}
           sousType={tournoi.brSousType ?? "solo"}
+          manchesPrevues={tournoi.manchesPrevues ?? 1}
           onEnregistre={() => setRafraichir((n) => n + 1)}
         />
       ) : (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Info } from "lucide-react";
+import { Minus, Plus, Info, CheckCircle2 } from "lucide-react";
 import {
   unitesBR,
   manchesBR,
@@ -23,11 +23,13 @@ export function GestionManchesBR({
   tournoiId,
   tournoiTitre,
   sousType,
+  manchesPrevues,
   onEnregistre,
 }: {
   tournoiId: string;
   tournoiTitre: string;
   sousType: SousTypeBR;
+  manchesPrevues: number;
   onEnregistre: () => void;
 }) {
   const [participants, setParticipants] = useState<UniteBR[]>([]);
@@ -41,6 +43,7 @@ export function GestionManchesBR({
   const [eliminations, setEliminations] = useState<Record<string, number>>({});
   const [confirmationOuverte, setConfirmationOuverte] = useState(false);
   const [valide, setValide] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
     async function charger() {
@@ -86,11 +89,18 @@ export function GestionManchesBR({
 
   async function cloturer() {
     if (resultatsPrets.length === 0) return;
-    await ajouterMancheBR(tournoiId, resultatsPrets);
+    const resultat = await ajouterMancheBR(tournoiId, resultatsPrets);
+    if (!resultat.ok) {
+      setErreur(resultat.erreur ?? "Impossible d'enregistrer cette manche pour l'instant.");
+      setConfirmationOuverte(false);
+      setRafraichir((n) => n + 1);
+      return;
+    }
     await notifierParticipants(tournoiId, tournoiTitre, `Manche ${numeroSuivant} enregistrée — classement mis à jour`);
     setPlacements({});
     setEliminations({});
     setValide(false);
+    setErreur(null);
     setConfirmationOuverte(false);
     setRafraichir((n) => n + 1);
     onEnregistre();
@@ -101,6 +111,26 @@ export function GestionManchesBR({
       <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
         Aucun participant chargé pour ce battle royale pour l&apos;instant.
       </p>
+    );
+  }
+
+  // Bug rapporté : rien n'empêchait d'ajouter des manches indéfiniment
+  // au-delà du nombre prévu à la création — le tournoi ne se clôturait
+  // jamais (cf. le même garde-fou côté serveur, POST /api/tournois/[id]/
+  // manches-br). Une fois la cible atteinte, plus de formulaire de saisie :
+  // la clôture automatique prend le relais sous 2 minutes.
+  if (manches.length >= manchesPrevues) {
+    return (
+      <div className="flex items-start gap-2.5 p-3.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}>
+        <CheckCircle2 size={16} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0 mt-0.5" />
+        <div>
+          <div className="text-sm font-medium">Toutes les manches prévues sont jouées</div>
+          <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+            {manches.length} sur {manchesPrevues} manche{manchesPrevues > 1 ? "s" : ""} — le tournoi se clôture automatiquement
+            (points de classement + gains) sous 2 minutes.
+          </p>
+        </div>
+      </div>
     );
   }
 
@@ -204,6 +234,7 @@ export function GestionManchesBR({
         <p className="text-xs" style={{ color: "var(--ds-muted)" }}>
           La clôture fige la manche {numeroSuivant} et l&apos;ajoute au classement cumulé — irréversible, à faire une fois tous les résultats saisis.
         </p>
+        {erreur && <p className="text-xs" style={{ color: "var(--ds-danger)" }}>{erreur}</p>}
         <button
           type="button"
           onClick={() => setConfirmationOuverte(true)}

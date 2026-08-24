@@ -6,6 +6,8 @@ import { estAdjointAccepteDe } from "@/lib/server/adjoints";
 import { versMancheBRJSON } from "@/lib/server/battleRoyale";
 import { essaierClotureAutomatique } from "@/lib/server/cloture";
 
+class ManchesCompletesError extends Error {}
+
 /** Public : manches déjà closes + aperçu en direct (point 205) de la manche
  * en cours de saisie, visible des spectateurs sans attendre la clôture. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -48,8 +50,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const manche = await prisma.$transaction(async (tx) => {
+      // Verrou sur la ligne du tournoi le temps de la transaction : sans lui,
+      // deux clôtures de manche quasi simultanées peuvent toutes les deux lire
+      // le même compte avant que l'une des deux n'ait inséré la sienne, et
+      // dépasser manches_prevues de plus d'une manche — même classe de course
+      // que l'inscription/le financement de cash prize déjà corrigés ce soir.
+      await tx.$queryRaw`SELECT manches_prevues FROM tournois WHERE id = ${id}::uuid FOR UPDATE`;
       const agrege = await tx.manches_br.aggregate({ where: { tournoi_id: id }, _max: { numero: true } });
       const numero = (agrege._max.numero ?? 0) + 1;
+      // Bug rapporté : rien n'empêchait d'ajouter des manches indéfiniment
+      // au-delà du nombre prévu à la création (manches_prevues) — le
+      // tournoi ne se clôturait donc jamais (essaierClotureAutomatique
+      // n'observe que la dernière manche, dont l'horodatage recule à
+      // chaque nouvel ajout, remettant le délai de 2 min à zéro à l'infini).
+      const cible = tournoi.manches_prevues ?? 1;
+      if (numero > cible) throw new ManchesCompletesError();
       const creee = await tx.manches_br.create({ data: { tournoi_id: id, numero } });
       await tx.manches_br_resultats.createMany({
         data: resultats.map((r) => ({
@@ -69,6 +84,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       const manches = await prisma.manches_br.findMany({ where: { tournoi_id: id }, include: { manches_br_resultats: true }, orderBy: { numero: "asc" } });
       return NextResponse.json({ success: true, data: manches.map(versMancheBRJSON).at(-1) });
+    }
+    if (err instanceof ManchesCompletesError) {
+      return NextResponse.json(
+        { success: false, error: `Les ${tournoi.manches_prevues ?? 1} manches prévues sont déjà toutes jouées.` },
+        { status: 409 },
+      );
     }
     throw err;
   }

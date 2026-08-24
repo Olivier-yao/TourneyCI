@@ -125,12 +125,17 @@ export async function validerMancheEnDirect(tournoiId: string, resultats: Result
   });
 }
 
-export async function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]): Promise<void> {
-  await fetch(`/api/tournois/${tournoiId}/manches-br`, {
+export type ResultatAjoutManche = { ok: boolean; erreur?: string };
+
+export async function ajouterMancheBR(tournoiId: string, resultats: ResultatManche[]): Promise<ResultatAjoutManche> {
+  const reponse = await fetch(`/api/tournois/${tournoiId}/manches-br`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resultats }),
   });
+  const json = await reponse.json().catch(() => null);
+  if (!json?.success) return { ok: false, erreur: json?.error };
+  return { ok: true };
 }
 
 /** Classement cumulé sur toutes les manches jouées, trié par points décroissants.
