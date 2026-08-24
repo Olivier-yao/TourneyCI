@@ -74,6 +74,23 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ success: false, error: "Score invalide." }, { status: 400 });
     }
 
+    // Format Best-of-N (tournois.manches_par_match) : jusqu'ici n'importe
+    // quelle paire de scores différents clôturait le match — un tournoi
+    // configuré en BO3/BO5 se comportait donc exactement comme du BO1. Un
+    // score final n'est valide que si un côté atteint réellement la
+    // majorité de manches requise pour ce format (ex. 2 sur BO3, 3 sur BO5).
+    const manchesRequises = match.tournois.manches_par_match ?? 1;
+    const majorite = Math.ceil(manchesRequises / 2);
+    if (Math.max(score1, score2) !== majorite || Math.min(score1, score2) >= majorite) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Score invalide pour un format BO${manchesRequises} : il faut ${majorite} manche${majorite > 1 ? "s" : ""} gagnée${majorite > 1 ? "s" : ""} pour clôturer le match.`,
+        },
+        { status: 400 },
+      );
+    }
+
     const gagnant = score1 > score2 ? match.joueur1 : match.joueur2;
 
     await prisma.$transaction(async (tx) => {

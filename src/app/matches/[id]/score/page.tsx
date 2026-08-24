@@ -62,7 +62,17 @@ export default function SignalerScorePage() {
     );
   }
 
-  const pret = s1 !== "" && s2 !== "" && Number(s1) !== Number(s2);
+  // Format Best-of-N (tournoi.manchesParMatch) : un score final n'est valide
+  // que s'il est réellement décisif pour ce format — jusqu'ici n'importe
+  // quelle paire de scores différents clôturait le match, y compris "1-0"
+  // sur un tournoi configuré en BO3/BO5, traitant tous les formats comme du
+  // BO1. La majorité requise doit être atteinte par un seul côté.
+  const manchesRequises = tournoi.manchesParMatch ?? 1;
+  const majorite = Math.ceil(manchesRequises / 2);
+  const scoreDecisif =
+    s1 !== "" && s2 !== "" && Number(s1) !== Number(s2) &&
+    Math.max(Number(s1), Number(s2)) === majorite && Math.min(Number(s1), Number(s2)) < majorite;
+  const pret = scoreDecisif;
 
   function surFichierChoisi(e: ChangeEvent<HTMLInputElement>) {
     const fichier = e.target.files?.[0];
@@ -182,13 +192,17 @@ export default function SignalerScorePage() {
               </div>
             </div>
           </div>
-          {pret && (
+          {pret ? (
             <div className="flex items-center gap-2.5 mt-3.5 pt-3" style={{ borderTop: "1px solid var(--ds-border)" }}>
               <Trophy size={15} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
               <span className="flex-1 text-[13px]">
                 {Number(s1) > Number(s2) ? "Tu déclares ta victoire" : "Tu déclares ta défaite"}
               </span>
             </div>
+          ) : (
+            <p className="text-[11px] text-center mt-3.5 pt-3" style={{ borderTop: "1px solid var(--ds-border)", color: "var(--ds-muted)" }}>
+              Format BO{manchesRequises} : entre le nombre de manches gagnées par chacun — {majorite} manche{majorite > 1 ? "s" : ""} gagnée{majorite > 1 ? "s" : ""} clôture le match.
+            </p>
           )}
         </div>
 
