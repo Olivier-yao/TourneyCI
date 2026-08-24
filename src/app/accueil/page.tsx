@@ -147,7 +147,10 @@ export default function AccueilV2Page() {
 
   const resultats = tousFiltres(filtres);
   const enDirect = resultats.filter((t) => t.enDirect);
-  const prochains = resultats.filter((t) => !t.enDirect);
+  // Un tournoi qui vient de sortir de la fenêtre de grâce (enDirect passe à
+  // false, cf. estEnDirect côté serveur) est terminé ou annulé, pas à venir
+  // — sans cette double exclusion il retombait ici indéfiniment.
+  const prochains = resultats.filter((t) => !t.enDirect && !t.termine && !t.annule);
   const nbFiltresActifs = compterFiltresActifs(filtres);
 
   return (
@@ -347,7 +350,7 @@ export default function AccueilV2Page() {
                             style={{ background: "linear-gradient(to top, rgba(0,0,0,.6) 0%, rgba(0,0,0,.32) 40%, rgba(0,0,0,.08) 70%, transparent 100%)" }}
                           />
                           <div className="absolute top-2.5 left-2.5">
-                            <LiveBadge />
+                            {t.termine ? <LiveBadge texte="TERMINÉ" pulse={false} /> : <LiveBadge />}
                           </div>
                           {t.streamActif && (
                             <button

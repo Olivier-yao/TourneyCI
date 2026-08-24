@@ -40,6 +40,14 @@ function spectateurs(tournoi: Tournoi): number {
 }
 
 function infosDirect(tournoi: Tournoi, matches: MatchTournoi[], nbManchesBR: number): { score: string; phase: string } {
+  // Fenêtre de grâce de 2 min après clôture (cf. estEnDirect côté serveur) :
+  // le tournoi reste dans cette liste le temps que le vainqueur soit visible,
+  // mais ce n'est plus un match en cours — un score "en cours" serait faux.
+  if (tournoi.termine) {
+    if (tournoi.type === "battle_royale") return { score: "Terminé", phase: "Résultats" };
+    const finale = [...matches].sort((a, b) => b.round - a.round)[0];
+    return { score: finale ? `${finale.score1 ?? 0} - ${finale.score2 ?? 0}` : "—", phase: "Terminé" };
+  }
   if (tournoi.type === "battle_royale") {
     return { score: nbManchesBR > 0 ? `Manche ${nbManchesBR}` : "—", phase: "Battle Royale" };
   }
@@ -166,7 +174,10 @@ export default function EnDirectPage() {
                     </div>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="w-[5px] h-[5px] rounded-full animate-pulse shrink-0" style={{ background: "var(--ds-accent-300)" }} />
+                        <span
+                          className={`w-[5px] h-[5px] rounded-full shrink-0 ${t.termine ? "" : "animate-pulse"}`}
+                          style={{ background: t.termine ? "var(--ds-muted)" : "var(--ds-accent-300)" }}
+                        />
                         <span className="text-sm font-medium truncate">{t.titre}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
@@ -187,8 +198,11 @@ export default function EnDirectPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-0.5 shrink-0">
-                      <span className="flex items-center gap-1 text-sm font-semibold" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
-                        <Radio size={11} strokeWidth={2} />
+                      <span
+                        className="flex items-center gap-1 text-sm font-semibold"
+                        style={{ color: t.termine ? "var(--ds-muted)" : "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}
+                      >
+                        {!t.termine && <Radio size={11} strokeWidth={2} />}
                         {score}
                       </span>
                       <span className="text-[11px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
