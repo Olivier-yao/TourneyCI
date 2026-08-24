@@ -11,6 +11,8 @@ import {
 import { peutCreerTournoiPayant } from "@/lib/server/moderation";
 import { televerserImagePublique } from "@/lib/server/storage";
 
+class SoldeInsuffisantError extends Error {}
+
 // Cache mémoire très court (par instance serverless, pas partagé entre
 // instances — pas de Redis sur ce projet) pour la liste NON filtrée
 // uniquement : c'est le cas le plus lourd (tous les tournois, 4 relations
@@ -129,7 +131,8 @@ export async function POST(request: Request) {
   // circule — inscriptions payantes, ou cash prize financé de sa poche.
   const fraisXof = Number(body.fraisXof) || 0;
   const cashPrizeXof = Number(body.cashPrizeXof) || 0;
-  const impliqueArgent = fraisXof > 0 || (body.financementCashPrize === "organisateur" && cashPrizeXof > 0);
+  const financementOrganisateur = body.financementCashPrize === "organisateur" && cashPrizeXof > 0;
+  const impliqueArgent = fraisXof > 0 || financementOrganisateur;
   if (impliqueArgent && !(await peutCreerTournoiPayant(user.id))) {
     return NextResponse.json({ success: false, error: "Ton compte organisateur est suspendu ou banni : impossible de créer un tournoi impliquant de l'argent réel." }, { status: 403 });
   }
@@ -147,43 +150,74 @@ export async function POST(request: Request) {
     ? await televerserImagePublique(banniereUrlBrute, "tournois-bannieres", `${user.id}-${Date.now()}`)
     : banniereUrlBrute;
 
-  const tournoi = await prisma.tournois.create({
-    data: {
-      jeu_id: jeuId,
-      organisateur_id: user.id,
-      titre,
-      type: versTypeCompetition(type),
-      modalite,
-      br_sous_type: body.brSousType ?? undefined,
-      equipe_sous_type: body.equipeSousType ?? undefined,
-      mode_equipe: body.modeEquipe ?? undefined,
-      ville_id: villeId,
-      frais_xof: Number(body.fraisXof) || 0,
-      financement_cash_prize: body.financementCashPrize === "organisateur" ? "organisateur" : "inscriptions",
-      cash_prize_engage_xof: Number(body.cashPrizeXof) || 0,
-      commission_activee: Boolean(body.commissionActivee),
-      places_total: Math.max(1, Math.round(placesTotal)),
-      manches_prevues: Number.isFinite(Number(body.manchesPrevues)) && body.manchesPrevues ? Math.max(1, Math.round(Number(body.manchesPrevues))) : undefined,
-      manches_par_match: Number.isFinite(Number(body.manchesParMatch)) && body.manchesParMatch ? Math.max(1, Math.round(Number(body.manchesParMatch))) : undefined,
-      debut_inscriptions_le: body.debutInscriptionsTs ? new Date(Number(body.debutInscriptionsTs)) : undefined,
-      fin_inscriptions_le: body.finInscriptionsTs ? new Date(Number(body.finInscriptionsTs)) : undefined,
-      debut_tournoi_le: new Date(debutTournoiTs),
-      checkin_le: new Date(checkinTs),
-      reglement,
-      informations: typeof body.informations === "string" ? body.informations.trim() || undefined : undefined,
-      banniere_url: banniereUrl,
-      symbole_id: typeof body.symboleId === "string" ? body.symboleId : undefined,
-      repartition_cash_prize:
-        repartitionValide.length > 0
-          ? { create: repartitionValide.map((r, i) => ({ rang: i + 1, label: r.label, montant_xof: Math.round(r.montantXof) })) }
-          : undefined,
-    },
-    include: INCLUDE_TOURNOI_LISTE,
-  });
+  try {
+    const tournoi = await prisma.$transaction(async (tx) => {
+      const cree = await tx.tournois.create({
+        data: {
+          jeu_id: jeuId,
+          organisateur_id: user.id,
+          titre,
+          type: versTypeCompetition(type),
+          modalite,
+          br_sous_type: body.brSousType ?? undefined,
+          equipe_sous_type: body.equipeSousType ?? undefined,
+          mode_equipe: body.modeEquipe ?? undefined,
+          ville_id: villeId,
+          frais_xof: fraisXof,
+          financement_cash_prize: financementOrganisateur ? "organisateur" : "inscriptions",
+          cash_prize_engage_xof: cashPrizeXof,
+          commission_activee: Boolean(body.commissionActivee),
+          places_total: Math.max(1, Math.round(placesTotal)),
+          manches_prevues: Number.isFinite(Number(body.manchesPrevues)) && body.manchesPrevues ? Math.max(1, Math.round(Number(body.manchesPrevues))) : undefined,
+          manches_par_match: Number.isFinite(Number(body.manchesParMatch)) && body.manchesParMatch ? Math.max(1, Math.round(Number(body.manchesParMatch))) : undefined,
+          debut_inscriptions_le: body.debutInscriptionsTs ? new Date(Number(body.debutInscriptionsTs)) : undefined,
+          fin_inscriptions_le: body.finInscriptionsTs ? new Date(Number(body.finInscriptionsTs)) : undefined,
+          debut_tournoi_le: new Date(debutTournoiTs),
+          checkin_le: new Date(checkinTs),
+          reglement,
+          informations: typeof body.informations === "string" ? body.informations.trim() || undefined : undefined,
+          banniere_url: banniereUrl,
+          symbole_id: typeof body.symboleId === "string" ? body.symboleId : undefined,
+          repartition_cash_prize:
+            repartitionValide.length > 0
+              ? { create: repartitionValide.map((r, i) => ({ rang: i + 1, label: r.label, montant_xof: Math.round(r.montantXof) })) }
+              : undefined,
+        },
+        include: INCLUDE_TOURNOI_LISTE,
+      });
 
-  // Évite qu'un tournoi fraîchement créé mette jusqu'à 5s (DUREE_CACHE_LISTE_MS)
-  // à apparaître dans les listes pour son propre créateur.
-  cacheListeNonFiltree = null;
+      // Un cash prize "financé par l'organisateur" doit être réellement
+      // immobilisé sur son solde au moment même de la création — jusqu'ici
+      // cash_prize_engage_xof était juste une déclaration du client, avec le
+      // débit fait par un second appel séparé, côté client, jamais vérifié :
+      // n'importe qui pouvait créer un tournoi avec un cash prize engagé
+      // sans jamais débiter son solde, puis le remporter et se faire créditer
+      // un gain réel jamais financé nulle part. Verrou sur la ligne du profil
+      // (FOR UPDATE) : sérialise ce débit avec toute autre opération de
+      // solde concurrente pour ce même compte, même schéma que le verrou
+      // d'inscription ci-dessus.
+      if (financementOrganisateur) {
+        await tx.$queryRaw`SELECT id FROM profiles WHERE id = ${user.id}::uuid FOR UPDATE`;
+        const soldeAgg = await tx.mouvements.aggregate({ where: { profile_id: user.id }, _sum: { montant_xof: true } });
+        const soldeActuel = soldeAgg._sum.montant_xof ?? 0;
+        if (soldeActuel < cashPrizeXof) throw new SoldeInsuffisantError();
+        await tx.mouvements.create({
+          data: { profile_id: user.id, type: "financement", libelle: `Cash prize · ${titre}`, montant_xof: -cashPrizeXof, tournoi_id: cree.id },
+        });
+      }
 
-  return NextResponse.json({ success: true, data: versTournoiJSON(tournoi) });
+      return cree;
+    });
+
+    // Évite qu'un tournoi fraîchement créé mette jusqu'à 5s (DUREE_CACHE_LISTE_MS)
+    // à apparaître dans les listes pour son propre créateur.
+    cacheListeNonFiltree = null;
+
+    return NextResponse.json({ success: true, data: versTournoiJSON(tournoi) });
+  } catch (err) {
+    if (err instanceof SoldeInsuffisantError) {
+      return NextResponse.json({ success: false, error: "Solde insuffisant pour financer ce cash prize." }, { status: 400 });
+    }
+    throw err;
+  }
 }

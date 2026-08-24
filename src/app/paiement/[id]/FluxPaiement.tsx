@@ -7,7 +7,7 @@ import { ShieldCheck, CheckCircle2, CreditCard, ArrowLeft, LockKeyhole } from "l
 import { Button, PRESS } from "@/components/ds/Button";
 import { formatXof } from "@/lib/formatXof";
 import { enregistrerInscription } from "@/lib/mockInscriptions";
-import { lireSolde, debiter } from "@/lib/mockWallet";
+import { lireSolde } from "@/lib/mockWallet";
 import { marquerPaiementCouvert } from "@/lib/mockEquipesBR";
 import type { Tournoi } from "@/lib/mockTournaments";
 
@@ -44,12 +44,14 @@ export function FluxPaiement({
   const soldeInsuffisant = soldeCarte < montantDu;
 
   async function inscriptionReussie(): Promise<boolean> {
+    // Le débit du montant dû est fait atomiquement côté serveur, avec
+    // l'inscription elle-même (cf. POST /api/tournois/[id]/inscriptions) —
+    // les deux réussissent ou échouent ensemble (ex. solde insuffisant,
+    // ou tournoi complet entre-temps : le message d'erreur du serveur
+    // couvre les deux cas, aucun débit n'a lieu si l'inscription échoue).
     const resultat = await enregistrerInscription(tournoi.id, tag, equipe, montantDu);
     if (!resultat.ok) {
-      // De l'argent a déjà été débité (payer() a validé le débit avant
-      // d'appeler cette fonction) : on ne peut pas rester silencieux si
-      // l'inscription échoue côté serveur (ex. tournoi complet entre-temps).
-      setErreur(resultat.erreur ?? "L'inscription a échoué après le paiement. Contacte le service client.");
+      setErreur(resultat.erreur ?? "L'inscription a échoué. Contacte le service client si le problème persiste.");
       return false;
     }
     if (equipeId) marquerPaiementCouvert(equipeId);
@@ -58,8 +60,7 @@ export function FluxPaiement({
 
   async function payer(e: React.FormEvent) {
     e.preventDefault();
-    const ok = montantDu === 0 || (await debiter(montantDu, `Inscription · ${tournoi.titre}`, "inscription", tournoi.id));
-    if (!ok) {
+    if (soldeInsuffisant) {
       setErreur("Solde TourneyCard insuffisant. Recharge ta carte pour continuer.");
       return;
     }

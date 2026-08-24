@@ -10,7 +10,7 @@ import { Field } from "@/components/ds/Input";
 import { SelecteurJeu } from "@/components/ds/SelecteurJeu";
 import { PaiementFraisFixes } from "@/components/ds/PaiementFraisFixes";
 import { Button } from "@/components/ds/Button";
-import { lireSolde, debiter } from "@/lib/mockWallet";
+import { lireSolde } from "@/lib/mockWallet";
 import { peutCreerTournoiPayant, onboardingOrganisateurComplet, estCertifie, estOrganisateurCertifie, reglementCertifieAccepte } from "@/lib/mockOrganisateur";
 import { AlerteVerificationIdentite } from "@/components/ds/AlerteVerificationIdentite";
 import { MiniatureFormat } from "@/components/ds/MiniatureFormat";
@@ -368,9 +368,11 @@ export default function NouveauTournoiPage() {
       return;
     }
 
-    if (financeParOrganisateur && cashPrizeNum > 0) {
-      await debiter(cashPrizeNum, `Cash prize · ${titre.trim()}`, "financement", resultat.tournoi.id);
-    }
+    // Le débit du cash prize financé par l'organisateur est désormais fait
+    // atomiquement côté serveur, avec la création du tournoi elle-même (cf.
+    // POST /api/tournois) — plus de second appel séparé ici, qui pouvait être
+    // sauté (réseau, ou appel direct de l'API sans passer par ce formulaire)
+    // sans jamais empêcher la création du tournoi ni son cash prize "engagé".
 
     router.push(`/tournois/${resultat.tournoi.id}`);
   }

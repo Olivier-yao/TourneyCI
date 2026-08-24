@@ -158,22 +158,36 @@ export async function rejoindreEquipeAleatoire(
   sousType: "duo" | "trio" | "squad",
 ): Promise<EquipeBRJSON> {
   const taille = TAILLE_EQUIPE_BR[sousType];
-  const equipes = await prisma.equipes_br.findMany({
-    where: { tournoi_id: tournoiId },
-    include: { equipes_br_membres: true },
-    orderBy: { created_at: "asc" },
-  });
-  const disponible = equipes.find((e) => e.equipes_br_membres.length < taille && !e.equipes_br_membres.some((m) => m.profile_id === joueurId));
-  if (disponible) {
-    await prisma.equipes_br_membres.upsert({
-      where: { equipe_id_profile_id: { equipe_id: disponible.id, profile_id: joueurId } },
-      create: { equipe_id: disponible.id, profile_id: joueurId },
-      update: {},
+  const equipeId = await prisma.$transaction(async (tx) => {
+    // Verrouille toutes les équipes de ce tournoi le temps de la transaction :
+    // sans ça, deux joueurs qui rejoignent en même temps une équipe à 1
+    // place restante peuvent tous les deux passer le test "< taille" avant
+    // que l'un des deux n'ait inséré son adhésion, et dépasser la taille
+    // d'équipe (même classe de bug que la course d'inscription corrigée au
+    // même moment, cf. /api/tournois/[id]/inscriptions).
+    await tx.$queryRaw`SELECT id FROM equipes_br WHERE tournoi_id = ${tournoiId}::uuid FOR UPDATE`;
+    const equipes = await tx.equipes_br.findMany({
+      where: { tournoi_id: tournoiId },
+      include: { equipes_br_membres: true },
+      orderBy: { created_at: "asc" },
     });
-    return (await equipeParIdJSON(disponible.id))!;
-  }
-  const numero = equipes.length + 1;
-  return creerEquipeBR(tournoiId, `${LABEL_EQUIPE_BR[sousType]} auto ${numero}`, joueurId, false);
+    const disponible = equipes.find((e) => e.equipes_br_membres.length < taille && !e.equipes_br_membres.some((m) => m.profile_id === joueurId));
+    if (disponible) {
+      await tx.equipes_br_membres.upsert({
+        where: { equipe_id_profile_id: { equipe_id: disponible.id, profile_id: joueurId } },
+        create: { equipe_id: disponible.id, profile_id: joueurId },
+        update: {},
+      });
+      return disponible.id;
+    }
+    const numero = equipes.length + 1;
+    const equipe = await tx.equipes_br.create({
+      data: { tournoi_id: tournoiId, nom: `${LABEL_EQUIPE_BR[sousType]} auto ${numero}`, chef_id: joueurId, paiement_couvert: false },
+    });
+    await tx.equipes_br_membres.create({ data: { equipe_id: equipe.id, profile_id: joueurId } });
+    return equipe.id;
+  });
+  return (await equipeParIdJSON(equipeId))!;
 }
 
 /** Intègre directement des membres (déjà vetted par le chef en amont —
