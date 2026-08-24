@@ -261,23 +261,29 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       setMonNom(inscription?.equipe ?? profil.pseudo);
       setMaPhoto(!inscription?.equipe ? profil.photoUrl : undefined);
       setNotifs(await notifsActivees(tournoi.id));
-      const liste = await matchsDuTournoi(tournoi.id);
+      // Battle Royale : pas de bracket, aucune ligne dans `matches` — inutile
+      // d'interroger l'API (retournerait toujours [], ce qui déclencherait à
+      // tort l'écran "Bracket en préparation" plus bas).
+      const liste = tournoi.type === "battle_royale" ? [] : await matchsDuTournoi(tournoi.id);
       if (!annule) setMatchs(liste);
       setPret(true);
     }
     charger();
-    const id = setInterval(async () => {
-      const liste = await matchsDuTournoi(tournoi.id);
-      if (!annule) setMatchs(liste);
-    }, RAFRAICHISSEMENT_MS);
+    const id =
+      tournoi.type === "battle_royale"
+        ? undefined
+        : setInterval(async () => {
+            const liste = await matchsDuTournoi(tournoi.id);
+            if (!annule) setMatchs(liste);
+          }, RAFRAICHISSEMENT_MS);
     return () => {
       annule = true;
-      clearInterval(id);
+      if (id) clearInterval(id);
     };
-  }, [tournoi.id]);
+  }, [tournoi.id, tournoi.type]);
 
   useRealtimeRefetch(
-    [{ table: "matches", filter: `tournoi_id=eq.${tournoi.id}`, event: "*" }],
+    tournoi.type === "battle_royale" ? [] : [{ table: "matches", filter: `tournoi_id=eq.${tournoi.id}`, event: "*" }],
     () => { matchsDuTournoi(tournoi.id).then(setMatchs); },
   );
 
@@ -524,7 +530,27 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
 
       {etat === "en_direct" && (
         <div className="px-5 flex flex-col gap-3">
-          {matchs.length === 0 ? (
+          {tournoi.type === "battle_royale" ? (
+            // Pas de bracket/match individuel en Battle Royale — le suivi en
+            // direct se fait par le classement cumulé des manches, sur son
+            // propre écran (déjà utilisé par l'organisateur et les spectateurs).
+            <Link
+              href={`/tournois/${tournoi.id}/battle-royale`}
+              className={`p-4 flex flex-col items-center text-center ${PRESS}`}
+              style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}
+            >
+              <div
+                className="flex items-center justify-center"
+                style={{ width: 60, height: 68, background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)", clipPath: "polygon(50% 0%, 100% 16%, 100% 68%, 50% 100%, 0% 68%, 0% 16%)" }}
+              >
+                <Swords size={24} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+              </div>
+              <div className="mt-3 text-[19px] font-medium" style={{ fontFamily: "var(--ds-font-heading)" }}>Tournoi en direct</div>
+              <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+                Voir le classement en direct et les manches déjà jouées.
+              </div>
+            </Link>
+          ) : matchs.length === 0 ? (
             // Le tournoi est passé "en direct" (heure de début atteinte) mais
             // l'arbre n'a pas encore été généré (généré à la demande, au
             // premier visiteur de la page bracket) — sans ce cas distinct, le

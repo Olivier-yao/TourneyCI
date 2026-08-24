@@ -486,11 +486,15 @@ function DetailTournoiInterne() {
   // (son statut de check-in, son match, son adversaire) que la fiche
   // standard ne montre pas — remplace la fiche standard dès l'inscription,
   // pas seulement une fois le tournoi en direct (avant/pendant le check-in
-  // aussi). Même périmètre que ci-dessus : formats à bracket uniquement.
+  // aussi). Contrairement à FicheDirectSpectateur ci-dessus (réservée aux
+  // formats à bracket), MaFicheInscrit s'applique à TOUS les formats,
+  // Battle Royale compris (bug rapporté : un inscrit BR restait bloqué sur
+  // la fiche publique, jamais de check-in ni d'infos de room) — le
+  // composant bascule lui-même vers un contenu adapté pour le BR.
   // Annulé : jamais la fiche inscrit (room/check-in n'ont plus de sens) —
   // retombe sur la fiche standard ci-dessous, qui affiche déjà le bandeau
   // "Tournoi annulé" (et l'a toujours fait), même pour un participant.
-  if (tournoi.type !== "battle_royale" && !estMonTournoi && estInscritTournoi && !tournoi.annule) {
+  if (!estMonTournoi && estInscritTournoi && !tournoi.annule) {
     return <MaFicheInscrit tournoi={tournoi} />;
   }
 
