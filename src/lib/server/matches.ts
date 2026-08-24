@@ -21,6 +21,7 @@ export async function versMatchesJSON(rows: Prisma.matchesGetPayload<object>[]) 
     score1: row.score1,
     score2: row.score2,
     statut: row.statut,
+    termineLe: row.termine_le?.getTime(),
   }));
 }
 

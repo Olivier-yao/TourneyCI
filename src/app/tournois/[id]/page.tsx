@@ -461,7 +461,19 @@ function DetailTournoiInterne() {
   // pour tout visiteur (organisateur, inscrit ou spectateur) — la mise en
   // scène ne dépend pas du rôle, contrairement aux écrans "en direct"
   // ci-dessous. Jamais pour un tournoi annulé (pas de vainqueur à fêter).
-  if (tournoi.termine && !tournoi.annule) {
+  //
+  // La clôture effective (versement du cash prize, tournoi.termine) n'arrive
+  // que ~2 min après la finale (cf. essaierClotureAutomatique, lazy) — sans
+  // ce deuxième déclencheur, tout visiteur retombait sur les écrans "en
+  // direct" pendant ces 2 minutes (ex. "Tu es qualifié" pour le vainqueur,
+  // "Compétition en pause" pour un spectateur) alors que le vainqueur est
+  // déjà connu. AnnonceVainqueur montre alors un décompte de clôture au lieu
+  // du badge "Tournoi terminé", jusqu'à ce que tournoi.termine bascule.
+  const totalRoundsBracket = matchsTournoi.length > 0 ? Math.max(...matchsTournoi.map((m) => m.round)) : 0;
+  const finaleTerminee =
+    tournoi.type !== "battle_royale" &&
+    matchsTournoi.some((m) => m.round === totalRoundsBracket && m.position === 0 && m.statut === "termine");
+  if (!tournoi.annule && (tournoi.termine || finaleTerminee)) {
     return <AnnonceVainqueur tournoi={tournoi} />;
   }
 

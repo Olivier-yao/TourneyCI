@@ -11,6 +11,15 @@ import { classementCumuleBR, LABEL_UNITE_BR, type LigneClassementBR } from "@/li
 import { tagDeJoueur } from "@/lib/mockProfil";
 
 const HEX_CLIP = "polygon(50% 0%, 100% 16%, 100% 68%, 50% 100%, 0% 68%, 0% 16%)";
+// Doit rester synchronisé avec DELAI_CLOTURE_AUTO_MS côté serveur
+// (src/lib/server/cloture.ts) — purement pour l'affichage du décompte, la
+// clôture réelle (versement du cash prize) reste décidée côté serveur.
+const DELAI_CLOTURE_AUTO_MS = 2 * 60_000;
+
+function formatDecompte(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
 
 function initiales(nom: string): string {
   return nom.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase();
@@ -90,7 +99,7 @@ function LumiereFond() {
   );
 }
 
-function Entete({ onPartager }: { onPartager: () => void }) {
+function Entete({ onPartager, clotureDansMs }: { onPartager: () => void; clotureDansMs?: number }) {
   return (
     <div className="relative flex items-center justify-between">
       <Link
@@ -102,7 +111,9 @@ function Entete({ onPartager }: { onPartager: () => void }) {
       </Link>
       <div className="flex items-center gap-1.5 px-3 py-1" style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent-700)" }}>
         <Flag size={11} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-        <span className="text-[10px] tracking-wide whitespace-nowrap" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>TOURNOI TERMINÉ</span>
+        <span className="text-[10px] tracking-wide whitespace-nowrap" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+          {clotureDansMs !== undefined && clotureDansMs > 0 ? `CLÔTURE DANS ${formatDecompte(clotureDansMs)}` : "TOURNOI TERMINÉ"}
+        </span>
       </div>
       <button
         type="button"
@@ -241,6 +252,7 @@ function Scene1v1({
   scoreFinaliste,
   nbJoueurs,
   gainVainqueur,
+  clotureDansMs,
 }: {
   tournoi: Tournoi;
   nomVainqueur: string;
@@ -250,13 +262,14 @@ function Scene1v1({
   scoreFinaliste: number;
   nbJoueurs: number;
   gainVainqueur?: number;
+  clotureDansMs?: number;
 }) {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--ds-bg)", color: "var(--ds-text)" }}>
       <div className="relative overflow-hidden">
         <LumiereFond />
         <div className="relative px-5 pt-[42px] pb-5 flex flex-col gap-6">
-          <Entete onPartager={partager} />
+          <Entete onPartager={partager} clotureDansMs={clotureDansMs} />
           <FilAriane titre={tournoi.titre} droite="FINALE" />
 
           <div className="flex flex-col items-center">
@@ -317,6 +330,7 @@ function SceneEquipes({
   scoreFinaliste,
   nbEquipes,
   gainVainqueur,
+  clotureDansMs,
 }: {
   tournoi: Tournoi;
   nomVainqueur: string;
@@ -325,6 +339,7 @@ function SceneEquipes({
   scoreFinaliste: number;
   nbEquipes: number;
   gainVainqueur?: number;
+  clotureDansMs?: number;
 }) {
   const uniteLabel = tournoi.equipeSousType ? LABEL_UNITE_EQUIPE[tournoi.equipeSousType].singulier : undefined;
   return (
@@ -332,7 +347,7 @@ function SceneEquipes({
       <div className="relative overflow-hidden">
         <LumiereFond />
         <div className="relative px-5 pt-[42px] pb-5 flex flex-col gap-6">
-          <Entete onPartager={partager} />
+          <Entete onPartager={partager} clotureDansMs={clotureDansMs} />
           <FilAriane titre={tournoi.titre} droite="FINALE" />
 
           <div className="flex flex-col items-center">
@@ -493,6 +508,17 @@ export function AnnonceVainqueur({ tournoi }: { tournoi: Tournoi }) {
   const [matchs, setMatchs] = useState<MatchTournoi[]>([]);
   const [classementBR, setClassementBR] = useState<LigneClassementBR[]>([]);
   const [pret, setPret] = useState(false);
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+
+  // Tant que tournoi.termine n'est pas encore posé (clôture lazy, jusqu'à
+  // 2 min après la finale), affiche un décompte plutôt que de laisser le
+  // badge "Tournoi terminé" figé alors que la clôture n'a pas encore
+  // effectivement eu lieu (le cash prize, notamment, n'est pas encore versé).
+  useEffect(() => {
+    if (tournoi.termine) return;
+    const id = setInterval(() => setMaintenant(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [tournoi.termine]);
 
   useEffect(() => {
     let annule = false;
@@ -541,6 +567,10 @@ export function AnnonceVainqueur({ tournoi }: { tournoi: Tournoi }) {
   const scoreVainqueur = vainqueurEstJ1 ? s1 : s2;
   const scoreFinaliste = vainqueurEstJ1 ? s2 : s1;
   const gainVainqueur = repartition[0]?.montantXof;
+  const clotureDansMs =
+    !tournoi.termine && finale.termineLe !== undefined
+      ? finale.termineLe + DELAI_CLOTURE_AUTO_MS - maintenant
+      : undefined;
 
   if (tournoi.type === "equipes") {
     return (
@@ -552,6 +582,7 @@ export function AnnonceVainqueur({ tournoi }: { tournoi: Tournoi }) {
         scoreFinaliste={scoreFinaliste}
         nbEquipes={nomsUniquesDuBracket(matchs).length}
         gainVainqueur={gainVainqueur}
+        clotureDansMs={clotureDansMs}
       />
     );
   }
@@ -566,6 +597,7 @@ export function AnnonceVainqueur({ tournoi }: { tournoi: Tournoi }) {
       scoreVainqueur={scoreVainqueur}
       scoreFinaliste={scoreFinaliste}
       nbJoueurs={tournoi.placesInscrites}
+      clotureDansMs={clotureDansMs}
       gainVainqueur={gainVainqueur}
     />
   );

@@ -54,6 +54,10 @@ export type MatchTournoi = {
   score1: number | null;
   score2: number | null;
   statut: StatutMatch;
+  /** Horodatage (ms) auquel le match est passé "termine" — présent seulement
+   * si statut === "termine". Sert à dériver le compte à rebours de clôture
+   * automatique du tournoi (2 min après la finale, cf. essaierClotureAutomatique). */
+  termineLe?: number;
 };
 
 export type EvenementMatch = { id: string; texte: string; creeLe: number };
