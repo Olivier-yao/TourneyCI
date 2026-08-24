@@ -3,18 +3,33 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Plus, Heart, ShieldCheck, IdCard, AtSign, Lock, Clock, XCircle, Send, CheckCircle2 } from "lucide-react";
+import { ChevronRight, Plus, Heart, ShieldCheck, IdCard, AtSign, Lock, Clock, XCircle, Send, CheckCircle2, Wallet, Scale, Trophy } from "lucide-react";
 import { Button, PRESS } from "@/components/ds/Button";
 import { Field } from "@/components/ds/Input";
 import { TabBar } from "@/components/ds/TabBar";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { hexagoneStyle } from "@/components/ds/Palier";
+import { CarteTournoi } from "@/components/ds/CarteTournoi";
 import { mesTournoisOrganises, COMMISSION_PCT, type Tournoi } from "@/lib/mockTournaments";
 import { estCertifie, estOrganisateurCertifie, reglementStandardAccepte } from "@/lib/mockOrganisateur";
 import { nomOrganisateur, definirNomOrganisateur } from "@/lib/mockOrganisateur";
 import { creerDemandeOrganisateur, demandeOrganisateurActuelle, type DemandeOrganisateur } from "@/lib/mockDemandesOrganisateur";
+import { tableauDeBordOrganisateur, type TableauDeBordOrganisateur } from "@/lib/mockTableauDeBordOrganisateur";
+import { formatXof } from "@/lib/formatXof";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
 import { AlerteVerificationIdentite } from "@/components/ds/AlerteVerificationIdentite";
+
+/** Regroupe un tournoi organisé dans un seul des 4 statuts du tableau de
+ * bord — même ordre de priorité que tableauDeBordJSON (server), pour que
+ * les compteurs des tuiles et les sections "Mes tournois" restent
+ * cohérents (un tournoi tout juste clôturé peut avoir enDirect ET termine
+ * à true en même temps pendant la grâce post-clôture, cf. estEnDirect()). */
+function statutTournoi(t: Tournoi): "enDirect" | "aVenir" | "termine" | "annule" {
+  if (t.annule) return "annule";
+  if (t.termine) return "termine";
+  if (t.enDirect) return "enDirect";
+  return "aVenir";
+}
 
 type EtapeOnboarding = "nom" | "complet";
 
@@ -303,6 +318,7 @@ function OrganisateurPageInterne() {
   const [demande, setDemande] = useState<DemandeOrganisateur | undefined>(undefined);
   const [vueCertification, setVueCertification] = useState(false);
   const [alerteVerifOuverte, setAlerteVerifOuverte] = useState(false);
+  const [tdb, setTdb] = useState<TableauDeBordOrganisateur | undefined>(undefined);
 
   useEffect(() => {
     async function charger() {
@@ -316,8 +332,14 @@ function OrganisateurPageInterne() {
         router.replace("/organisateur/reglement-standard");
         return;
       }
-      const demandeActuelle = await demandeOrganisateurActuelle();
-      const estOrgaCert = await estOrganisateurCertifie();
+      // Aucune dépendance entre ces 4 lectures — un seul aller-retour groupé
+      // plutôt qu'une cascade séquentielle (point 200, tableau de bord).
+      const [demandeActuelle, estOrgaCert, tournois, dashboard] = await Promise.all([
+        demandeOrganisateurActuelle(),
+        estOrganisateurCertifie(),
+        mesTournoisOrganises(),
+        tableauDeBordOrganisateur(),
+      ]);
       setCertifie(estCert);
       setOrganisateurCertifie(estOrgaCert);
       setNomOrg(nom);
@@ -325,7 +347,8 @@ function OrganisateurPageInterne() {
       // Point 167 : un nom suffit pour atteindre le tableau de bord — la
       // demande de statut certifié (point 158) n'est plus une étape imposée.
       setEtape(!nom ? "nom" : "complet");
-      setTournoisOrganises(await mesTournoisOrganises());
+      setTournoisOrganises(tournois);
+      setTdb(dashboard);
       // Point 187 : arrivée depuis l'alerte du formulaire de création après
       // vérification d'identité — ouvre directement la demande de certification
       // plutôt que de laisser l'utilisateur revenir au même message.
@@ -408,6 +431,50 @@ function OrganisateurPageInterne() {
         </Link>
       )}
 
+      {tdb && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              <Wallet size={13} strokeWidth={2} />
+              Commission
+            </div>
+            <div className="mt-1.5 text-lg" style={{ fontFamily: "var(--ds-font-mono)" }}>{formatXof(tdb.commissionTotaleXof)}</div>
+          </div>
+          <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              <Heart size={13} strokeWidth={2} />
+              Réputation
+            </div>
+            <div className="mt-1.5 text-lg" style={{ fontFamily: "var(--ds-font-mono)" }}>
+              {tdb.coeurs} <span className="text-xs" style={{ color: "var(--ds-muted)" }}>/ {tdb.coeursBrises} brisés</span>
+            </div>
+          </div>
+          <div
+            className="p-3"
+            style={{
+              borderRadius: "var(--ds-radius-md)",
+              background: tdb.litigesOuverts > 0 ? "var(--ds-accent-900)" : "var(--ds-surface)",
+              boxShadow: tdb.litigesOuverts > 0 ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)",
+            }}
+          >
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide" style={{ color: tdb.litigesOuverts > 0 ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              <Scale size={13} strokeWidth={2} />
+              Litiges
+            </div>
+            <div className="mt-1.5 text-lg" style={{ fontFamily: "var(--ds-font-mono)", color: tdb.litigesOuverts > 0 ? "var(--ds-accent-300)" : "var(--ds-text)" }}>
+              {tdb.litigesOuverts} en attente
+            </div>
+          </div>
+          <div className="p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}>
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+              <Trophy size={13} strokeWidth={2} />
+              Actifs
+            </div>
+            <div className="mt-1.5 text-lg" style={{ fontFamily: "var(--ds-font-mono)" }}>{tdb.parStatut.enDirect + tdb.parStatut.aVenir}</div>
+          </div>
+        </div>
+      )}
+
       <Link href="/organisateur/nouveau">
         <Button variante="primary" bloc>
           <Plus size={17} strokeWidth={2} />
@@ -471,24 +538,25 @@ function OrganisateurPageInterne() {
       {tournoisOrganises.length === 0 ? (
         <EmptyState titre="Aucun tournoi organisé" description="Crée ton premier tournoi pour le voir apparaître ici." />
       ) : (
-        <div className="flex flex-col gap-2">
-          <div className="text-base font-medium">Mes tournois</div>
-          {tournoisOrganises.map((t) => (
-            <Link key={t.id} href={`/tournois/${t.id}`}>
-              <div
-                className="flex items-center gap-3 p-3"
-                style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", border: "1px solid var(--ds-border)" }}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{t.titre}</div>
-                  <div className="text-xs" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                    {t.jeuLabel} · {t.placesInscrites}/{t.placesTotal}
-                  </div>
-                </div>
-                <ChevronRight size={16} style={{ color: "var(--ds-muted)" }} />
+        <div className="flex flex-col gap-4">
+          {(
+            [
+              { statut: "enDirect" as const, titre: "En direct" },
+              { statut: "aVenir" as const, titre: "À venir" },
+              { statut: "termine" as const, titre: "Terminés" },
+              { statut: "annule" as const, titre: "Annulés" },
+            ]
+          )
+            .map((s) => ({ ...s, items: tournoisOrganises.filter((t) => statutTournoi(t) === s.statut) }))
+            .filter((s) => s.items.length > 0)
+            .map((s) => (
+              <div key={s.statut} className="flex flex-col gap-2">
+                <div className="text-base font-medium">{s.titre} · {s.items.length}</div>
+                {s.items.map((t) => (
+                  <CarteTournoi key={t.id} tournoi={t} />
+                ))}
               </div>
-            </Link>
-          ))}
+            ))}
         </div>
       )}
 
