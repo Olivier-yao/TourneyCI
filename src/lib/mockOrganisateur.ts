@@ -10,8 +10,6 @@
 import { reputationOrganisateur } from "./mockAvis";
 import { lireProfil } from "./mockProfil";
 import { estOrganisateurApprouve } from "./mockDemandesOrganisateur";
-import { peutModifierMensuel } from "./limiteMensuelle";
-import { cleCompte } from "./mockAuth";
 
 export type StatutKyc = "en_attente" | "validee" | "refusee";
 
@@ -63,90 +61,16 @@ export async function soumettreVerificationIdentite(s: SoumissionVerificationIde
   return { ok: true, data: json.data };
 }
 
-/**
- * Nom d'organisateur (distinct du pseudo joueur). Choisissable dès la
- * première session, sans attendre la certification (point 117) : la
- * vérification d'identité ne conditionne que les tournois payants, pas le
- * droit d'organiser tout court (point 41/49 couvrait le choix du nom, pas
- * l'accès à l'organisation gratuite).
- */
-const CLE_NOM_ORGANISATEUR = "tourney-nom-organisateur";
-
-export function nomOrganisateur(): string | undefined {
-  if (typeof window === "undefined") return undefined;
-  return localStorage.getItem(cleCompte(CLE_NOM_ORGANISATEUR)) || undefined;
-}
-
-export function definirNomOrganisateur(nom: string) {
-  if (typeof window === "undefined" || !nom.trim()) return;
-  localStorage.setItem(cleCompte(CLE_NOM_ORGANISATEUR), nom.trim());
-  // Synchronise vers organisateur_profils (table Postgres) en tâche de
-  // fond : sans ça, l'API tournois renvoie le pseudo joueur au lieu de ce
-  // nom, et peutSuperviser() ne reconnaît plus l'organisateur comme le
-  // sien (comparaison de noms) — cf. src/lib/server/tournois.ts.
-  fetch("/api/organisateur", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nomOrganisateur: nom.trim() }),
-  }).catch(() => undefined);
-}
-
-/** Noms déjà pris par d'autres organisateurs — dérivé des tournois de démo
- * (mono-appareil : pas de vrai registre partagé tant qu'il n'y a pas de
- * backend, phase 8). Évite un import croisé avec mockTournaments.ts (qui
- * importe déjà ce fichier) en gardant une liste statique ici. */
-const NOMS_ORGANISATEURS_CONNUS = [
-  "Ivoire Esport",
-  "Yop Gaming",
-  "Abidjan Battle Royale",
-  "Yopougon Gaming",
-  "Treichville Esport",
-  "War Room CI",
-  "FGC Côte d'Ivoire",
-];
-
-export function nomOrganisateurDisponible(nom: string): boolean {
-  const cible = nom.trim().toLowerCase();
-  if (!cible) return false;
-  if (cible === (nomOrganisateur() ?? "").trim().toLowerCase()) return true;
-  return !NOMS_ORGANISATEURS_CONNUS.some((n) => n.toLowerCase() === cible);
-}
-
-export function suggererNomsOrganisateurDisponibles(nom: string, nombre = 3): string[] {
-  const base = nom.trim();
-  if (!base) return [];
-  const candidats = [`${base}_`, ...Array.from({ length: 20 }, (_, i) => `${base}${i + 1}`)];
-  const suggestions: string[] = [];
-  for (const candidat of candidats) {
-    if (suggestions.length >= nombre) break;
-    if (nomOrganisateurDisponible(candidat)) suggestions.push(candidat);
-  }
-  return suggestions;
-}
-
-const CLE_NOM_ORGANISATEUR_MODIFIE_LE = "tourney-nom-organisateur-modifie-le";
-
-/** Point 155 : le nom d'organisateur ne peut être changé qu'une fois par
- * mois — appelé APRÈS un renommage effectif, jamais lors du choix initial
- * (onboarding), qui n'est pas un "changement". */
-export function marquerNomOrganisateurModifie() {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(cleCompte(CLE_NOM_ORGANISATEUR_MODIFIE_LE), String(Date.now()));
-}
-
-export function peutChangerNomOrganisateur(): { ok: boolean; prochainChangementLe?: number } {
-  if (typeof window === "undefined") return { ok: true };
-  const brut = localStorage.getItem(cleCompte(CLE_NOM_ORGANISATEUR_MODIFIE_LE));
-  return peutModifierMensuel(brut ? Number(brut) : undefined);
-}
-
-async function reponseJsonOrga<T>(reponse: Response): Promise<{ ok: true; data: T } | { ok: false; erreur?: string; prochainChangementLe?: number }> {
+async function reponseJsonOrga<T>(
+  reponse: Response,
+): Promise<{ ok: true; data: T } | { ok: false; erreur?: string; prochainChangementLe?: number; suggestions?: string[] }> {
   const json = await reponse.json().catch(() => null);
-  if (!json?.success) return { ok: false, erreur: json?.error, prochainChangementLe: json?.prochainChangementLe };
+  if (!json?.success) return { ok: false, erreur: json?.error, prochainChangementLe: json?.prochainChangementLe, suggestions: json?.suggestions };
   return { ok: true, data: json.data as T };
 }
 
 type ProfilOrganisateurApiJSON = {
+  nomOrganisateur?: string;
   tag?: string;
   bio?: string;
   banniereUrl?: string;
@@ -166,7 +90,9 @@ async function chargerProfilOrganisateur(): Promise<ProfilOrganisateurApiJSON> {
   return profilOrganisateurCache;
 }
 
-async function patchProfilOrganisateur(champ: Record<string, unknown>): Promise<{ ok: boolean; erreur?: string; prochainChangementLe?: number }> {
+async function patchProfilOrganisateur(
+  champ: Record<string, unknown>,
+): Promise<{ ok: boolean; erreur?: string; prochainChangementLe?: number; suggestions?: string[] }> {
   const reponse = await fetch("/api/organisateur/profil", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -174,7 +100,9 @@ async function patchProfilOrganisateur(champ: Record<string, unknown>): Promise<
   });
   const resultat = await reponseJsonOrga<void>(reponse);
   if (resultat.ok) profilOrganisateurCache = null;
-  return resultat.ok ? { ok: true } : { ok: false, erreur: resultat.erreur, prochainChangementLe: resultat.prochainChangementLe };
+  return resultat.ok
+    ? { ok: true }
+    : { ok: false, erreur: resultat.erreur, prochainChangementLe: resultat.prochainChangementLe, suggestions: resultat.suggestions };
 }
 
 /** Point 164 : photo de profil organisateur, distincte de la photo de
@@ -187,15 +115,38 @@ export async function definirPhotoOrganisateur(dataUrl: string): Promise<{ ok: b
   return patchProfilOrganisateur({ photoUrl: dataUrl });
 }
 
+/**
+ * Nom d'organisateur (distinct du pseudo joueur), server-sourced (via
+ * chargerProfilOrganisateur, même cache que tag/bio/bannière) — choisissable
+ * dès la première session, sans attendre la certification (point 117) : la
+ * vérification d'identité ne conditionne que les tournois payants, pas le
+ * droit d'organiser tout court.
+ */
+export async function nomOrganisateur(): Promise<string | undefined> {
+  return (await chargerProfilOrganisateur()).nomOrganisateur;
+}
+
+/** Choisit ou renomme le nom d'organisateur — unicité et limite "1
+ * renommage par mois" vérifiées côté serveur en un seul aller-retour (cf.
+ * definirNomOrganisateurServeur dans src/lib/server/organisateurProfil.ts) :
+ * plus de vérification client contre une fausse liste statique, plus de
+ * cooldown en localStorage contournable. */
+export async function definirNomOrganisateur(
+  nom: string,
+): Promise<{ ok: boolean; erreur?: string; prochainChangementLe?: number; suggestions?: string[] }> {
+  if (!nom.trim()) return { ok: false };
+  return patchProfilOrganisateur({ nomOrganisateur: nom.trim() });
+}
+
 /** Identité organisateur utilisée partout où un tournoi doit être rattaché
  * à un organisateur (création, réputation, modération) : le nom
  * d'organisateur une fois choisi, sinon le pseudo joueur en repli. */
-export function nomOrganisateurActuel(): string {
-  return nomOrganisateur() ?? lireProfil().pseudo;
+export async function nomOrganisateurActuel(): Promise<string> {
+  return (await nomOrganisateur()) ?? lireProfil().pseudo;
 }
 
-export function onboardingOrganisateurComplet(): boolean {
-  return Boolean(nomOrganisateur());
+export async function onboardingOrganisateurComplet(): Promise<boolean> {
+  return Boolean(await nomOrganisateur());
 }
 
 /** Un organisateur standard ne peut créer que des tournois gratuits à
@@ -242,10 +193,11 @@ export async function marquerReglementStandardAccepte(): Promise<void> {
 
 /**
  * Identité complémentaire du profil organisateur (point 58/59) : TAG
- * personnel, bio et bannière. Comme le nom d'organisateur ci-dessus, ces
- * champs ne sont connus que de l'appareil courant (pas de backend partagé) —
- * ils ne sont donc affichables que sur le profil "cestMoi", pas sur celui
- * d'un autre organisateur consulté depuis cet appareil.
+ * personnel, bio et bannière — server-sourced comme le nom d'organisateur
+ * ci-dessus (même chargerProfilOrganisateur()), mais le cache local ne
+ * contient que les données DU COMPTE CONNECTÉ : affichables uniquement sur
+ * le profil "cestMoi", pas sur celui d'un autre organisateur consulté
+ * depuis cet appareil (qui, lui, vient de GET /api/organisateur/[nom]).
  */
 export async function tagOrganisateur(): Promise<string | undefined> {
   return (await chargerProfilOrganisateur()).tag;

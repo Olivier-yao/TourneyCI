@@ -48,7 +48,7 @@ export default function AnnulationTournoiPage() {
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
       setTournoi(t);
-      setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
+      setEstProprietaire(t?.organisateur === (await nomOrganisateurActuel()));
       setDejaDemande(Boolean(await demandeAnnulationPourTournoi(params.id)));
       setPret(true);
     });

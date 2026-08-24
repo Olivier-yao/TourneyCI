@@ -216,17 +216,28 @@ function LigneEtape({ n, titre, meta, actuelle, faite }: { n: number; titre: str
   );
 }
 
-function OnboardingOrganisateur({ certifie, onVerifier, onValideNom }: { certifie: boolean; onVerifier: () => void; onValideNom: (nom: string) => void }) {
+function OnboardingOrganisateur({
+  certifie,
+  onVerifier,
+  onValideNom,
+}: {
+  certifie: boolean;
+  onVerifier: () => void;
+  onValideNom: (nom: string) => Promise<{ ok: boolean; erreur?: string }>;
+}) {
   const router = useRouter();
   const [nom, setNom] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
 
-  function valider() {
+  async function valider() {
     if (!nom.trim()) {
       setErreur("Choisis un nom d'organisateur.");
       return;
     }
-    onValideNom(nom.trim());
+    const resultat = await onValideNom(nom.trim());
+    if (!resultat.ok) {
+      setErreur(resultat.erreur ?? "Ce nom est déjà pris.");
+    }
   }
 
   return (
@@ -295,7 +306,7 @@ function OnboardingOrganisateur({ certifie, onVerifier, onValideNom }: { certifi
         </button>
         <button
           type="button"
-          onClick={valider}
+          onClick={() => { void valider(); }}
           className={`flex-[2] h-[46px] text-sm font-medium ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
         >
@@ -325,7 +336,7 @@ function OrganisateurPageInterne() {
       // État dépendant du localStorage : liste vide au premier rendu serveur,
       // synchronisée côté client une fois montée (évite un mismatch d'hydratation).
       const estCert = await estCertifie();
-      const nom = nomOrganisateur();
+      const nom = await nomOrganisateur();
       // Point 178 : le règlement général doit être lu avant même le choix du
       // nom d'organisateur, la toute première fois.
       if (!nom && !(await reglementStandardAccepte())) {
@@ -367,10 +378,12 @@ function OrganisateurPageInterne() {
       <OnboardingOrganisateur
         certifie={certifie}
         onVerifier={() => router.push("/verification-identite")}
-        onValideNom={(nom) => {
-          definirNomOrganisateur(nom);
+        onValideNom={async (nom) => {
+          const resultat = await definirNomOrganisateur(nom);
+          if (!resultat.ok) return { ok: false, erreur: "Ce nom est déjà pris." };
           setNomOrg(nom);
           setEtape("complet");
+          return { ok: true };
         }}
       />
     );

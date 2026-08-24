@@ -38,7 +38,7 @@ export default function InscritsPage() {
       const nomAffiche = inscription?.equipe ?? profil.pseudo;
       setTournoi(t);
       setMonPseudo({ nom: nomAffiche, actif: estActif(profil.matchsJoues), photoUrl: profil.photoUrl });
-      setEstMonTournoi(t?.organisateur === nomOrganisateurActuel());
+      setEstMonTournoi(t?.organisateur === (await nomOrganisateurActuel()));
       // Point 180 : un participant a accès à la liste des inscrits dès qu'il
       // s'est lui-même inscrit, sans attendre la clôture des inscriptions.
       setInscrit(await estInscrit(params.id));

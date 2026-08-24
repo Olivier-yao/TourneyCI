@@ -9,17 +9,12 @@
  * Restent mockés/localStorage, volontairement inchangés (agnostiques du
  * format d'id, continuent de fonctionner à l'identique avec de vrais UUID) :
  * mockWallet (solde), mockEquipesBR/mockPropositionsEquipe/mockEquipesProfil
- * (formation d'équipes), mockOrganisateur (nom/certification, gating client
- * uniquement — écart déjà connu, cf. roadmap 2.2), mockNotifications,
- * mockAvis, mockAppel, mockBracket, mockBattleRoyale, et l'escroquesequestre
- * du cash prize (paiementsEnAttente).
+ * (formation d'équipes), mockNotifications, mockAvis, mockAppel,
+ * mockBracket, mockBattleRoyale.
  */
 
-import { crediter } from "./mockWallet";
 import { nomOrganisateurActuel } from "./mockOrganisateur";
 import { notifierParticipants } from "./mockNotifications";
-import { compterAvis } from "./mockAvis";
-import { appelOuvertPourTournoi } from "./mockAppel";
 import { supprimerEquipesDuTournoi } from "./mockEquipesBR";
 
 export type TypeCompetition = "1v1" | "equipes" | "battle_royale";
@@ -424,7 +419,7 @@ export async function creerTournoi(donnees: DonneesCreationTournoi): Promise<Res
     headers: { "Content-Type": "application/json" },
     // organisateurNom : dérivé de la session courante, pas saisi par
     // l'appelant — cf. synchroniserNomOrganisateur ci-dessous.
-    body: JSON.stringify({ ...donnees, organisateurNom: nomOrganisateurActuel() }),
+    body: JSON.stringify({ ...donnees, organisateurNom: await nomOrganisateurActuel() }),
   });
   const resultat = await reponseJson<Tournoi>(reponse);
   // repartitionCashPrize/équipes prédéfinies ne sont pas encore persistés
@@ -456,10 +451,10 @@ export async function modifierTournoi(id: string, patch: ParametresModifiablesTo
   return resultat.ok;
 }
 
-/** Pousse le nom d'organisateur courant (mockOrganisateur.ts, localStorage)
- * vers organisateur_profils côté serveur — auto-réparateur : un tournoi créé
- * avant cette synchronisation (ou depuis un autre appareil) retrouve le bon
- * nom dès le prochain appel de mesTournoisOrganises(). */
+/** Repousse le nom d'organisateur courant (déjà server-sourced, cf.
+ * mockOrganisateur.ts) vers organisateur_profils.nom_organisateur —
+ * inoffensif/redondant depuis que ce nom est lui-même lu depuis cette même
+ * table, gardé par prudence en no-op de sécurité. */
 export async function synchroniserNomOrganisateur(nom: string): Promise<void> {
   if (!nom.trim()) return;
   await fetch("/api/organisateur", {
@@ -470,66 +465,9 @@ export async function synchroniserNomOrganisateur(nom: string): Promise<void> {
 }
 
 export async function mesTournoisOrganises(): Promise<Tournoi[]> {
-  await synchroniserNomOrganisateur(nomOrganisateurActuel());
+  const nom = await nomOrganisateurActuel();
+  await synchroniserNomOrganisateur(nom);
   return tousLesTournois({ organisateurMoi: true });
-}
-
-/**
- * Séquestre du cash prize : à la clôture, le gain du vainqueur (s'il s'agit
- * de l'utilisateur de cet appareil) est mis en attente plutôt que crédité
- * directement. Il est ensuite libéré automatiquement dès que les avis
- * "cœur brisé" du tournoi (cf. mockAvis) restent sous le seuil, ou reste
- * bloqué jusqu'à une libération manuelle par l'administration.
- */
-export const SEUIL_COEURS_BRISES_SEQUESTRE = 2;
-
-export type PaiementEnAttente = { tournoiId: string; titre: string; montantXof: number; horodatage: number };
-
-const CLE_PAIEMENTS_ATTENTE = "tourney-paiements-attente";
-
-function lirePaiementsAttente(): PaiementEnAttente[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const brut = localStorage.getItem(CLE_PAIEMENTS_ATTENTE);
-    return brut ? (JSON.parse(brut) as PaiementEnAttente[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function paiementsEnAttente(): PaiementEnAttente[] {
-  return lirePaiementsAttente();
-}
-
-export function cashPrizeEnSequestre(tournoiId: string): boolean {
-  return lirePaiementsAttente().some((p) => p.tournoiId === tournoiId);
-}
-
-function retirerPaiementAttente(tournoiId: string) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CLE_PAIEMENTS_ATTENTE, JSON.stringify(lirePaiementsAttente().filter((p) => p.tournoiId !== tournoiId)));
-}
-
-/** Libération manuelle (action admin) après vérification anti-triche. */
-export async function libererSequestreCashPrize(tournoiId: string): Promise<void> {
-  const paiement = lirePaiementsAttente().find((p) => p.tournoiId === tournoiId);
-  if (!paiement) return;
-  await crediter(paiement.montantXof, `Gain (débloqué) · ${paiement.titre}`, "gain", paiement.tournoiId);
-  retirerPaiementAttente(tournoiId);
-}
-
-/** Réévalue les paiements en attente : libère automatiquement ceux dont le
- * tournoi reste sous le seuil de cœurs brisés. À appeler après chaque avis
- * laissé, ou à l'arrivée sur l'écran d'un tournoi terminé. */
-export async function reevaluerPaiementsEnAttente(): Promise<void> {
-  for (const paiement of lirePaiementsAttente()) {
-    const brises = (await compterAvis(paiement.tournoiId)).coeursBrises;
-    const conteste = await appelOuvertPourTournoi(paiement.tournoiId);
-    if (brises < SEUIL_COEURS_BRISES_SEQUESTRE && !conteste) {
-      await crediter(paiement.montantXof, `Gain · ${paiement.titre}`, "gain", paiement.tournoiId);
-      retirerPaiementAttente(paiement.tournoiId);
-    }
-  }
 }
 
 /**

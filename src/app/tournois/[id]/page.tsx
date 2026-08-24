@@ -14,8 +14,6 @@ import { formatCompteARebours } from "@/lib/tournoiFormat";
 import {
   tournoiParId,
   inscriptionsFermees,
-  reevaluerPaiementsEnAttente,
-  cashPrizeEnSequestre,
   cashPrizeAffiche,
   cashPrizeEstEstime,
   repartitionAutomatique,
@@ -341,7 +339,6 @@ function DetailTournoiInterne() {
   const [fermeInscriptions, setFermeInscriptions] = useState(false);
   const [accesChat, setAccesChat] = useState(false);
   const [demanderAvis, setDemanderAvis] = useState(false);
-  const [enSequestre, setEnSequestre] = useState(false);
   const [peutContester, setPeutContester] = useState(false);
   const [monAppel, setMonAppel] = useState<Appel | undefined>(undefined);
   const [estMonTournoi, setEstMonTournoi] = useState(false);
@@ -395,7 +392,7 @@ function DetailTournoiInterne() {
       // l'autre à chaque ouverture de fiche tournoi.
       const [t, inscrit] = await Promise.all([tournoiParId(params.id), estInscrit(params.id)]);
       setTournoi(t);
-      const monTournoi = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      const monTournoi = Boolean(t) && (await peutSuperviser(t!.organisateur, await nomOrganisateurActuel()));
       setEstMonTournoi(monTournoi);
       // Porte d'entrée dédiée pour l'organisateur (et ses adjoints) sur son
       // propre tournoi — plus la fiche publique avec juste un bouton
@@ -417,10 +414,8 @@ function DetailTournoiInterne() {
       setDemanderAvis(!monTournoi && Boolean(t?.termine) && !avis.mon);
       setAvisCompte({ coeurs: avis.coeurs, coeursBrises: avis.coeursBrises });
       if (t?.termine) {
-        const [, appel] = await Promise.all([reevaluerPaiementsEnAttente(), monAppelPourTournoi(params.id)]);
-        setEnSequestre(cashPrizeEnSequestre(params.id));
+        setMonAppel(await monAppelPourTournoi(params.id));
         setPeutContester(inscrit);
-        setMonAppel(appel);
       }
       setPret(true);
     }
@@ -677,8 +672,6 @@ function DetailTournoiInterne() {
             appelExistant={monAppel}
             onEnvoye={async () => {
               setMonAppel(await monAppelPourTournoi(tournoi.id));
-              await reevaluerPaiementsEnAttente();
-              setEnSequestre(cashPrizeEnSequestre(tournoi.id));
             }}
           />
         )}
@@ -722,12 +715,6 @@ function DetailTournoiInterne() {
         {tournoi.financementCashPrize === "organisateur" && (
           <p className="text-xs" style={{ color: "var(--ds-accent-300)" }}>
             Cash prize financé par l&apos;organisateur · inscription gratuite
-          </p>
-        )}
-
-        {enSequestre && (
-          <p className="text-xs" style={{ color: "var(--ds-danger)" }}>
-            Cash prize en séquestre : versement suspendu le temps d&apos;une vérification (avis signalés et/ou contestation en cours).
           </p>
         )}
 
@@ -810,8 +797,6 @@ function DetailTournoiInterne() {
             tournoiId={tournoi.id}
             onEnvoye={async () => {
               setDemanderAvis(false);
-              await reevaluerPaiementsEnAttente();
-              setEnSequestre(cashPrizeEnSequestre(tournoi.id));
               setAvisCompte(await compterAvis(tournoi.id));
             }}
           />

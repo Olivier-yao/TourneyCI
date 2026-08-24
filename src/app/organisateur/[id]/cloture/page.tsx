@@ -13,7 +13,6 @@ import {
   cashPrizeAffiche,
   repartitionAutomatique,
   commissionEstimee,
-  paiementsEnAttente,
   type Tournoi,
 } from "@/lib/mockTournaments";
 import { classementFinalBracket, matchsDuTournoi, type MatchTournoi } from "@/lib/mockBracket";
@@ -56,8 +55,9 @@ export default function ClotureTournoiPage() {
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
       setTournoi(t);
-      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
-      setEstProprietaire(t?.organisateur === nomOrganisateurActuel());
+      const nomActuel = await nomOrganisateurActuel();
+      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomActuel)));
+      setEstProprietaire(t?.organisateur === nomActuel);
       setDemandeEnAttente(await demandeAnnulationPourTournoi(params.id));
       setJeSuisCertifie(await estCertifie());
       setLitigesOuverts(await nbLitigesOuvertsTournoi(params.id));
@@ -133,14 +133,9 @@ export default function ClotureTournoiPage() {
       ]
     : [];
 
-  // Le gain en séquestre reste lisible même après un rechargement de page
-  // (resultat, lui, ne survit pas au remount) tant qu'il n'a pas encore été
-  // libéré par reevaluerPaiementsEnAttente().
-  const gainSequestreXof = tournoi ? paiementsEnAttente().find((p) => p.tournoiId === tournoi.id)?.montantXof : undefined;
   const confirmationItems = tournoi
     ? [
         { label: "Points attribués", valeur: resultat ? `${resultat.pointsAttribues} pts` : "Attribués" },
-        ...(gainSequestreXof ? [{ label: "Ton gain (en séquestre)", valeur: formatXof(gainSequestreXof) }] : []),
         ...(estProprietaire && tournoi.fraisXof > 0 && tournoi.commissionActivee && jeSuisCertifie
           ? [{ label: "Commission organisateur", valeur: formatXof(commissionEstimee(tournoi.fraisXof, tournoi.placesInscrites)) }]
           : []),

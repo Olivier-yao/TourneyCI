@@ -64,8 +64,8 @@ export default function ProfilPage() {
       setOrganisateur({ estOrganisateur: tournoisOrganises.length > 0, certifie: await estCertifie() });
       setRole(rolePrefere());
 
-      const onboardingOk = onboardingOrganisateurComplet();
-      const nomOrga = nomOrganisateurActuel();
+      const onboardingOk = await onboardingOrganisateurComplet();
+      const nomOrga = await nomOrganisateurActuel();
       const stats = await statistiquesReputation(nomOrga);
       const classement = await classementOrganisateurs();
       setVueOrga({

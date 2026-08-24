@@ -34,7 +34,7 @@ export default function BattleRoyalePage() {
       const t = await tournoiParId(params.id);
        
       setTournoi(t);
-      setOrganisateur(t?.organisateur === nomOrganisateurActuel());
+      setOrganisateur(t?.organisateur === (await nomOrganisateurActuel()));
       setManches(await manchesBR(params.id));
       setClassement(await classementCumuleBR(params.id, t?.brSousType ?? "solo"));
       setMancheEnCours(await mancheEnCoursBR(params.id));

@@ -47,9 +47,11 @@ export default function BracketPage() {
       return;
     }
     let annule = false;
-    peutSuperviser(tournoi.organisateur, nomOrganisateurActuel()).then((v) => {
-      if (!annule) setEstMonTournoi(v);
-    });
+    nomOrganisateurActuel()
+      .then((nom) => peutSuperviser(tournoi.organisateur, nom))
+      .then((v) => {
+        if (!annule) setEstMonTournoi(v);
+      });
     return () => {
       annule = true;
     };

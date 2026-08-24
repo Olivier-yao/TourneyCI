@@ -34,7 +34,7 @@ export default function ChatTournoiPage() {
       const t = await tournoiParId(params.id);
        
       setTournoi(t);
-      const org = Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel()));
+      const org = Boolean(t) && (await peutSuperviser(t!.organisateur, await nomOrganisateurActuel()));
       // Accessible dès l'inscription (pas besoin d'attendre la clôture des
       // inscriptions ni le début de la compétition).
       setAutorise((await estInscrit(params.id)) || org);

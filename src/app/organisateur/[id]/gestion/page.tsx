@@ -165,7 +165,7 @@ export default function GestionTournoiPage() {
   useEffect(() => {
     tournoiParId(params.id).then(async (t) => {
       setTournoi(t);
-      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
+      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, await nomOrganisateurActuel())));
       setPret(true);
     });
   }, [params.id]);

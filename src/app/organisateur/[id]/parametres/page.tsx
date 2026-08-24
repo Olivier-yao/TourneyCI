@@ -30,9 +30,9 @@ export default function ParametresTournoiPage() {
   const [symboleId, setSymboleId] = useState(SYMBOLE_DEFAUT);
 
   useEffect(() => {
-    tournoiParId(params.id).then((t) => {
+    tournoiParId(params.id).then(async (t) => {
       setTournoi(t);
-      setAutorise(t?.organisateur === nomOrganisateurActuel());
+      setAutorise(t?.organisateur === (await nomOrganisateurActuel()));
       setTitre(t?.titre ?? "");
       setVille(t?.ville ?? "");
       setCheckin(t?.checkin ?? "");

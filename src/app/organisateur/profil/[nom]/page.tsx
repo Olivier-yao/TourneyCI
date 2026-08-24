@@ -23,10 +23,6 @@ import {
   banniereOrganisateur,
   definirBanniereOrganisateur,
   definirNomOrganisateur,
-  nomOrganisateurDisponible,
-  suggererNomsOrganisateurDisponibles,
-  peutChangerNomOrganisateur,
-  marquerNomOrganisateurModifie,
   photoOrganisateur,
   definirPhotoOrganisateur,
   reseauxSociauxOrganisateur,
@@ -129,7 +125,7 @@ export default function ProfilOrganisateurPage() {
     setMasqueFollowers(infosSuivi.masque);
     const classement = await classementOrganisateurs();
     setRang(classement.findIndex((o) => o.nom === nom) + 1);
-    const moi = nomOrganisateurActuel() === nom;
+    const moi = (await nomOrganisateurActuel()) === nom;
     setCestMoi(moi);
     // Point 158/166 : le badge "certifié" reflète le statut complet
     // (identité vérifiée + demande validée), pas la seule identité — pour un
@@ -191,25 +187,23 @@ export default function ProfilOrganisateurPage() {
     setSwitchEnAttente(null);
   }
 
-  function validerNom() {
+  async function validerNom() {
     const nouveauNom = brouillonNom.trim();
     if (!nouveauNom || nouveauNom === nom) {
       setEditionNom(false);
       return;
     }
-    const { ok, prochainChangementLe } = peutChangerNomOrganisateur();
-    if (!ok) {
-      setErreurNom(`Tu pourras renommer ton profil organisateur à nouveau le ${new Date(prochainChangementLe!).toLocaleDateString("fr-FR")}.`);
-      setSuggestionsNom([]);
+    const resultat = await definirNomOrganisateur(nouveauNom);
+    if (!resultat.ok) {
+      if (resultat.prochainChangementLe) {
+        setErreurNom(`Tu pourras renommer ton profil organisateur à nouveau le ${new Date(resultat.prochainChangementLe).toLocaleDateString("fr-FR")}.`);
+        setSuggestionsNom([]);
+      } else {
+        setErreurNom("Ce nom est déjà pris.");
+        setSuggestionsNom(resultat.suggestions ?? []);
+      }
       return;
     }
-    if (!nomOrganisateurDisponible(nouveauNom)) {
-      setErreurNom("Ce nom est déjà pris.");
-      setSuggestionsNom(suggererNomsOrganisateurDisponibles(nouveauNom));
-      return;
-    }
-    definirNomOrganisateur(nouveauNom);
-    marquerNomOrganisateurModifie();
     setErreurNom(null);
     setSuggestionsNom([]);
     setEditionNom(false);
@@ -402,7 +396,7 @@ export default function ProfilOrganisateurPage() {
                       className="flex-1 h-8 px-2.5 text-sm outline-none"
                       style={{ background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)", borderRadius: "var(--ds-radius-input)", color: "var(--ds-text)" }}
                     />
-                    <button type="button" onClick={validerNom} className={`text-xs font-medium ${PRESS}`} style={{ color: "var(--ds-accent-300)" }}>OK</button>
+                    <button type="button" onClick={() => { void validerNom(); }} className={`text-xs font-medium ${PRESS}`} style={{ color: "var(--ds-accent-300)" }}>OK</button>
                   </div>
                   {erreurNom && <p className="text-[10px]" style={{ color: "var(--ds-danger)" }}>{erreurNom}</p>}
                   {suggestionsNom.length > 0 && (

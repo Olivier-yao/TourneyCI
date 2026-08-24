@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { utilisateurConnecte, nonAuthentifie } from "@/lib/server/tournois";
 import {
   profilOrganisateurJSON,
+  definirNomOrganisateurServeur,
   definirTag,
   definirBio,
   definirBanniere,
@@ -26,6 +27,21 @@ export async function PATCH(request: Request) {
   if (!user) return nonAuthentifie();
 
   const body = await request.json().catch(() => null);
+
+  if (typeof body?.nomOrganisateur === "string" && body.nomOrganisateur.trim()) {
+    const resultat = await definirNomOrganisateurServeur(user.id, body.nomOrganisateur);
+    if (!resultat.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: resultat.erreur === "cooldown" ? "Renommage limité à une fois par mois." : "Ce nom est déjà pris.",
+          prochainChangementLe: resultat.erreur === "cooldown" ? resultat.prochainChangementLe : undefined,
+          suggestions: resultat.erreur === "deja_pris" ? resultat.suggestions : undefined,
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   if (typeof body?.tag === "string") await definirTag(user.id, body.tag);
   if (typeof body?.bio === "string") await definirBio(user.id, body.bio);

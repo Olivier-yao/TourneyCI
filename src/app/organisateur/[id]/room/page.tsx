@@ -37,7 +37,7 @@ export default function RoomTournoiPage() {
     async function charger() {
       const t = await tournoiParId(params.id);
       setTournoi(t);
-      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, nomOrganisateurActuel())));
+      setAutorise(Boolean(t) && (await peutSuperviser(t!.organisateur, await nomOrganisateurActuel())));
       const infos = await infosRoomDuTournoi(params.id);
       setLien(infos.lien);
       setMotDePasse(infos.motDePasse);

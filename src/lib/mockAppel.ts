@@ -1,10 +1,10 @@
 /**
  * Appels des résultats d'un tournoi — table `appels` (Postgres), même
  * pattern que les migrations précédentes. Un inscrit peut contester le
- * classement final, ce qui bloque le versement du cash prize (cf.
- * mockTournaments.reevaluerPaiementsEnAttente) le temps qu'un administrateur
- * tranche. Coexiste avec le séquestre "cœurs brisés" du point 24 — les deux
- * mécanismes retiennent le même paiement mais pour des raisons différentes.
+ * classement final ; le cash prize est déjà versé au moment de la clôture
+ * (cf. verserCashPrizeCloture, src/lib/server/cloture.ts) et n'est plus
+ * retenu par un appel en cours — un administrateur tranche l'appel a
+ * posteriori depuis /admin/moderation.
  */
 
 export type StatutAppel = "ouvert" | "valide" | "rejete";

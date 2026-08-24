@@ -26,7 +26,7 @@ export default function ReglementStandardPage() {
 
   useEffect(() => {
     async function verifier() {
-      if (onboardingOrganisateurComplet() || (await reglementStandardAccepte())) {
+      if ((await onboardingOrganisateurComplet()) || (await reglementStandardAccepte())) {
         router.replace("/organisateur");
         return;
       }
