@@ -12,6 +12,7 @@ import {
   MessagesSquare,
   DoorOpen,
   Copy,
+  Check,
   UserCheck,
   Flag,
   CheckCircle2,
@@ -122,6 +123,14 @@ function BarreAcces({ tournoiId }: { tournoiId: string }) {
 }
 
 function RoomInfoBloc({ room }: { room: InfosRoom }) {
+  const [champCopie, setChampCopie] = useState<"lien" | "motDePasse" | null>(null);
+
+  function copierEtConfirmer(texte: string, champ: "lien" | "motDePasse") {
+    copier(texte);
+    setChampCopie(champ);
+    setTimeout(() => setChampCopie((c) => (c === champ ? null : c)), 1800);
+  }
+
   if (!room.lien.trim()) return null;
   return (
     <div className="p-[14px] flex flex-col gap-2.5" style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "var(--ds-shadow-sm)" }}>
@@ -133,21 +142,31 @@ function RoomInfoBloc({ room }: { room: InfosRoom }) {
         <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}>
           <div className="w-14 shrink-0 text-[9px] tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>LIEN</div>
           <div className="flex-1 min-w-0 text-[12px] truncate" style={{ fontFamily: "var(--ds-font-mono)" }}>{room.lien}</div>
-          <button type="button" onClick={() => copier(room.lien)} aria-label="Copier le lien">
-            <Copy size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+          <button type="button" onClick={() => copierEtConfirmer(room.lien, "lien")} aria-label="Copier le lien">
+            {champCopie === "lien" ? (
+              <Check size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+            ) : (
+              <Copy size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+            )}
           </button>
         </div>
         {room.motDePasse.trim() && (
           <div className="flex items-center gap-2.5 px-3 py-2.5" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface-2)", border: "1px solid var(--ds-border)" }}>
             <div className="w-14 shrink-0 text-[9px] tracking-wide" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>MDP</div>
             <div className="flex-1 min-w-0 text-[12px] truncate" style={{ fontFamily: "var(--ds-font-mono)" }}>{room.motDePasse}</div>
-            <button type="button" onClick={() => copier(room.motDePasse)} aria-label="Copier le mot de passe">
-              <Copy size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+            <button type="button" onClick={() => copierEtConfirmer(room.motDePasse, "motDePasse")} aria-label="Copier le mot de passe">
+              {champCopie === "motDePasse" ? (
+                <Check size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+              ) : (
+                <Copy size={14} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} className="shrink-0" />
+              )}
             </button>
           </div>
         )}
       </div>
-      <div className="text-[11px] leading-relaxed" style={{ color: "var(--ds-muted)" }}>Reste affiché ici jusqu&apos;à la fin du tournoi.</div>
+      <div className="text-[11px] leading-relaxed" style={{ color: "var(--ds-muted)" }}>
+        {champCopie ? "Copié dans le presse-papier." : "Reste affiché ici jusqu'à la fin du tournoi."}
+      </div>
     </div>
   );
 }
@@ -632,17 +651,6 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       {etat !== "avant_checkin" && (
         <div className="mt-auto">
           <BarreAcces tournoiId={tournoi.id} />
-          {room?.lien.trim() && (
-            <div className="px-5 flex items-center gap-2 pb-2">
-              <DoorOpen size={13} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0" />
-              <div className="flex-1 min-w-0 text-[10px] truncate" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
-                ROOM {room.lien}{room.motDePasse.trim() ? ` · MDP ${room.motDePasse}` : ""}
-              </div>
-              <button type="button" onClick={() => copier(`${room.lien}${room.motDePasse.trim() ? ` (${room.motDePasse})` : ""}`)} aria-label="Copier">
-                <Copy size={13} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -208,7 +208,7 @@ export function VueParticipantMatch({
               className={`flex-1 h-[46px] text-sm font-medium ${PRESS}`}
               style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
             >
-              Signaler le score
+              Déclarer le score
             </button>
           </div>
         )}

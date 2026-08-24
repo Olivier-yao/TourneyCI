@@ -72,6 +72,11 @@ export default function SignalerScorePage() {
 
   async function envoyer() {
     if (!pret) return;
+    // Action immédiate et définitive (aucune confirmation adverse requise
+    // côté serveur, cf. score_final dans /api/matches/[id]) — un dernier
+    // garde-fou avant d'enregistrer, plutôt qu'un simple bouton "Envoyer"
+    // qui laissait croire à tort à un signalement en attente de validation.
+    if (!window.confirm(`Enregistrer définitivement ${s1} — ${s2} ? Cette action est immédiate et ne peut pas être annulée.`)) return;
     const resultat = await mettreAJourScoreMatch(tournoi!.id, match!.id, Number(s1), Number(s2));
     if (!resultat.ok) {
       setErreur(resultat.erreur ?? "Erreur lors de l'enregistrement du score.");
@@ -232,14 +237,14 @@ export default function SignalerScorePage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)" }}>
+        <div className="flex flex-col gap-2 p-3" style={{ borderRadius: "var(--ds-radius-md)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent-700)" }}>
           <div className="flex items-center gap-2.5">
             <Users size={15} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} />
-            <span className="flex-1 text-[13px]">{match.joueur2} doit confirmer</span>
-            <span className="text-[9px]" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>SOUS 30 MIN</span>
+            <span className="flex-1 text-[13px] font-medium">Ce score sera appliqué immédiatement</span>
           </div>
           <p className="text-xs leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-            Sans confirmation, l&apos;organisateur tranche avec les preuves. En cas de désaccord, un litige s&apos;ouvre automatiquement.
+            Aucune confirmation de {match.joueur2} n&apos;est demandée avant d&apos;enregistrer — n&apos;envoie que si vous êtes
+            d&apos;accord tous les deux sur le résultat. En cas de désaccord, utilise plutôt &quot;Litige&quot; ci-dessous.
           </p>
         </div>
       </div>
@@ -264,7 +269,7 @@ export default function SignalerScorePage() {
           className={`flex-[2] h-[46px] text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed ${PRESS}`}
           style={{ borderRadius: "var(--ds-radius-md)", border: "1px solid var(--ds-accent)", color: "var(--ds-accent-300)" }}
         >
-          Envoyer le score
+          Enregistrer définitivement
         </button>
       </div>
     </div>
