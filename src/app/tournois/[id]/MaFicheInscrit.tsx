@@ -22,6 +22,10 @@ import {
   TreePine,
   Gavel,
   Swords,
+  BadgeCheck,
+  Radio,
+  TrendingUp,
+  Target,
 } from "lucide-react";
 import { PRESS } from "@/components/ds/Button";
 import { Avatar } from "@/components/ds/Avatar";
@@ -29,6 +33,16 @@ import { formatXof } from "@/lib/formatXof";
 import { type Tournoi } from "@/lib/mockTournaments";
 import { formatCompteARebours } from "@/lib/tournoiFormat";
 import { matchsDuTournoi, codeRound, libelleRound, type MatchTournoi } from "@/lib/mockBracket";
+import {
+  classementCumuleBR,
+  manchesBR,
+  mancheEnCoursBR,
+  pointsManche,
+  LABEL_UNITE_BR,
+  type LigneClassementBR,
+  type MancheBR,
+  type ResultatManche,
+} from "@/lib/mockBattleRoyale";
 import { inscriptionDe } from "@/lib/mockInscriptions";
 import { lireProfil, attendreProfil, tagDeJoueur } from "@/lib/mockProfil";
 import { presentsDuTournoi, confirmerMaPresence } from "@/lib/mockCheckin";
@@ -45,6 +59,10 @@ const RAFRAICHISSEMENT_PRESENCE_MS = 30_000;
 
 function initiales(nom: string): string {
   return nom.split(/[\s.]+/).filter(Boolean).slice(0, 2).map((m) => m[0]).join("").toUpperCase();
+}
+
+function ordinal(rang: number): string {
+  return rang === 1 ? "1er" : `${rang}e`;
 }
 
 async function partager() {
@@ -239,6 +257,9 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
   const [pret, setPret] = useState(false);
   const [confirmation, setConfirmation] = useState(false);
   const [maintenant, setMaintenant] = useState(() => Date.now());
+  const [classementBR, setClassementBR] = useState<LigneClassementBR[]>([]);
+  const [manchesBRState, setManchesBRState] = useState<MancheBR[]>([]);
+  const [mancheEnCoursState, setMancheEnCoursState] = useState<ResultatManche[]>([]);
 
   useEffect(() => {
     const id = setInterval(() => setMaintenant(Date.now()), 1000);
@@ -285,6 +306,40 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
   useRealtimeRefetch(
     tournoi.type === "battle_royale" ? [] : [{ table: "matches", filter: `tournoi_id=eq.${tournoi.id}`, event: "*" }],
     () => { matchsDuTournoi(tournoi.id).then(setMatchs); },
+  );
+
+  // Battle Royale : classement cumulé par points sur plusieurs manches, à la
+  // place des matchs 1v1 ci-dessus (table distincte, aucun bracket).
+  useEffect(() => {
+    if (tournoi.type !== "battle_royale") return;
+    let annule = false;
+    async function charger() {
+      const [classement, manches, enCours] = await Promise.all([
+        classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo"),
+        manchesBR(tournoi.id),
+        mancheEnCoursBR(tournoi.id),
+      ]);
+      if (!annule) {
+        setClassementBR(classement);
+        setManchesBRState(manches);
+        setMancheEnCoursState(enCours);
+      }
+    }
+    charger();
+    return () => {
+      annule = true;
+    };
+  }, [tournoi.id, tournoi.type, tournoi.brSousType]);
+
+  useRealtimeRefetch(
+    tournoi.type === "battle_royale"
+      ? [{ table: "manche_br_en_cours", filter: `tournoi_id=eq.${tournoi.id}` }, { table: "manches_br", filter: `tournoi_id=eq.${tournoi.id}` }]
+      : [],
+    () => {
+      classementCumuleBR(tournoi.id, tournoi.brSousType ?? "solo").then(setClassementBR);
+      manchesBR(tournoi.id).then(setManchesBRState);
+      mancheEnCoursBR(tournoi.id).then(setMancheEnCoursState);
+    },
   );
 
   const checkinOuvert = tournoi.checkinTs !== undefined && maintenant >= tournoi.checkinTs;
@@ -356,6 +411,37 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       )
     : undefined;
 
+  // Battle Royale : même esprit que "mon parcours" ci-dessus (dérivé de
+  // classementCumuleBR/manchesBR plutôt que matchsDuTournoi). seuilQualifBR
+  // reprend exactement la formule de classementCumuleBR (Math.ceil(N/2)),
+  // pour que le libellé "LES X PREMIERS..." reste cohérent avec le badge
+  // "qualifie" déjà calculé côté serveur.
+  const seuilQualifBR = Math.ceil(classementBR.length / 2);
+  const monIndexBR = classementBR.findIndex((l) => l.nom === monNom);
+  const maLigneBR = monIndexBR >= 0 ? classementBR[monIndexBR] : undefined;
+  const dernierQualifieBR = [...classementBR].reverse().find((l) => l.qualifie);
+  const ecartQualifBR = dernierQualifieBR && maLigneBR ? Math.max(0, dernierQualifieBR.points - maLigneBR.points) : 0;
+  const manchesPrevuesBR = tournoi.manchesPrevues ?? 1;
+  const mancheEnCoursActiveBR = mancheEnCoursState.length > 0;
+  const autourDeMoiBR = (() => {
+    if (classementBR.length === 0) return [];
+    const taille = Math.min(5, classementBR.length);
+    const debutBrut = monIndexBR >= 0 ? monIndexBR - 2 : 0;
+    const debut = Math.min(Math.max(0, debutBrut), Math.max(0, classementBR.length - taille));
+    return classementBR.slice(debut, debut + taille);
+  })();
+  type LigneMancheBR = { numero: number; statut: "live" | "done" | "next"; resultat?: ResultatManche };
+  const lignesManchesBR: LigneMancheBR[] = (() => {
+    const lignes: LigneMancheBR[] = [];
+    if (mancheEnCoursActiveBR) lignes.push({ numero: manchesBRState.length + 1, statut: "live" });
+    for (const m of [...manchesBRState].sort((a, b) => b.numero - a.numero)) {
+      lignes.push({ numero: m.numero, statut: "done", resultat: m.resultats.find((r) => r.participantId === monNom) });
+    }
+    const dernierNumero = manchesBRState.length + (mancheEnCoursActiveBR ? 1 : 0);
+    for (let n = dernierNumero + 1; n <= manchesPrevuesBR; n++) lignes.push({ numero: n, statut: "next" });
+    return lignes;
+  })();
+
   const placesRestantes = Math.max(0, tournoi.placesTotal - tournoi.placesInscrites);
   const entrantsApercu: LigneEntrant[] = tournoi.inscrits.slice(0, 5).map((nom) => ({ nom, estMoi: nom === monNom }));
   const presentsApercu: LigneEntrant[] = tournoi.inscrits.slice(0, 5).map((nom) => ({ nom, estMoi: nom === monNom, present: presents.includes(nom) }));
@@ -410,7 +496,9 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
               badge={
                 <div className="flex items-center gap-1.5 px-3 py-1" style={{ borderRadius: "var(--ds-radius-pill)", border: "1px solid var(--ds-accent)", boxShadow: "0 0 18px color-mix(in srgb, var(--ds-accent) 22%, transparent)" }}>
                   <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--ds-accent-400)" }} />
-                  <span className="text-[10px] tracking-wide whitespace-nowrap" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>EN DIRECT</span>
+                  <span className="text-[10px] tracking-wide whitespace-nowrap" style={{ color: "var(--ds-accent-300)", fontFamily: "var(--ds-font-mono)" }}>
+                    {tournoi.type === "battle_royale" && mancheEnCoursActiveBR ? `MANCHE ${manchesBRState.length + 1} EN COURS` : "EN DIRECT"}
+                  </span>
                 </div>
               }
               droite={droiteNotif}
@@ -531,25 +619,162 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
       {etat === "en_direct" && (
         <div className="px-5 flex flex-col gap-3">
           {tournoi.type === "battle_royale" ? (
-            // Pas de bracket/match individuel en Battle Royale — le suivi en
-            // direct se fait par le classement cumulé des manches, sur son
-            // propre écran (déjà utilisé par l'organisateur et les spectateurs).
-            <Link
-              href={`/tournois/${tournoi.id}/battle-royale`}
-              className={`p-4 flex flex-col items-center text-center ${PRESS}`}
-              style={{ borderRadius: "var(--ds-radius-lg)", background: "var(--ds-surface)", boxShadow: "0 0 0 1px var(--ds-accent)" }}
-            >
-              <div
-                className="flex items-center justify-center"
-                style={{ width: 60, height: 68, background: "var(--ds-accent-900)", border: "1px solid var(--ds-accent)", clipPath: "polygon(50% 0%, 100% 16%, 100% 68%, 50% 100%, 0% 68%, 0% 16%)" }}
+            // Pas de bracket/match individuel en Battle Royale — le bracket
+            // répond à "contre qui je joue", un Battle Royale répond à "où
+            // j'en suis" : le héros montre mon rang et mes points cumulés
+            // (classementCumuleBR) plutôt qu'un adversaire, et "Mon parcours"
+            // devient le relevé de mes manches (manchesBR) plus bas.
+            <>
+              <Link
+                href={`/tournois/${tournoi.id}/battle-royale`}
+                className={`p-4 flex flex-col ${PRESS}`}
+                style={{
+                  borderRadius: "var(--ds-radius-lg)",
+                  background: maLigneBR?.qualifie ? "linear-gradient(var(--ds-accent-900), var(--ds-surface))" : "var(--ds-surface)",
+                  boxShadow: maLigneBR?.qualifie ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)",
+                }}
               >
-                <Swords size={24} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
-              </div>
-              <div className="mt-3 text-[19px] font-medium" style={{ fontFamily: "var(--ds-font-heading)" }}>Tournoi en direct</div>
-              <div className="mt-1 text-[12px] leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
-                Voir le classement en direct et les manches déjà jouées.
-              </div>
-            </Link>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 text-[10px] tracking-wide uppercase" style={{ color: maLigneBR?.qualifie ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                    Ma position
+                  </div>
+                  {maLigneBR && (
+                    <div
+                      className="flex items-center gap-1.5 px-2.5 py-1 shrink-0"
+                      style={{
+                        borderRadius: "var(--ds-radius-pill)",
+                        background: maLigneBR.qualifie ? "var(--ds-accent-800)" : "transparent",
+                        border: maLigneBR.qualifie ? "none" : "1px solid var(--ds-border)",
+                      }}
+                    >
+                      {maLigneBR.qualifie ? (
+                        <BadgeCheck size={13} strokeWidth={2} style={{ color: "var(--ds-accent-300)" }} />
+                      ) : (
+                        <Target size={13} strokeWidth={2} style={{ color: "var(--ds-muted)" }} />
+                      )}
+                      <span className="text-[9px] tracking-wide whitespace-nowrap" style={{ color: maLigneBR.qualifie ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>
+                        {maLigneBR.qualifie ? "QUALIFIÉ" : `HORS TOP ${seuilQualifBR}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3.5 flex items-end gap-3.5">
+                  <div className="shrink-0">
+                    <div className="flex items-baseline gap-0.5">
+                      <div className="text-[38px] leading-none" style={{ fontFamily: "var(--ds-font-mono)", letterSpacing: "-0.02em" }}>
+                        {monIndexBR >= 0 ? monIndexBR + 1 : "—"}
+                      </div>
+                      {monIndexBR >= 0 && (
+                        <div className="text-sm" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-neutral-600)" }}>{monIndexBR === 0 ? "er" : "e"}</div>
+                      )}
+                    </div>
+                    <div className="mt-1 text-[9px] tracking-wide uppercase whitespace-nowrap" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+                      sur {classementBR.length} {LABEL_UNITE_BR[tournoi.brSousType ?? "solo"].pluriel.toLowerCase()}
+                    </div>
+                  </div>
+                  <div className="w-px h-10 shrink-0" style={{ background: "var(--ds-border)" }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-2xl leading-none whitespace-nowrap" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{maLigneBR?.points ?? 0} pts</div>
+                    <div className="mt-1 text-[9px] tracking-wide uppercase truncate" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+                      cumulés sur {maLigneBR?.manchesJouees ?? 0} manche{(maLigneBR?.manchesJouees ?? 0) > 1 ? "s" : ""}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-xs" style={{ color: "var(--ds-neutral-500)" }}>Manches jouées</div>
+                    <div className="text-[10px]" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-accent-300)" }}>{manchesBRState.length} / {manchesPrevuesBR}</div>
+                  </div>
+                  <div className="flex gap-1">
+                    {Array.from({ length: manchesPrevuesBR }).map((_, i) => {
+                      const live = mancheEnCoursActiveBR && i === manchesBRState.length;
+                      const jouee = i < manchesBRState.length;
+                      return (
+                        <div
+                          key={i}
+                          className={`flex-1 h-1 rounded-full ${live ? "animate-pulse" : ""}`}
+                          style={{ background: live ? "var(--ds-accent-400)" : jouee ? "var(--ds-accent-700)" : "var(--ds-neutral-900)" }}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2.5 flex items-start gap-2" style={{ borderTop: "1px solid var(--ds-border)" }}>
+                  {mancheEnCoursActiveBR ? (
+                    <Radio size={14} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0 mt-0.5" />
+                  ) : !maLigneBR?.qualifie ? (
+                    <Target size={14} strokeWidth={2} style={{ color: "var(--ds-muted)" }} className="shrink-0 mt-0.5" />
+                  ) : (
+                    <TrendingUp size={14} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 text-xs leading-relaxed" style={{ color: "var(--ds-text-muted)" }}>
+                    {mancheEnCoursActiveBR
+                      ? `La manche ${manchesBRState.length + 1} est lancée. Tes points s'ajouteront dès que l'organisateur aura saisi le classement.`
+                      : manchesBRState.length >= manchesPrevuesBR
+                        ? "Toutes les manches sont jouées — en attente de la clôture du tournoi."
+                        : !maLigneBR?.qualifie
+                          ? `Il te manque ${ecartQualifBR} point${ecartQualifBR > 1 ? "s" : ""} pour entrer dans le top ${seuilQualifBR}.`
+                          : "La prochaine manche démarre dès que l'organisateur relance la room."}
+                  </div>
+                </div>
+              </Link>
+
+              {autourDeMoiBR.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="text-[10px] tracking-wide uppercase whitespace-nowrap" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Autour de moi</div>
+                    <div className="flex-1 h-px" style={{ background: "var(--ds-neutral-900)" }} />
+                    <Link href={`/tournois/${tournoi.id}/battle-royale`} className="flex items-center gap-0.5 text-sm font-medium shrink-0" style={{ color: "var(--ds-accent-300)" }}>
+                      Tout voir
+                      <ChevronRight size={13} strokeWidth={2} />
+                    </Link>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {autourDeMoiBR.map((l) => {
+                      const rang = classementBR.indexOf(l) + 1;
+                      const estMoi = l.nom === monNom;
+                      const ecart = maLigneBR ? l.points - maLigneBR.points : 0;
+                      return (
+                        <div
+                          key={l.participantId}
+                          className="flex items-center gap-2.5 px-2.5 py-2"
+                          style={{ borderRadius: "var(--ds-radius-md)", background: estMoi ? "var(--ds-surface)" : "transparent", boxShadow: estMoi ? "0 0 0 1px var(--ds-accent)" : "0 0 0 1px var(--ds-border)" }}
+                        >
+                          <div className="w-5 shrink-0 text-xs text-center" style={{ fontFamily: "var(--ds-font-mono)", color: estMoi ? "var(--ds-accent-300)" : "var(--ds-neutral-600)" }}>{rang}</div>
+                          <Avatar initiales={initiales(l.nom)} photoUrl={estMoi ? maPhoto : undefined} taille={28} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="text-[13px] font-medium truncate">{l.nom}</div>
+                              {l.qualifie && <BadgeCheck size={12} strokeWidth={2} style={{ color: "var(--ds-accent-400)" }} className="shrink-0" />}
+                            </div>
+                            <div className="text-[9px]" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+                              {l.manchesJouees} manche{l.manchesJouees > 1 ? "s" : ""}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-[13px]" style={{ fontFamily: "var(--ds-font-mono)", color: estMoi ? "var(--ds-accent-300)" : "var(--ds-text)" }}>{l.points} pts</div>
+                            {!estMoi && (
+                              <div className="text-[8px]" style={{ fontFamily: "var(--ds-font-mono)", color: "var(--ds-neutral-600)" }}>{ecart > 0 ? `+${ecart}` : ecart}</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <BadgeCheck size={13} strokeWidth={2} style={{ color: "var(--ds-neutral-600)" }} className="shrink-0" />
+                    <div className="flex-1 text-[9px] tracking-wide truncate" style={{ color: "var(--ds-neutral-600)", fontFamily: "var(--ds-font-mono)" }}>
+                      {!dernierQualifieBR || maLigneBR?.qualifie
+                        ? `LES ${seuilQualifBR} PREMIERS SONT QUALIFIÉS`
+                        : `${seuilQualifBR}E PLACE À ${dernierQualifieBR.points} PTS · IL TE MANQUE ${ecartQualifBR} PTS`}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           ) : matchs.length === 0 ? (
             // Le tournoi est passé "en direct" (heure de début atteinte) mais
             // l'arbre n'a pas encore été généré (généré à la demande, au
@@ -671,6 +896,30 @@ export function MaFicheInscrit({ tournoi }: { tournoi: Tournoi }) {
           )}
 
           {room && <RoomInfoBloc room={room} />}
+
+          {tournoi.type === "battle_royale" && lignesManchesBR.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <div className="text-[10px] tracking-wide uppercase" style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>Mes manches</div>
+              {lignesManchesBR.map((l) => {
+                const detail =
+                  l.statut === "live"
+                    ? "En cours"
+                    : l.statut === "next"
+                      ? "À venir"
+                      : l.resultat
+                        ? `${ordinal(l.resultat.placement)} · ${l.resultat.eliminations} élimination${l.resultat.eliminations > 1 ? "s" : ""}`
+                        : "—";
+                const pts = l.statut === "done" && l.resultat ? `+${pointsManche(l.resultat)}` : "—";
+                return (
+                  <div key={l.numero} className="flex items-center gap-2.5 py-2" style={{ borderBottom: "1px solid var(--ds-border)" }}>
+                    <div className="w-8 shrink-0 text-[9px]" style={{ color: l.statut === "live" ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>M{l.numero}</div>
+                    <div className="flex-1 min-w-0 text-[12px] truncate" style={{ color: l.statut === "next" ? "var(--ds-muted)" : "var(--ds-text)" }}>{detail}</div>
+                    <div className="text-[11px]" style={{ color: l.statut === "done" ? "var(--ds-accent-300)" : "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}>{pts}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {mesMatchsTermines.length > 0 && (
             <div className="flex flex-col gap-1">
