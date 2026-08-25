@@ -14,6 +14,7 @@ import { lireProfil, sauvegarderProfil, sauvegarderPhoto, pseudoDisponible, sugg
 import { PAYS, paysDeVille } from "@/lib/mockGeographie";
 import { deconnecter } from "@/lib/mockAuth";
 import { useExigerConnexion } from "@/hooks/useExigerConnexion";
+import { creerClientSupabaseNavigateur } from "@/lib/supabase/client";
 
 function ParametresInterne() {
   const connecte = useExigerConnexion();
@@ -27,6 +28,11 @@ function ParametresInterne() {
   const [erreurPhoto, setErreurPhoto] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [deconnexionEnCours, setDeconnexionEnCours] = useState(false);
+  const [motDePasse, setMotDePasse] = useState("");
+  const [motDePasseConfirme, setMotDePasseConfirme] = useState("");
+  const [erreurMotDePasse, setErreurMotDePasse] = useState<string | null>(null);
+  const [motDePasseEnregistre, setMotDePasseEnregistre] = useState(false);
+  const [mdpEnCours, setMdpEnCours] = useState(false);
   const { t } = useLangue();
 
   useEffect(() => {
@@ -67,6 +73,30 @@ function ParametresInterne() {
     }
     setPseudoOriginal(pseudoSaisi);
     setEnregistre(true);
+  }
+
+  async function definirMotDePasse(e: React.FormEvent) {
+    e.preventDefault();
+    if (motDePasse.length < 6) {
+      setErreurMotDePasse("6 caractères minimum.");
+      return;
+    }
+    if (motDePasse !== motDePasseConfirme) {
+      setErreurMotDePasse("Les deux mots de passe ne correspondent pas.");
+      return;
+    }
+    setErreurMotDePasse(null);
+    setMdpEnCours(true);
+    const supabase = creerClientSupabaseNavigateur();
+    const { error } = await supabase.auth.updateUser({ password: motDePasse });
+    setMdpEnCours(false);
+    if (error) {
+      setErreurMotDePasse(error.message);
+      return;
+    }
+    setMotDePasse("");
+    setMotDePasseConfirme("");
+    setMotDePasseEnregistre(true);
   }
 
   async function seDeconnecter() {
@@ -229,6 +259,42 @@ function ParametresInterne() {
           </p>
           <ThemeToggle />
         </div>
+
+        <form onSubmit={definirMotDePasse} className="flex flex-col gap-4">
+          <div
+            className="text-xs uppercase tracking-wide"
+            style={{ color: "var(--ds-muted)", fontFamily: "var(--ds-font-mono)" }}
+          >
+            Sécurité
+          </div>
+          <p className="text-sm" style={{ color: "var(--ds-text-muted)" }}>
+            Définis un mot de passe pour aussi te connecter avec ton email sur l&apos;app mobile.
+          </p>
+          <Field
+            label="Nouveau mot de passe"
+            type="password"
+            value={motDePasse}
+            onChange={(e) => {
+              setMotDePasse(e.target.value);
+              setMotDePasseEnregistre(false);
+              setErreurMotDePasse(null);
+            }}
+          />
+          <Field
+            label="Confirmer le mot de passe"
+            type="password"
+            value={motDePasseConfirme}
+            onChange={(e) => {
+              setMotDePasseConfirme(e.target.value);
+              setMotDePasseEnregistre(false);
+              setErreurMotDePasse(null);
+            }}
+            erreur={erreurMotDePasse ?? undefined}
+          />
+          <Button variante="secondary" type="submit" disabled={mdpEnCours || !motDePasse}>
+            {mdpEnCours ? "Enregistrement..." : motDePasseEnregistre ? "Mot de passe enregistré ✓" : "Définir le mot de passe"}
+          </Button>
+        </form>
 
         <button
           type="button"
