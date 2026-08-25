@@ -1,13 +1,30 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
 import { creerClientSupabaseServeur } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma, type type_competition } from "@/generated/prisma/client";
 import { formatDuTournoi, formaterDateLabel, formaterHeureCheckin } from "@/lib/tournoiFormat";
 
 /** Même pattern que src/app/api/profil/route.ts, partagé ici car repris par
- * cinq routes (tournois, détail, annuler, terminer, inscriptions) plutôt que
- * dupliqué à chaque fois. */
+ * la quasi-totalité des routes API.
+ *
+ * Le web s'authentifie via les cookies de session (creerClientSupabaseServeur,
+ * @supabase/ssr) — un client natif (app mobile) n'a pas de cookies, il
+ * envoie son token de session dans un header `Authorization: Bearer <jwt>`.
+ * Ce header est vérifié en priorité (validé directement auprès de Supabase
+ * via getUser(token), sans dépendre des cookies) ; à défaut, comportement
+ * web inchangé. Aucun changement de signature ici, donc aucun des appelants
+ * existants n'a besoin d'être touché. */
 export async function utilisateurConnecte() {
+  const jeton = (await headers()).get("authorization")?.match(/^Bearer (.+)$/)?.[1];
+  if (jeton) {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser(jeton);
+    return user;
+  }
   const supabase = await creerClientSupabaseServeur();
   const {
     data: { user },

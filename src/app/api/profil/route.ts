@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { creerClientSupabaseServeur } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { peutModifierMensuel } from "@/lib/limiteMensuelle";
 import { pointsCumulesDe, rangNationalDe } from "@/lib/server/classement";
 import { saisonActuelle } from "@/lib/server/saisons";
 import { televerserImagePublique } from "@/lib/server/storage";
+import { utilisateurConnecte } from "@/lib/server/tournois";
 
 /**
  * Première route API réelle du projet (cf. ROADMAP-backend-et-mobile.md,
@@ -14,14 +14,6 @@ import { televerserImagePublique } from "@/lib/server/storage";
  * (ici : ne jamais lire/écrire une autre ligne que la sienne) doit être
  * refait explicitement ici, jamais supposé être couvert par la base.
  */
-
-async function utilisateurConnecte() {
-  const supabase = await creerClientSupabaseServeur();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
 
 export async function GET() {
   const user = await utilisateurConnecte();
