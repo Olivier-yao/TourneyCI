@@ -28,6 +28,8 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.color.bg } }}>
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="tournoi/[id]/index" options={{ presentation: "card" }} />
+        <Stack.Screen name="tournoi/[id]/paiement" options={{ presentation: "card" }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!session}>

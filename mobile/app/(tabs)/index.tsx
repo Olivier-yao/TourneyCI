@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet, RefreshControl, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Pressable } from "react-native";
+import { router } from "expo-router";
 import { listerTournois, type Tournoi } from "@/lib/tournois";
+import { formatXof } from "@/lib/format";
 import { theme } from "@/theme";
-
-function formatXof(montant: number): string {
-  if (montant === 0) return "Gratuit";
-  return `${montant.toLocaleString("fr-FR")} CFA`;
-}
 
 type Section = { titre: string; donnees: Tournoi[] };
 
@@ -60,7 +57,7 @@ export default function AccueilScreen() {
             <Text style={styles.vide}>Aucun tournoi pour l'instant.</Text>
           ) : (
             item.donnees.map((t) => (
-              <View key={t.id} style={styles.carte}>
+              <Pressable key={t.id} style={styles.carte} onPress={() => router.push({ pathname: "/tournoi/[id]", params: { id: t.id } })}>
                 <View style={styles.carteTexte}>
                   <Text style={styles.carteTitre} numberOfLines={1}>{t.titre}</Text>
                   <Text style={styles.carteDetail} numberOfLines={1}>
@@ -68,7 +65,7 @@ export default function AccueilScreen() {
                   </Text>
                 </View>
                 <Text style={styles.carteMontant}>{formatXof(t.cashPrizeXof)}</Text>
-              </View>
+              </Pressable>
             ))
           )}
         </View>
