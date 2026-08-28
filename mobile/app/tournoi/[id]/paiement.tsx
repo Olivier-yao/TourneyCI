@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { inscrire } from "@/lib/tournois";
 import { soldeTourneyCard } from "@/lib/wallet";
 import { formatXof } from "@/lib/format";
 import { AppBar } from "@/components/AppBar";
+import { Button } from "@/components/Button";
 import { theme } from "@/theme";
 
 /** Paiement d'inscription via TourneyCard (portefeuille interne) —
@@ -16,7 +17,7 @@ import { theme } from "@/theme";
  * insuffisant renvoie donc vers le site web plutôt que de dupliquer cet
  * écran ici. */
 export default function PaiementScreen() {
-  const { id, tag, montant: montantBrut } = useLocalSearchParams<{ id: string; tag?: string; montant: string }>();
+  const { id, tag, equipe, montant: montantBrut } = useLocalSearchParams<{ id: string; tag?: string; equipe?: string; montant: string }>();
   const montant = Number(montantBrut);
   const [solde, setSolde] = useState<number | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -30,7 +31,7 @@ export default function PaiementScreen() {
   async function payer() {
     setErreur(null);
     setEnCours(true);
-    const resultat = await inscrire(id, { tag, montant });
+    const resultat = await inscrire(id, { tag, equipe, montant });
     setEnCours(false);
     if (!resultat.ok) {
       setErreur(resultat.erreur);
@@ -44,9 +45,7 @@ export default function PaiementScreen() {
       <View style={styles.centre}>
         <Ionicons name="checkmark-circle" size={48} color={theme.color.accent300} />
         <Text style={styles.titre}>Inscription confirmée</Text>
-        <Pressable style={styles.bouton} onPress={() => router.replace("/")}>
-          <Text style={styles.boutonTexte}>Retour à l'accueil</Text>
-        </Pressable>
+        <Button onPress={() => router.replace("/")}>Retour à l'accueil</Button>
       </View>
     );
   }
@@ -73,9 +72,7 @@ export default function PaiementScreen() {
           <View style={styles.bloc}>
             <Text style={styles.texteMuted}>Solde TourneyCard : {formatXof(solde)}</Text>
             {erreur && <Text style={styles.erreur}>{erreur}</Text>}
-            <Pressable style={[styles.bouton, enCours && styles.boutonDesactive]} disabled={enCours} onPress={payer}>
-              <Text style={styles.boutonTexte}>{enCours ? "Paiement..." : `Payer ${formatXof(montant)}`}</Text>
-            </Pressable>
+            <Button disabled={enCours} onPress={payer}>{enCours ? "Paiement..." : `Payer ${formatXof(montant)}`}</Button>
           </View>
         )}
       </View>
@@ -93,15 +90,4 @@ const styles = StyleSheet.create({
   texteMuted: { color: theme.color.textMuted, fontSize: 13 },
   erreur: { color: theme.color.danger, fontSize: 13 },
   bloc: { marginTop: 16, gap: 10 },
-  bouton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: theme.color.accent,
-    borderRadius: theme.radius.md,
-    paddingVertical: 13,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  boutonDesactive: { opacity: 0.5 },
-  boutonTexte: { color: theme.color.accent300, fontSize: 15, fontWeight: "600" },
 });

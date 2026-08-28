@@ -16,6 +16,10 @@ export const theme = {
     accent100: "#f5f4ff",
     accent300: "#b5abfc",
     accent600: "#796cbf",
+    // Pré-calculées depuis color-mix(accent-600, accent-900) — CSS
+    // color-mix() n'a pas d'équivalent RN, valeurs figées ici.
+    accent700: "#564d86",
+    accent800: "#3b355a",
     accent900: "#2b2741",
     border: "#3f424d",
     borderStrong: "#595d6c",
