@@ -3,6 +3,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { tournoiParId, mesInscriptions, type Tournoi } from "@/lib/tournois";
+import { monPseudo } from "@/lib/profil";
 import { matchsDuTournoi, libelleRound, type MatchTournoi } from "@/lib/matches";
 import { presentsDuTournoi, confirmerMaPresence } from "@/lib/checkin";
 import { infosRoomDuTournoi, type InfosRoom } from "@/lib/room";
@@ -32,9 +33,14 @@ export default function MonTournoiScreen() {
   const monNomRef = useRef<string | undefined>(undefined);
 
   const chargerBase = useCallback(async () => {
-    const [t, inscriptions] = await Promise.all([tournoiParId(id), mesInscriptions()]);
+    const [t, inscriptions, pseudo] = await Promise.all([tournoiParId(id), mesInscriptions(), monPseudo()]);
     setTournoi(t ?? null);
-    const nom = inscriptions.find((i) => i.tournoiId === id)?.equipe;
+    // Identité pour retrouver "mes matchs" : le nom d'équipe si équipes,
+    // sinon mon pseudo — jamais le TAG (identifiant in-game distinct,
+    // cf. commit web sur ce même bug). Sans ce repli sur le pseudo, tout
+    // inscrit 1v1/battle royale solo (aucune équipe) est vu comme "pas
+    // inscrit" par cet écran alors qu'il l'est bien.
+    const nom = inscriptions.find((i) => i.tournoiId === id)?.equipe ?? pseudo;
     monNomRef.current = nom;
     setMonNom(nom);
   }, [id]);
