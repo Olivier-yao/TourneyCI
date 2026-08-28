@@ -167,12 +167,15 @@ export default function TournoiDetailScreen() {
 
       <View style={styles.piedInscription}>
         {monInscription ? (
-          <View style={styles.pillInscrit}>
-            <Ionicons name="checkmark-circle" size={18} color={theme.color.accent300} />
-            <Text style={styles.pillInscritTexte}>
-              Déjà inscrit{monInscription.tag ? ` · ${monInscription.tag}` : ""}
-              {monInscription.equipe ? ` · ${monInscription.equipe}` : ""}
-            </Text>
+          <View style={styles.formulaire}>
+            <View style={styles.pillInscrit}>
+              <Ionicons name="checkmark-circle" size={18} color={theme.color.accent300} />
+              <Text style={styles.pillInscritTexte}>
+                Déjà inscrit{monInscription.tag ? ` · ${monInscription.tag}` : ""}
+                {monInscription.equipe ? ` · ${monInscription.equipe}` : ""}
+              </Text>
+            </View>
+            <Button onPress={() => router.push({ pathname: "/tournoi/[id]/moi", params: { id } })}>Mon tournoi</Button>
           </View>
         ) : tournoi.annule || tournoi.termine || fermees ? (
           <Text style={styles.texteMuted}>Inscriptions closes.</Text>
