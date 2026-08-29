@@ -54,7 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function connexionGoogle(): Promise<ResultatAuth> {
-    const redirectTo = Linking.createURL("/");
+    // Sans argument : produit "tourney://" (double slash). Avec un chemin
+    // ("/"), expo-linking ajoute un slash de plus ("tourney:///"), qui ne
+    // correspond pas à un pattern "tourney://*" (le wildcard simple ne
+    // traverse pas les segments de chemin côté Supabase — il faut "**").
+    const redirectTo = Linking.createURL("");
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: "select_account" } },
