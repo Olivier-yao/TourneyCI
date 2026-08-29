@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
   tournoiParId,
@@ -49,9 +49,15 @@ export default function TournoiDetailScreen() {
     if (t?.type === "equipes") setEquipesProfil(await equipesProfilDontChef());
   }, [id]);
 
-  useEffect(() => {
-    charger();
-  }, [charger]);
+  // useFocusEffect (pas useEffect) : places/statut changent sans action
+  // locale (autre inscrit, clôture organisateur) et cet écran reste souvent
+  // ouvert en arrière-plan (retour depuis "Mon tournoi") — mêmes raisons
+  // que l'Accueil.
+  useFocusEffect(
+    useCallback(() => {
+      charger();
+    }, [charger]),
+  );
 
   function surClicInscription() {
     setErreur(null);

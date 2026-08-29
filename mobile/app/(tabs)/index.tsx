@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Pressable } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { listerTournois, type Tournoi } from "@/lib/tournois";
 import { formatXof } from "@/lib/format";
 import { theme } from "@/theme";
@@ -15,9 +15,17 @@ export default function AccueilScreen() {
     setTournois(await listerTournois());
   }, []);
 
-  useEffect(() => {
-    charger();
-  }, [charger]);
+  // useFocusEffect (pas useEffect) : les tournois listés ici changent d'état
+  // en continu (places, en_direct, termine) sans qu'aucune action locale ne
+  // le déclenche (ex. l'organisateur clôture, un autre joueur s'inscrit) —
+  // sans ça, un onglet resté monté en arrière-plan affiche des données
+  // périmées en y revenant (repli SUR le focus plutôt qu'un sondage
+  // permanent, cf. mobile Fondations : pas de Realtime pour cet incrément).
+  useFocusEffect(
+    useCallback(() => {
+      charger();
+    }, [charger]),
+  );
 
   async function surRafraichir() {
     setRafraichissement(true);
