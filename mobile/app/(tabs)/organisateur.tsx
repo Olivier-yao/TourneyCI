@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { mesTournoisOrganises } from "@/lib/organisateur";
 import { formatXof } from "@/lib/format";
 import { type Tournoi } from "@/lib/tournois";
@@ -44,7 +45,14 @@ export default function OrganisateurScreen() {
       contentContainerStyle={styles.contenu}
       data={sections}
       keyExtractor={(s) => s.titre}
-      ListHeaderComponent={<Text style={styles.entete}>Mes tournois</Text>}
+      ListHeaderComponent={
+        <View style={styles.entete}>
+          <Text style={styles.titre}>Mes tournois</Text>
+          <Pressable style={styles.boutonAjout} onPress={() => router.push("/organisateur/nouveau")}>
+            <Ionicons name="add" size={22} color={theme.color.accent300} />
+          </Pressable>
+        </View>
+      }
       ListEmptyComponent={<Text style={styles.texteMuted}>Tu n'organises aucun tournoi pour l'instant.</Text>}
       renderItem={({ item }) => (
         <View style={styles.section}>
@@ -74,7 +82,17 @@ const styles = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: theme.color.bg },
   centre: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.color.bg },
   contenu: { padding: 20, gap: 8 },
-  entete: { color: theme.color.text, fontSize: 24, fontWeight: "700", marginBottom: 12 },
+  entete: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  titre: { color: theme.color.text, fontSize: 24, fontWeight: "700" },
+  boutonAjout: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: theme.color.accent,
+  },
   texteMuted: { color: theme.color.muted, fontSize: 13 },
   section: { marginBottom: 20, gap: 8 },
   titreSection: { color: theme.color.textMuted, fontSize: 12, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },

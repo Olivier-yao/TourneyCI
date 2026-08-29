@@ -36,6 +36,7 @@ function RootNavigator() {
         <Stack.Screen name="match/[id]/index" options={{ presentation: "card" }} />
         <Stack.Screen name="organisateur/[id]/gestion" options={{ presentation: "card" }} />
         <Stack.Screen name="organisateur/[id]/scores" options={{ presentation: "card" }} />
+        <Stack.Screen name="organisateur/nouveau" options={{ presentation: "modal" }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!session}>
