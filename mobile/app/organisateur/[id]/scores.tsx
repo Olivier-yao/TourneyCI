@@ -133,7 +133,7 @@ export default function ScoresScreen() {
                   match={m}
                   saisie={saisie(m)}
                   peutDemarrer={m.statut === "a_venir" && !!m.joueur1 && !!m.joueur2 && !matchEnCoursId}
-                  bloque={m.statut === "en_cours" && matchEnCoursId !== m.id}
+                  bloque={m.statut === "a_venir" && !!m.joueur1 && !!m.joueur2 && !!matchEnCoursId && matchEnCoursId !== m.id}
                   enCours={enCoursId === m.id}
                   confirmation={confirmationId === m.id}
                   onAjuster={(cote, delta) => ajuster(m, cote, delta)}
