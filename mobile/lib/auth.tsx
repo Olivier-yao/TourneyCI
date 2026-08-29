@@ -65,10 +65,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) return { ok: false, erreur: error.message };
 
-    const resultat = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-    if (resultat.type !== "success") return { ok: false, erreur: "" };
+    // openAuthSessionAsync a une race condition connue sur Android (source
+    // expo-web-browser : _openAuthSessionPolyfillAsync fait un Promise.race
+    // entre l'evenement Linking "url" et l'AppState qui repasse "active") —
+    // le retour au premier plan peut être détecté avant l'événement de
+    // redirection, auquel cas la fonction résout "dismiss" avec le code
+    // pourtant bien livré juste après. On écoute donc soi-même l'événement
+    // Linking en parallèle, sans se fier uniquement au retour de la fonction.
+    const urlDeRetour = await new Promise<string | null>((resolve) => {
+      let terminee = false;
+      const finir = (url: string | null) => {
+        if (terminee) return;
+        terminee = true;
+        abonnement.remove();
+        resolve(url);
+      };
+      const abonnement = Linking.addEventListener("url", (evenement) => {
+        if (evenement.url.startsWith(redirectTo)) finir(evenement.url);
+      });
+      WebBrowser.openAuthSessionAsync(data.url, redirectTo).then((resultat) => {
+        if (resultat.type === "success") finir(resultat.url);
+        else setTimeout(() => finir(null), 1500);
+      });
+    });
+    if (!urlDeRetour) return { ok: false, erreur: "" };
 
-    const { queryParams } = Linking.parse(resultat.url);
+    const { queryParams } = Linking.parse(urlDeRetour);
     const code = queryParams?.code;
     if (queryParams?.error || !code) return { ok: false, erreur: "La connexion Google a échoué." };
 
