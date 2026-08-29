@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from "react-native";
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -124,7 +124,7 @@ export default function TournoiDetailScreen() {
   const estBattleRoyaleEquipe = tournoi.type === "battle_royale" && tournoi.brSousType && tournoi.brSousType !== "solo";
 
   return (
-    <View style={styles.ecran}>
+    <KeyboardAvoidingView style={styles.ecran} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <AppBar titre={tournoi.titre} />
       <ScrollView contentContainerStyle={styles.contenu}>
         {tournoi.annule && (
@@ -249,7 +249,7 @@ export default function TournoiDetailScreen() {
           </View>
         )}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
