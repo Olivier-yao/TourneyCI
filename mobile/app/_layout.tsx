@@ -34,6 +34,8 @@ function RootNavigator() {
         <Stack.Screen name="tournoi/[id]/bracket" options={{ presentation: "card" }} />
         <Stack.Screen name="tournoi/[id]/chat" options={{ presentation: "card" }} />
         <Stack.Screen name="match/[id]/index" options={{ presentation: "card" }} />
+        <Stack.Screen name="organisateur/[id]/gestion" options={{ presentation: "card" }} />
+        <Stack.Screen name="organisateur/[id]/scores" options={{ presentation: "card" }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!session}>
