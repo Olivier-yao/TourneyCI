@@ -16,5 +16,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Le web (createBrowserClient de @supabase/ssr) est en PKCE par défaut
+    // et son /auth/callback fait exchangeCodeForSession(code) — createClient
+    // seul défaut sur "implicit" (tokens dans le fragment d'URL, jamais un
+    // "code"), ce qui cassait silencieusement connexionGoogle() côté mobile.
+    flowType: "pkce",
   },
 });
